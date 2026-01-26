@@ -205,23 +205,30 @@ See `.env.example` for template.
 ## Search Filters Implementation
 
 ### YouTube API Filters
-- **maxResults**: 1-50 (수집 개수 제한)
-- **regionCode**: 국가 코드 (KR, US, JP, GB, IN 등)
+- **maxResults**: 1-100 (수집 개수 제한)
+  - YouTube API는 한 번에 최대 50개만 반환
+  - 51-100개 요청 시 자동으로 페이지네이션 처리 (`lib/youtube.ts`)
+- **regionCode**: 국가 코드 (KR, US, JP, GB, IN, CN, FR, DE 등)
 - **publishedAfter**: 기간 필터 (1일, 1주일, 1개월, 3개월, 6개월, 1년, 모두)
   - 클라이언트에서 계산하여 ISO 8601 형식으로 전달
-- **order**: 정렬 기준 (relevance, date, viewCount, rating, title)
+- **order**: YouTube API 정렬 기준 (relevance, date, viewCount, rating, title)
 - **videoDuration**: 영상 길이 (any, short, medium, long)
 - **creativeCommons**: CC 라이선스 필터
 
-### Client-Side Filters
-YouTube API가 직접 지원하지 않는 필터는 클라이언트 사이드에서 처리:
-- **minViews**: 최소 조회수 필터 (검색 결과에서 필터링)
-- **minSubscribers**: 최소 구독자 수 필터 (검색 결과에서 필터링)
+### Client-Side Sorting
+검색 결과를 받은 후 클라이언트에서 재정렬:
+- **none**: 정렬 안함 (YouTube API 결과 순서 유지)
+- **views**: 조회수 높은순
+- **subscribers**: 구독자수 높은순
+- **performance**: 성과도 높은순 (performanceRatio)
+- **engagement**: 참여율 높은순 (engagementRate)
+- **likes**: 좋아요 많은순
+- **comments**: 댓글 많은순
 
 `app/page.tsx`의 `SearchSection`에서:
 1. YouTube API로 영상 검색 → `allVideos` 저장
-2. 클라이언트 필터 적용 → `videos` 업데이트
-3. `minViews`, `minSubscribers` 변경 시 자동 재필터링 (useEffect)
+2. 클라이언트 정렬 적용 → `videos` 업데이트
+3. `sortBy` 변경 시 자동 재정렬 (useEffect, API 재호출 불필요)
 
 ## Lessons Learned
 
@@ -230,8 +237,9 @@ YouTube API가 직접 지원하지 않는 필터는 클라이언트 사이드에
 - Gemini API 응답은 항상 JSON으로 오지 않으므로 regex fallback 필요
 - 채널 API는 50개 제한이 있어 chunking 필수
 - `data/` 및 `downloads/` 폴더는 .gitignore에 포함 (런타임 생성)
-- **YouTube API는 조회수/구독자 수 직접 필터링을 지원하지 않음** - 클라이언트 사이드 필터링 필요
 - 기간 필터는 `publishedAfter`로 구현 (현재 시간 - N일을 ISO 8601 형식으로 계산)
+- **YouTube API 페이지네이션**: 51-100개 요청 시 `nextPageToken`으로 자동 페이징
+- **클라이언트 정렬**: YouTube API 결과를 받은 후 성과도, 참여율 등 계산된 지표로 재정렬 가능
 
 ## Future Expansion Points
 

@@ -197,10 +197,9 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }:
     regionCode: 'KR',
   });
   const [timePeriod, setTimePeriod] = useState<string>('all'); // all, 1d, 1w, 1m, 3m, 6m, 1y
-  const [minViews, setMinViews] = useState<string>('');
-  const [minSubscribers, setMinSubscribers] = useState<string>('');
+  const [sortBy, setSortBy] = useState<string>('none'); // none, views, subscribers, performance, engagement, likes, comments
   const [videos, setVideos] = useState<EnrichedVideo[]>([]);
-  const [allVideos, setAllVideos] = useState<EnrichedVideo[]>([]); // For client-side filtering
+  const [allVideos, setAllVideos] = useState<EnrichedVideo[]>([]); // For client-side sorting
   const [loading, setLoading] = useState(false);
 
   // Calculate publishedAfter based on time period
@@ -246,34 +245,49 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }:
 
       if (data.videos) {
         setAllVideos(data.videos);
-        applyClientFilters(data.videos);
+        applySorting(data.videos, sortBy);
       }
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
-  // Apply client-side filters (views, subscribers)
-  const applyClientFilters = (videoList: EnrichedVideo[]) => {
-    let filtered = [...videoList];
+  // Apply client-side sorting
+  const applySorting = (videoList: EnrichedVideo[], sortType: string) => {
+    let sorted = [...videoList];
 
-    if (minViews && !isNaN(Number(minViews))) {
-      const minViewCount = Number(minViews);
-      filtered = filtered.filter(v => v.viewCount >= minViewCount);
+    switch (sortType) {
+      case 'views':
+        sorted.sort((a, b) => b.viewCount - a.viewCount);
+        break;
+      case 'subscribers':
+        sorted.sort((a, b) => b.subscriberCount - a.subscriberCount);
+        break;
+      case 'performance':
+        sorted.sort((a, b) => b.performanceRatio - a.performanceRatio);
+        break;
+      case 'engagement':
+        sorted.sort((a, b) => b.engagementRate - a.engagementRate);
+        break;
+      case 'likes':
+        sorted.sort((a, b) => b.likeCount - a.likeCount);
+        break;
+      case 'comments':
+        sorted.sort((a, b) => b.commentCount - a.commentCount);
+        break;
+      case 'none':
+      default:
+        // No sorting - keep original order
+        break;
     }
 
-    if (minSubscribers && !isNaN(Number(minSubscribers))) {
-      const minSubCount = Number(minSubscribers);
-      filtered = filtered.filter(v => v.subscriberCount >= minSubCount);
-    }
-
-    setVideos(filtered);
+    setVideos(sorted);
   };
 
-  // Re-apply client filters when filter values change
+  // Re-apply sorting when sort option changes
   useEffect(() => {
     if (allVideos.length > 0) {
-      applyClientFilters(allVideos);
+      applySorting(allVideos, sortBy);
     }
-  }, [minViews, minSubscribers]);
+  }, [sortBy]);
 
   return (
     <div className="space-y-6">
@@ -354,14 +368,15 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }:
                 <option value="20">20개</option>
                 <option value="30">30개</option>
                 <option value="50">50개</option>
+                <option value="100">100개</option>
               </select>
             </div>
           </div>
 
           {/* 정렬 및 필터 */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">정렬 기준</label>
+              <label className="text-sm font-medium mb-2 block">YouTube API 정렬</label>
               <select
                 className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
                 value={filters.order}
@@ -376,23 +391,20 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }:
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">최소 조회수</label>
-              <Input
-                type="number"
-                placeholder="예: 10000"
-                value={minViews}
-                onChange={(e) => setMinViews(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-2 block">최소 구독자 수</label>
-              <Input
-                type="number"
-                placeholder="예: 1000"
-                value={minSubscribers}
-                onChange={(e) => setMinSubscribers(e.target.value)}
-              />
+              <label className="text-sm font-medium mb-2 block">결과 정렬</label>
+              <select
+                className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="none">정렬 안함</option>
+                <option value="views">조회수 높은순</option>
+                <option value="subscribers">구독자수 높은순</option>
+                <option value="performance">성과도 높은순</option>
+                <option value="engagement">참여율 높은순</option>
+                <option value="likes">좋아요 많은순</option>
+                <option value="comments">댓글 많은순</option>
+              </select>
             </div>
 
             <div className="flex items-end">
@@ -411,9 +423,9 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }:
           {/* 검색 버튼 및 결과 */}
           <div className="flex justify-between items-center pt-2">
             <div className="text-sm text-slate-500">
-              {allVideos.length > 0 && (
+              {videos.length > 0 && (
                 <span>
-                  총 {allVideos.length}개 중 {videos.length}개 표시
+                  총 {videos.length}개 영상
                 </span>
               )}
             </div>

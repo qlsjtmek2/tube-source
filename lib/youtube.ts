@@ -13,7 +13,7 @@ export interface VideoSearchFilters {
   videoDuration?: 'any' | 'long' | 'medium' | 'short';
   order?: 'date' | 'rating' | 'relevance' | 'title' | 'videoCount' | 'viewCount';
   creativeCommons?: boolean;
-  maxResults?: number; // 1-50
+  maxResults?: number; // 1-100 (paginated internally)
 }
 
 export interface EnrichedVideo {
@@ -44,31 +44,47 @@ export interface EnrichedVideo {
 
 export async function searchVideos(filters: VideoSearchFilters): Promise<EnrichedVideo[]> {
   try {
-    // 1. Search for video IDs
-    const maxResults = filters.maxResults && filters.maxResults >= 1 && filters.maxResults <= 50
+    const targetMaxResults = filters.maxResults && filters.maxResults >= 1 && filters.maxResults <= 100
       ? filters.maxResults
       : 50;
 
-    const searchRes = await youtube.search.list({
-      part: ['snippet'],
-      q: filters.q,
-      type: ['video'],
-      publishedAfter: filters.publishedAfter,
-      publishedBefore: filters.publishedBefore,
-      regionCode: filters.regionCode,
-      videoDuration: filters.videoDuration,
-      order: filters.order,
-      videoLicense: filters.creativeCommons ? 'creativeCommon' : 'any',
-      maxResults,
-    });
+    // YouTube API max is 50 per call, so we need to paginate for 51-100
+    const allItems: any[] = [];
+    let pageToken: string | undefined = undefined;
+    const perPage = 50;
 
-    console.log(`[YouTube Search] Query: ${filters.q}, Items found: ${searchRes.data.items?.length}`);
+    while (allItems.length < targetMaxResults) {
+      const remaining = targetMaxResults - allItems.length;
+      const currentMaxResults = Math.min(remaining, perPage);
 
-    const items = searchRes.data.items || [];
-    if (items.length === 0) return [];
+      const searchRes = await youtube.search.list({
+        part: ['snippet'],
+        q: filters.q,
+        type: ['video'],
+        publishedAfter: filters.publishedAfter,
+        publishedBefore: filters.publishedBefore,
+        regionCode: filters.regionCode,
+        videoDuration: filters.videoDuration,
+        order: filters.order,
+        videoLicense: filters.creativeCommons ? 'creativeCommon' : 'any',
+        maxResults: currentMaxResults,
+        pageToken,
+      });
 
-    const videoIds = items.map(item => item.id?.videoId).filter(Boolean) as string[];
-    const channelIds = [...new Set(items.map(item => item.snippet?.channelId).filter(Boolean) as string[])];
+      const items = searchRes.data.items || [];
+      allItems.push(...items);
+
+      console.log(`[YouTube Search] Fetched ${items.length} items (total: ${allItems.length}/${targetMaxResults})`);
+
+      // Check if we have more pages
+      pageToken = searchRes.data.nextPageToken as string | undefined;
+      if (!pageToken || items.length === 0) break;
+    }
+
+    if (allItems.length === 0) return [];
+
+    const videoIds = allItems.map(item => item.id?.videoId).filter(Boolean) as string[];
+    const channelIds = [...new Set(allItems.map(item => item.snippet?.channelId).filter(Boolean) as string[])];
 
     console.log(`[YouTube Search] Extracted Video IDs: ${videoIds.length}`);
 
