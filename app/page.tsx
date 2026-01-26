@@ -1,65 +1,381 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Search, Youtube, Download, BarChart2, List, Settings, Loader2, Trash2, ExternalLink, TrendingUp } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { VideoList } from '@/components/video-list';
+import { DownloadDialog } from '@/components/download-dialog';
+import { AnalysisDialog } from '@/components/analysis-dialog';
+import { EnrichedVideo, VideoSearchFilters } from '@/lib/youtube';
+import { SavedChannel } from '@/lib/storage';
 
 export default function Home() {
+  const [activeTab, setActiveTab] = useState('search');
+  const [savedChannels, setSavedChannels] = useState<SavedChannel[]>([]);
+  const [selectedVideoForDownload, setSelectedVideoForDownload] = useState<{ id: string; title: string } | null>(null);
+  
+  const [selectedVideoForAnalysis, setSelectedVideoForAnalysis] = useState<EnrichedVideo | null>(null);
+  const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
+
+  useEffect(() => {
+    fetchSavedChannels();
+  }, []);
+
+  const fetchSavedChannels = async () => {
+    try {
+      const res = await fetch('/api/channels');
+      const data = await res.json();
+      if (data.channels) setSavedChannels(data.channels);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleToggleSave = async (channel: any) => {
+    const isSaved = savedChannels.some(c => c.channelId === channel.channelId);
+    const action = isSaved ? 'remove' : 'save';
+    
+    try {
+      const res = await fetch('/api/channels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action, 
+          channel: { ...channel, addedAt: new Date().toISOString() } 
+        }),
+      });
+      const data = await res.json();
+      if (data.channels) setSavedChannels(data.channels);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleAnalyze = async (video: EnrichedVideo) => {
+    setSelectedVideoForAnalysis(video);
+    setIsAnalysisOpen(true);
+    setAnalysisResult(null);
+
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(video),
+      });
+      const data = await res.json();
+      setAnalysisResult(data.analysis);
+    } catch (e) {
+      console.error(e);
+      setAnalysisResult({ error: "분석 중 오류가 발생했습니다." });
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-900">
+      {/* Sidebar */}
+      <aside className="w-64 bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 hidden md:flex flex-col">
+        <div className="p-6">
+          <h1 className="text-xl font-bold flex items-center gap-2 text-red-600">
+            <Youtube className="w-6 h-6" />
+            TubeSource
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+        <ScrollArea className="flex-1 px-4">
+          <nav className="space-y-2">
+            <Button 
+              variant={activeTab === 'search' ? 'secondary' : 'ghost'} 
+              className="w-full justify-start" 
+              onClick={() => setActiveTab('search')}
+            >
+              <Search className="mr-2 h-4 w-4" />
+              영상 검색
+            </Button>
+            <Button 
+              variant={activeTab === 'channels' ? 'secondary' : 'ghost'} 
+              className="w-full justify-start"
+              onClick={() => setActiveTab('channels')}
+            >
+              <List className="mr-2 h-4 w-4" />
+              관심 채널
+            </Button>
+            <Button 
+              variant={activeTab === 'trends' ? 'secondary' : 'ghost'} 
+              className="w-full justify-start"
+              onClick={() => setActiveTab('trends')}
+            >
+              <BarChart2 className="mr-2 h-4 w-4" />
+              트렌드 & 인사이트
+            </Button>
+            <Button 
+              variant={activeTab === 'downloads' ? 'secondary' : 'ghost'} 
+              className="w-full justify-start"
+              onClick={() => setActiveTab('downloads')}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              다운로드
+            </Button>
+          </nav>
+        </ScrollArea>
+        <div className="p-4 border-t">
+          <Button variant="ghost" className="w-full justify-start">
+            <Settings className="mr-2 h-4 w-4" />
+            설정
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 min-w-0 flex flex-col relative bg-slate-50 dark:bg-slate-900">
+        <header className="h-16 border-b bg-white dark:bg-slate-950 flex items-center justify-between px-6 shrink-0 z-20">
+          <h2 className="text-lg font-semibold capitalize">
+            {activeTab === 'search' ? '영상 검색' : activeTab === 'channels' ? '관심 채널' : activeTab === 'trends' ? '트렌드 & 인사이트' : activeTab}
+          </h2>
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-slate-500">
+              저장된 채널: <Badge variant="secondary">{savedChannels.length}</Badge>
+            </div>
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+          {activeTab === 'search' && (
+            <SearchSection 
+              savedChannelIds={savedChannels.map(c => c.channelId)} 
+              onToggleSave={handleToggleSave} 
+              onDownload={(v) => setSelectedVideoForDownload(v)}
+              onAnalyze={handleAnalyze}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          )}
+          {activeTab === 'channels' && (
+            <ChannelsSection 
+              channels={savedChannels} 
+              onRemove={(id) => handleToggleSave({ channelId: id })} 
+            />
+          )}
+          {activeTab === 'trends' && (
+            <TrendsSection 
+              savedChannelIds={savedChannels.map(c => c.channelId)} 
+              onToggleSave={handleToggleSave} 
+              onDownload={(v) => setSelectedVideoForDownload(v)}
+              onAnalyze={handleAnalyze}
+            />
+          )}
+          {activeTab === 'downloads' && (
+            <div className="text-center text-slate-500 mt-20">다운로드 기능 준비 중</div>
+          )}
         </div>
       </main>
+
+      <DownloadDialog 
+        video={selectedVideoForDownload} 
+        isOpen={!!selectedVideoForDownload} 
+        onClose={() => setSelectedVideoForDownload(null)} 
+      />
+
+      <AnalysisDialog 
+        analysis={analysisResult}
+        isOpen={isAnalysisOpen}
+        onClose={() => setIsAnalysisOpen(false)}
+        videoTitle={selectedVideoForAnalysis?.title}
+      />
+    </div>
+  );
+}
+
+function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }: { 
+  savedChannelIds: string[], 
+  onToggleSave: (c: any) => void,
+  onDownload: (v: any) => void,
+  onAnalyze: (v: EnrichedVideo) => void
+}) {
+  const [query, setQuery] = useState('');
+  const [filters, setFilters] = useState<Partial<VideoSearchFilters>>({
+    videoDuration: 'any',
+    order: 'relevance',
+  });
+  const [videos, setVideos] = useState<EnrichedVideo[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const handleSearch = async () => {
+    if (!query.trim()) return;
+    setLoading(true);
+    setVideos([]);
+    try {
+      const res = await fetch('/api/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filters: { q: query, ...filters } }),
+      });
+      const data = await res.json();
+      if (data.videos) setVideos(data.videos);
+    } catch (e) { console.error(e); } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader><CardTitle>필터</CardTitle></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Input 
+              placeholder="검색어 입력..." 
+              className="md:col-span-2" 
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            />
+            <select 
+              className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
+              value={filters.videoDuration}
+              onChange={(e) => setFilters({...filters, videoDuration: e.target.value as any})}
+            >
+              <option value="any">모든 길이</option>
+              <option value="short">쇼츠 (&lt; 4분)</option>
+              <option value="medium">미디엄 (4-20분)</option>
+              <option value="long">롱폼 (&gt; 20분)</option>
+            </select>
+            <select 
+              className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
+              value={filters.order}
+              onChange={(e) => setFilters({...filters, order: e.target.value as any})}
+            >
+              <option value="relevance">관련성순</option>
+              <option value="date">최신순</option>
+              <option value="viewCount">조회수순</option>
+              <option value="rating">평점순</option>
+            </select>
+          </div>
+          <div className="mt-4 flex justify-between items-center">
+             <label className="flex items-center gap-2 text-sm text-slate-500 cursor-pointer">
+               <input 
+                 type="checkbox" 
+                 checked={filters.creativeCommons || false}
+                 onChange={(e) => setFilters({...filters, creativeCommons: e.target.checked})}
+               /> 크리에이티브 커먼즈
+             </label>
+             <Button onClick={handleSearch} disabled={loading}>
+               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+               영상 검색
+             </Button>
+          </div>
+        </CardContent>
+      </Card>
+      <VideoList 
+        videos={videos} 
+        loading={loading} 
+        savedChannelIds={savedChannelIds} 
+        onToggleSave={onToggleSave} 
+        onDownload={onDownload}
+        onAnalyze={onAnalyze}
+      />
+    </div>
+  );
+}
+
+function ChannelsSection({ channels, onRemove }: { channels: SavedChannel[], onRemove: (id: string) => void }) {
+  return (
+    <div className="space-y-4">
+      {channels.length === 0 ? (
+        <div className="text-center py-20 text-slate-500">저장된 채널이 없습니다. 검색 결과에서 별 아이콘을 클릭해 추가해보세요.</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {channels.map(channel => (
+            <Card key={channel.channelId} className="flex items-center p-4 gap-4">
+              <div className="w-12 h-12 rounded-full bg-slate-200 overflow-hidden flex-shrink-0">
+                {channel.thumbnail ? <img src={channel.thumbnail} alt="" /> : <Youtube className="w-full h-full p-3 text-slate-400" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-sm truncate">{channel.channelTitle}</h3>
+                <p className="text-[10px] text-slate-400">추가일: {new Date(channel.addedAt).toLocaleDateString()}</p>
+              </div>
+              <div className="flex gap-1">
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-red-500" onClick={() => onRemove(channel.channelId)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400" asChild>
+                  <a href={`https://youtube.com/channel/${channel.channelId}`} target="_blank" rel="noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TrendsSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }: { 
+  savedChannelIds: string[], 
+  onToggleSave: (c: any) => void,
+  onDownload: (v: any) => void,
+  onAnalyze: (v: EnrichedVideo) => void
+}) {
+  const [regionCode, setRegionCode] = useState('KR');
+  const [categoryId, setCategoryId] = useState('0');
+  const [videos, setVideos] = useState<EnrichedVideo[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchTrends();
+  }, [regionCode, categoryId]);
+
+  const fetchTrends = async () => {
+    setLoading(true);
+    setVideos([]);
+    try {
+      const res = await fetch(`/api/trends?regionCode=${regionCode}&videoCategoryId=${categoryId}`);
+      const data = await res.json();
+      if (data.videos) setVideos(data.videos);
+    } catch (e) { console.error(e); } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 text-red-500" />
+          <h2 className="text-lg font-bold">실시간 인기 동영상</h2>
+        </div>
+        <div className="flex gap-2">
+           <select 
+              className="h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
+              value={regionCode}
+              onChange={(e) => setRegionCode(e.target.value)}
+            >
+              <option value="KR">🇰🇷 한국</option>
+              <option value="US">🇺🇸 미국</option>
+              <option value="JP">🇯🇵 일본</option>
+              <option value="GB">🇬🇧 영국</option>
+              <option value="IN">🇮🇳 인도</option>
+            </select>
+            <select 
+              className="h-10 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+            >
+              <option value="0">모든 카테고리</option>
+              <option value="10">🎵 음악</option>
+              <option value="20">🎮 게임</option>
+              <option value="1">🎬 영화/애니</option>
+              <option value="17">⚽ 스포츠</option>
+              <option value="23">🤣 코미디</option>
+              <option value="25">📰 뉴스/정치</option>
+              <option value="24">📺 엔터테인먼트</option>
+            </select>
+        </div>
+      </div>
+
+      <VideoList 
+        videos={videos} 
+        loading={loading} 
+        savedChannelIds={savedChannelIds} 
+        onToggleSave={onToggleSave} 
+        onDownload={onDownload}
+        onAnalyze={onAnalyze}
+      />
     </div>
   );
 }
