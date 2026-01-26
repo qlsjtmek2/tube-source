@@ -89,20 +89,31 @@ export async function searchVideos(filters: VideoSearchFilters): Promise<Enriche
     console.log(`[YouTube Search] Extracted Video IDs: ${videoIds.length}`);
 
     // 2. Fetch Video Details (Stats, Duration, ContentDetails)
-    // join(',') is safer for googleapis
-    const videoRes = await youtube.videos.list({
-      part: ['snippet', 'contentDetails', 'statistics'],
-      id: videoIds, 
-    });
-    
-    console.log(`[YouTube Search] Video Details found: ${videoRes.data.items?.length}`);
-    
+    // YouTube API allows max 50 ids per call. Handle chunking if > 50.
+    const allVideoItems: youtube_v3.Schema$Video[] = [];
+    const chunkSize = 50;
+
+    for (let i = 0; i < videoIds.length; i += chunkSize) {
+      const chunk = videoIds.slice(i, i + chunkSize);
+      try {
+        const videoRes = await youtube.videos.list({
+          part: ['snippet', 'contentDetails', 'statistics'],
+          id: chunk,
+        });
+        const items = videoRes.data.items || [];
+        allVideoItems.push(...items);
+      } catch (e) {
+        console.error('[YouTube Search] Video fetch error:', e);
+      }
+    }
+
+    console.log(`[YouTube Search] Video Details found: ${allVideoItems.length}`);
+
     // 3. Fetch Channel Details (Stats)
     // YouTube API allows max 50 ids per call. Handle chunking if > 50.
     let channelsMap: Record<string, youtube_v3.Schema$Channel> = {};
     if (channelIds.length > 0) {
       // Chunk channel IDs into batches of 50
-      const chunkSize = 50;
       for (let i = 0; i < channelIds.length; i += chunkSize) {
         const chunk = channelIds.slice(i, i + chunkSize);
         try {
@@ -123,8 +134,8 @@ export async function searchVideos(filters: VideoSearchFilters): Promise<Enriche
 
     // 4. Merge Data
     const enrichedVideos: EnrichedVideo[] = [];
-    
-    const videoItems = videoRes.data.items || [];
+
+    const videoItems = allVideoItems;
     
     for (const video of videoItems) {
       if (!video.id || !video.snippet || !video.statistics) continue;
