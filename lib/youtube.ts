@@ -83,10 +83,11 @@ export async function searchVideos(filters: VideoSearchFilters): Promise<Enriche
 
     if (allItems.length === 0) return [];
 
-    const videoIds = allItems.map(item => item.id?.videoId).filter(Boolean) as string[];
+    // Remove duplicate video IDs (can happen with pagination)
+    const videoIds = [...new Set(allItems.map(item => item.id?.videoId).filter(Boolean) as string[])];
     const channelIds = [...new Set(allItems.map(item => item.snippet?.channelId).filter(Boolean) as string[])];
 
-    console.log(`[YouTube Search] Extracted Video IDs: ${videoIds.length}`);
+    console.log(`[YouTube Search] Extracted Video IDs: ${videoIds.length} (deduplicated)`);
 
     // 2. Fetch Video Details (Stats, Duration, ContentDetails)
     // YouTube API allows max 50 ids per call. Handle chunking if > 50.
