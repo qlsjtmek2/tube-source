@@ -193,7 +193,7 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }:
   const [filters, setFilters] = useState<Partial<VideoSearchFilters>>({
     videoDuration: 'any',
     order: 'relevance',
-    maxResults: 50,
+    maxResults: 100,
     regionCode: 'KR',
   });
   const [timePeriod, setTimePeriod] = useState<string>('all'); // all, 1d, 1w, 1m, 3m, 6m, 1y
@@ -373,8 +373,8 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }:
             </div>
           </div>
 
-          {/* 정렬 및 필터 */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* YouTube API 정렬 및 옵션 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium mb-2 block">YouTube API 정렬</label>
               <select
@@ -387,23 +387,6 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }:
                 <option value="viewCount">조회수순</option>
                 <option value="rating">평점순</option>
                 <option value="title">제목순</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-2 block">결과 정렬</label>
-              <select
-                className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-              >
-                <option value="none">정렬 안함</option>
-                <option value="views">조회수 높은순</option>
-                <option value="subscribers">구독자수 높은순</option>
-                <option value="performance">성과도 높은순</option>
-                <option value="engagement">참여율 높은순</option>
-                <option value="likes">좋아요 많은순</option>
-                <option value="comments">댓글 많은순</option>
               </select>
             </div>
 
@@ -437,11 +420,74 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }:
           </div>
         </CardContent>
       </Card>
-      <VideoList 
-        videos={videos} 
-        loading={loading} 
-        savedChannelIds={savedChannelIds} 
-        onToggleSave={onToggleSave} 
+
+      {/* 결과 정렬 버튼 */}
+      {allVideos.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">결과 정렬</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={sortBy === 'none' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSortBy('none')}
+              >
+                정렬 안함
+              </Button>
+              <Button
+                variant={sortBy === 'views' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSortBy('views')}
+              >
+                조회수 높은순
+              </Button>
+              <Button
+                variant={sortBy === 'subscribers' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSortBy('subscribers')}
+              >
+                구독자수 높은순
+              </Button>
+              <Button
+                variant={sortBy === 'performance' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSortBy('performance')}
+              >
+                성과도 높은순
+              </Button>
+              <Button
+                variant={sortBy === 'engagement' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSortBy('engagement')}
+              >
+                참여율 높은순
+              </Button>
+              <Button
+                variant={sortBy === 'likes' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSortBy('likes')}
+              >
+                좋아요 많은순
+              </Button>
+              <Button
+                variant={sortBy === 'comments' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSortBy('comments')}
+              >
+                댓글 많은순
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <VideoList
+        videos={videos}
+        loading={loading}
+        savedChannelIds={savedChannelIds}
+        onToggleSave={onToggleSave}
         onDownload={onDownload}
         onAnalyze={onAnalyze}
       />
