@@ -13,6 +13,7 @@ export interface VideoSearchFilters {
   videoDuration?: 'any' | 'long' | 'medium' | 'short';
   order?: 'date' | 'rating' | 'relevance' | 'title' | 'videoCount' | 'viewCount';
   creativeCommons?: boolean;
+  maxResults?: number; // 1-50
 }
 
 export interface EnrichedVideo {
@@ -44,6 +45,10 @@ export interface EnrichedVideo {
 export async function searchVideos(filters: VideoSearchFilters): Promise<EnrichedVideo[]> {
   try {
     // 1. Search for video IDs
+    const maxResults = filters.maxResults && filters.maxResults >= 1 && filters.maxResults <= 50
+      ? filters.maxResults
+      : 50;
+
     const searchRes = await youtube.search.list({
       part: ['snippet'],
       q: filters.q,
@@ -54,7 +59,7 @@ export async function searchVideos(filters: VideoSearchFilters): Promise<Enriche
       videoDuration: filters.videoDuration,
       order: filters.order,
       videoLicense: filters.creativeCommons ? 'creativeCommon' : 'any',
-      maxResults: 50,
+      maxResults,
     });
 
     console.log(`[YouTube Search] Query: ${filters.q}, Items found: ${searchRes.data.items?.length}`);

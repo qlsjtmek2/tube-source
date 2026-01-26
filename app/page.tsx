@@ -17,14 +17,10 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('search');
   const [savedChannels, setSavedChannels] = useState<SavedChannel[]>([]);
   const [selectedVideoForDownload, setSelectedVideoForDownload] = useState<{ id: string; title: string } | null>(null);
-  
+
   const [selectedVideoForAnalysis, setSelectedVideoForAnalysis] = useState<EnrichedVideo | null>(null);
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
-
-  useEffect(() => {
-    fetchSavedChannels();
-  }, []);
 
   const fetchSavedChannels = async () => {
     try {
@@ -33,6 +29,10 @@ export default function Home() {
       if (data.channels) setSavedChannels(data.channels);
     } catch (e) { console.error(e); }
   };
+
+  useEffect(() => {
+    fetchSavedChannels();
+  }, []);
 
   const handleToggleSave = async (channel: any) => {
     const isSaved = savedChannels.some(c => c.channelId === channel.channelId);
@@ -183,8 +183,8 @@ export default function Home() {
   );
 }
 
-function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }: { 
-  savedChannelIds: string[], 
+function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }: {
+  savedChannelIds: string[],
   onToggleSave: (c: any) => void,
   onDownload: (v: any) => void,
   onAnalyze: (v: EnrichedVideo) => void
@@ -193,71 +193,235 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }:
   const [filters, setFilters] = useState<Partial<VideoSearchFilters>>({
     videoDuration: 'any',
     order: 'relevance',
+    maxResults: 50,
+    regionCode: 'KR',
   });
+  const [timePeriod, setTimePeriod] = useState<string>('all'); // all, 1d, 1w, 1m, 3m, 6m, 1y
+  const [minViews, setMinViews] = useState<string>('');
+  const [minSubscribers, setMinSubscribers] = useState<string>('');
   const [videos, setVideos] = useState<EnrichedVideo[]>([]);
+  const [allVideos, setAllVideos] = useState<EnrichedVideo[]>([]); // For client-side filtering
   const [loading, setLoading] = useState(false);
+
+  // Calculate publishedAfter based on time period
+  const getPublishedAfter = (period: string): string | undefined => {
+    if (period === 'all') return undefined;
+
+    const now = new Date();
+    const periods: Record<string, number> = {
+      '1d': 1,
+      '1w': 7,
+      '1m': 30,
+      '3m': 90,
+      '6m': 180,
+      '1y': 365,
+    };
+
+    const daysAgo = periods[period];
+    if (!daysAgo) return undefined;
+
+    const date = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+    return date.toISOString();
+  };
 
   const handleSearch = async () => {
     if (!query.trim()) return;
     setLoading(true);
     setVideos([]);
+    setAllVideos([]);
+
     try {
+      const searchFilters = {
+        q: query,
+        ...filters,
+        publishedAfter: getPublishedAfter(timePeriod),
+      };
+
       const res = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filters: { q: query, ...filters } }),
+        body: JSON.stringify({ filters: searchFilters }),
       });
       const data = await res.json();
-      if (data.videos) setVideos(data.videos);
+
+      if (data.videos) {
+        setAllVideos(data.videos);
+        applyClientFilters(data.videos);
+      }
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
+
+  // Apply client-side filters (views, subscribers)
+  const applyClientFilters = (videoList: EnrichedVideo[]) => {
+    let filtered = [...videoList];
+
+    if (minViews && !isNaN(Number(minViews))) {
+      const minViewCount = Number(minViews);
+      filtered = filtered.filter(v => v.viewCount >= minViewCount);
+    }
+
+    if (minSubscribers && !isNaN(Number(minSubscribers))) {
+      const minSubCount = Number(minSubscribers);
+      filtered = filtered.filter(v => v.subscriberCount >= minSubCount);
+    }
+
+    setVideos(filtered);
+  };
+
+  // Re-apply client filters when filter values change
+  useEffect(() => {
+    if (allVideos.length > 0) {
+      applyClientFilters(allVideos);
+    }
+  }, [minViews, minSubscribers]);
 
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader><CardTitle>필터</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Input 
-              placeholder="검색어 입력..." 
-              className="md:col-span-2" 
+        <CardHeader><CardTitle>검색 필터</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          {/* 검색어 */}
+          <div>
+            <label className="text-sm font-medium mb-2 block">검색어</label>
+            <Input
+              placeholder="검색어 입력..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             />
-            <select 
-              className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
-              value={filters.videoDuration}
-              onChange={(e) => setFilters({...filters, videoDuration: e.target.value as any})}
-            >
-              <option value="any">모든 길이</option>
-              <option value="short">쇼츠 (&lt; 4분)</option>
-              <option value="medium">미디엄 (4-20분)</option>
-              <option value="long">롱폼 (&gt; 20분)</option>
-            </select>
-            <select 
-              className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
-              value={filters.order}
-              onChange={(e) => setFilters({...filters, order: e.target.value as any})}
-            >
-              <option value="relevance">관련성순</option>
-              <option value="date">최신순</option>
-              <option value="viewCount">조회수순</option>
-              <option value="rating">평점순</option>
-            </select>
           </div>
-          <div className="mt-4 flex justify-between items-center">
-             <label className="flex items-center gap-2 text-sm text-slate-500 cursor-pointer">
-               <input 
-                 type="checkbox" 
-                 checked={filters.creativeCommons || false}
-                 onChange={(e) => setFilters({...filters, creativeCommons: e.target.checked})}
-               /> 크리에이티브 커먼즈
-             </label>
-             <Button onClick={handleSearch} disabled={loading}>
-               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-               영상 검색
-             </Button>
+
+          {/* 기본 필터 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">국가</label>
+              <select
+                className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
+                value={filters.regionCode}
+                onChange={(e) => setFilters({...filters, regionCode: e.target.value})}
+              >
+                <option value="">전체 국가</option>
+                <option value="KR">🇰🇷 한국</option>
+                <option value="US">🇺🇸 미국</option>
+                <option value="JP">🇯🇵 일본</option>
+                <option value="GB">🇬🇧 영국</option>
+                <option value="IN">🇮🇳 인도</option>
+                <option value="CN">🇨🇳 중국</option>
+                <option value="FR">🇫🇷 프랑스</option>
+                <option value="DE">🇩🇪 독일</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">영상 길이</label>
+              <select
+                className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
+                value={filters.videoDuration}
+                onChange={(e) => setFilters({...filters, videoDuration: e.target.value as any})}
+              >
+                <option value="any">모든 길이</option>
+                <option value="short">쇼츠 (&lt; 4분)</option>
+                <option value="medium">미디엄 (4-20분)</option>
+                <option value="long">롱폼 (&gt; 20분)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">업로드 기간</label>
+              <select
+                className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
+                value={timePeriod}
+                onChange={(e) => setTimePeriod(e.target.value)}
+              >
+                <option value="all">모든 기간</option>
+                <option value="1d">1일 이내</option>
+                <option value="1w">1주일 이내</option>
+                <option value="1m">1개월 이내</option>
+                <option value="3m">3개월 이내</option>
+                <option value="6m">6개월 이내</option>
+                <option value="1y">1년 이내</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">수집 개수</label>
+              <select
+                className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
+                value={filters.maxResults}
+                onChange={(e) => setFilters({...filters, maxResults: Number(e.target.value)})}
+              >
+                <option value="10">10개</option>
+                <option value="20">20개</option>
+                <option value="30">30개</option>
+                <option value="50">50개</option>
+              </select>
+            </div>
+          </div>
+
+          {/* 정렬 및 필터 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">정렬 기준</label>
+              <select
+                className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
+                value={filters.order}
+                onChange={(e) => setFilters({...filters, order: e.target.value as any})}
+              >
+                <option value="relevance">관련성순</option>
+                <option value="date">최신순</option>
+                <option value="viewCount">조회수순</option>
+                <option value="rating">평점순</option>
+                <option value="title">제목순</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">최소 조회수</label>
+              <Input
+                type="number"
+                placeholder="예: 10000"
+                value={minViews}
+                onChange={(e) => setMinViews(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">최소 구독자 수</label>
+              <Input
+                type="number"
+                placeholder="예: 1000"
+                value={minSubscribers}
+                onChange={(e) => setMinSubscribers(e.target.value)}
+              />
+            </div>
+
+            <div className="flex items-end">
+              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer h-10">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4"
+                  checked={filters.creativeCommons || false}
+                  onChange={(e) => setFilters({...filters, creativeCommons: e.target.checked})}
+                />
+                크리에이티브 커먼즈
+              </label>
+            </div>
+          </div>
+
+          {/* 검색 버튼 및 결과 */}
+          <div className="flex justify-between items-center pt-2">
+            <div className="text-sm text-slate-500">
+              {allVideos.length > 0 && (
+                <span>
+                  총 {allVideos.length}개 중 {videos.length}개 표시
+                </span>
+              )}
+            </div>
+            <Button onClick={handleSearch} disabled={loading} size="lg">
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Search className="mr-2 h-4 w-4" />
+              영상 검색
+            </Button>
           </div>
         </CardContent>
       </Card>
