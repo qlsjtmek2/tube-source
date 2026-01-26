@@ -101,6 +101,7 @@ interface EnrichedVideo {
   title: string;
   channelId: string;
   channelTitle: string;
+  channelThumbnail: string;     // Channel profile picture URL
   viewCount: number;
   subscriberCount: number;
   engagementRate: number;      // ((Likes + Comments) / Views) * 100
@@ -116,7 +117,7 @@ interface VideoSearchFilters {
   videoDuration?: 'any' | 'long' | 'medium' | 'short';
   order?: 'date' | 'rating' | 'relevance' | 'viewCount' | 'title';
   creativeCommons?: boolean;
-  maxResults?: number; // 1-50, default: 50
+  maxResults?: number; // 1-100, default: 100
 }
 ```
 
@@ -136,8 +137,20 @@ See `.env.example` for template.
 
 - Uses `googleapis` library (`google.youtube`)
 - Search API → Videos API → Channels API (3-step enrichment)
-- **Important**: YouTube API allows max 50 IDs per call. Channel fetching is chunked in `lib/youtube.ts:82-99`
-- API quota: 검색 시 약 100 units, 영상 상세 약 1 unit per video
+- **Important**: YouTube API allows max 50 IDs per call
+  - `search.list()`: 페이지네이션으로 100개까지 가능 (50개씩 2번 호출)
+  - `videos.list()`: chunking으로 100개 처리 (50개씩 2번 호출)
+  - `channels.list()`: chunking으로 처리 (50개씩)
+
+#### API Quota Management
+- **Daily Limit**: 10,000 units (무료 tier, 매일 자정 PST 리셋)
+- **Cost per request**:
+  - `search.list()`: 100 units
+  - `videos.list()`: 1 unit
+  - `channels.list()`: 1 unit
+- **Example**: 100개 영상 검색 1회 = 약 204 units (search 200 + videos 2 + channels 2)
+- **Daily capacity**: 약 49회 검색 (100개 기준)
+- 할당량 초과 시 403 에러 발생, 다음날까지 대기 필요
 
 ### Gemini API Usage
 
@@ -225,6 +238,11 @@ See `.env.example` for template.
 - **likes**: 좋아요 많은순
 - **comments**: 댓글 많은순
 
+**UI 구현**: 버튼 그룹 형태로 구현되어 클릭 시 활성화 표시
+- 검색 결과가 있을 때만 표시되는 별도 Card 섹션
+- 선택된 버튼: `variant="default"` (파란색)
+- 비선택 버튼: `variant="outline"` (회색)
+
 `app/page.tsx`의 `SearchSection`에서:
 1. YouTube API로 영상 검색 → `allVideos` 저장
 2. 클라이언트 정렬 적용 → `videos` 업데이트
@@ -235,15 +253,30 @@ See `.env.example` for template.
 - `yt-dlp` 출력 파싱 시 `--newline` 플래그가 필수 (줄바꿈 보장)
 - YouTube API의 `videos.list()`에서 id 배열을 전달할 때 `join(',')`보다 배열로 직접 전달하는 게 안전
 - Gemini API 응답은 항상 JSON으로 오지 않으므로 regex fallback 필요
-- 채널 API는 50개 제한이 있어 chunking 필수
 - `data/` 및 `downloads/` 폴더는 .gitignore에 포함 (런타임 생성)
 - 기간 필터는 `publishedAfter`로 구현 (현재 시간 - N일을 ISO 8601 형식으로 계산)
-- **YouTube API 페이지네이션**: 51-100개 요청 시 `nextPageToken`으로 자동 페이징
-- **클라이언트 정렬**: YouTube API 결과를 받은 후 성과도, 참여율 등 계산된 지표로 재정렬 가능
+
+### YouTube API 최적화
+- **50개 제한**: `search.list()`, `videos.list()`, `channels.list()` 모두 최대 50개 ID 제한
+  - 51-100개 처리 시 모든 API에서 chunking/pagination 필수
+- **페이지네이션**: `nextPageToken`으로 다음 페이지 가져오기
+- **중복 제거**: 페이지네이션 시 같은 영상이 중복될 수 있어 `Set`으로 videoIds 중복 제거 필요
+- **할당량 관리**: 무료 tier는 하루 10,000 units, search.list가 100 units로 가장 비쌈
+  - 개발 중에는 수집 개수를 줄여서 할당량 절약 권장
+
+### 클라이언트 사이드 처리
+- **정렬**: YouTube API 결과를 받은 후 성과도, 참여율 등 계산된 지표로 재정렬 가능
+- **중복 방지**: React key 오류 방지를 위해 videoIds를 Set으로 중복 제거
+
+### 채널 데이터
+- **채널 썸네일**: `channels.list()`에서 `snippet.thumbnails`로 프로필 사진 가져오기
+- 관심 채널 저장 시 썸네일도 함께 저장하여 UI에 표시
 
 ## Future Expansion Points
 
-- 무한 스크롤 구현 (현재는 maxResults: 50 고정)
+- 무한 스크롤 구현 (현재는 최대 100개)
 - 관심 채널 탭에서 특정 채널의 모든 영상 불러오기
 - 다운로드 큐 및 히스토리 관리
 - AI 분석 결과 로컬 저장 및 비교 기능
+- YouTube API 할당량 모니터링 UI
+- 검색 히스토리 및 즐겨찾는 검색 필터 저장
