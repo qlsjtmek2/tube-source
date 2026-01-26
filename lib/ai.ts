@@ -3,10 +3,10 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function analyzeVideoStrategy(videoData: any) {
-  const modelName = "gemini-3-flash-preview";
+  const modelName = "gemini-2.0-flash-exp";
   console.log(`[AI Analysis] Starting analysis with model: ${modelName}`);
-  
-  // Use Gemini 3.0 Flash (Preview)
+
+  // Use Gemini 2.0 Flash (Experimental)
   const model = genAI.getGenerativeModel({ model: modelName });
 
   const prompt = `
