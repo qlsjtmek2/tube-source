@@ -24,19 +24,20 @@ export interface EnrichedVideo {
   publishedAt: string;
   channelId: string;
   channelTitle: string;
-  
+  channelThumbnail: string; // Channel profile picture
+
   // Video Stats
   viewCount: number;
   likeCount: number;
   commentCount: number;
   duration: string;
   caption: boolean; // has caption?
-  
+
   // Channel Stats
   subscriberCount: number;
   channelVideoCount: number;
   channelViewCount: number; // Total channel views
-  
+
   // Derived Metrics
   engagementRate: number; // ((Likes + Comments) / Views) * 100
   performanceRatio: number; // (Video Views / Subscriber Count) * 100 (Simplified proxy for contribution)
@@ -160,17 +161,18 @@ export async function searchVideos(filters: VideoSearchFilters): Promise<Enriche
         publishedAt: video.snippet.publishedAt || '',
         channelId: channelId,
         channelTitle: video.snippet.channelTitle || '',
-        
+        channelThumbnail: channel?.snippet?.thumbnails?.default?.url || channel?.snippet?.thumbnails?.medium?.url || '',
+
         viewCount,
         likeCount,
         commentCount,
         duration: video.contentDetails?.duration || '',
         caption: video.contentDetails?.caption === 'true',
-        
+
         subscriberCount,
         channelVideoCount: Number(channel?.statistics?.videoCount) || 0,
         channelViewCount: Number(channel?.statistics?.viewCount) || 0,
-        
+
         engagementRate: Number(engagementRate.toFixed(2)),
         performanceRatio: Number(performanceRatio.toFixed(2)),
       });

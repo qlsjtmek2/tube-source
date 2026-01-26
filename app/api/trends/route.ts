@@ -74,17 +74,18 @@ export async function GET(req: NextRequest) {
         publishedAt: video.snippet?.publishedAt || '',
         channelId: channelId,
         channelTitle: video.snippet?.channelTitle || '',
-        
+        channelThumbnail: channel?.snippet?.thumbnails?.default?.url || channel?.snippet?.thumbnails?.medium?.url || '',
+
         viewCount,
         likeCount,
         commentCount,
         duration: video.contentDetails?.duration || '',
         caption: video.contentDetails?.caption === 'true',
-        
+
         subscriberCount,
         channelVideoCount: Number(channel?.statistics?.videoCount) || 0,
         channelViewCount: Number(channel?.statistics?.viewCount) || 0,
-        
+
         engagementRate: Number(engagementRate.toFixed(2)),
         performanceRatio: Number(performanceRatio.toFixed(2)),
        };

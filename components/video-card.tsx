@@ -77,13 +77,13 @@ export function VideoCard({ video, isSaved, onToggleSave, onDownload, onAnalyze 
               <span className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer truncate">
                 <User className="w-3 h-3" /> {video.channelTitle}
               </span>
-              <button 
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onToggleSave?.({ 
-                    channelId: video.channelId, 
-                    channelTitle: video.channelTitle, 
-                    thumbnail: '' 
+                  onToggleSave?.({
+                    channelId: video.channelId,
+                    channelTitle: video.channelTitle,
+                    thumbnail: video.channelThumbnail
                   });
                 }}
                 className={`p-1 rounded-full shrink-0 transition-colors ${isSaved ? 'text-yellow-500' : 'text-slate-300 hover:text-yellow-400'}`}
