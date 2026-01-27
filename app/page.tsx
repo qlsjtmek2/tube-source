@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Youtube, Download, BarChart2, List, Settings, Loader2, Trash2, ExternalLink, TrendingUp, Sparkles, Layers, User } from 'lucide-react';
+import { Search, Youtube, Download, BarChart2, List, Settings, Loader2, Trash2, ExternalLink, TrendingUp, Sparkles, Layers, User, FileVideo, Music } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { VideoList } from '@/components/video-list';
 import { DownloadDialog } from '@/components/download-dialog';
@@ -580,17 +581,8 @@ export default function Home() {
             />
           )}
           {activeTab === 'downloads' && (
-            <DownloadsSection 
-              onDownloadUrl={(url) => {
-                setDownloadUrl(url);
-                setIsUrlDownloadOpen(true);
-                setIsBulkMode(false);
-              }}
-              onBulkUrl={(urls) => {
-                setBulkUrls(urls);
-                setIsUrlDownloadOpen(true);
-                setIsBulkMode(true);
-              }}
+            <DownloadsSection
+              onDownloadStart={handleDownloadStart}
               activeDownloads={activeDownloads}
             />
           )}
@@ -1666,103 +1658,117 @@ function ChannelSearchSection({
             );
           }
           
-          function DownloadsSection({ onDownloadUrl, onBulkUrl, activeDownloads }: { 
-            onDownloadUrl: (url: string) => void, 
-            onBulkUrl: (urls: string[]) => void,
-            activeDownloads: any[] 
-          }) {
-            const [inputText, setInputText] = useState('');
-          
-            const extractUrls = (text: string) => {
-              // Regular expression to find YouTube URLs
-              const youtubeRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}(?:[^\s]*))/g;
-              const matches = text.match(youtubeRegex);
-              return matches ? Array.from(new Set(matches)) : [];
-            };
-          
-            const handleSubmit = (e: React.FormEvent) => {
-              e.preventDefault();
-              const urls = extractUrls(inputText);
-              if (urls.length > 1) {
-                onBulkUrl(urls);
-                setInputText('');
-              } else if (urls.length === 1) {
-                onDownloadUrl(urls[0]);
-                setInputText('');
-              }
-            };
-                      return (
-              <div className="max-w-3xl mx-auto space-y-8 py-4">
-                <div className="text-center space-y-2">
-                  <h2 className="text-2xl font-bold">유튜브 링크 일괄 다운로드</h2>
-                  <p className="text-slate-500">여러 개의 링크가 섞인 텍스트를 붙여넣어도 자동으로 유튜브 주소만 추출하여 다운로드합니다.</p>
-                </div>
-          
-                <Card className="border-red-100 dark:border-red-900/30 shadow-md">
-                  <CardContent className="p-4">
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="url">유튜브 링크 (일괄 입력 가능)</Label>
-                        <div className="flex flex-col gap-3">
-                          <textarea
-                            id="url"
-                            placeholder="여러 개의 유튜브 링크를 여기에 붙여넣으세요..."
-                            className="w-full h-32 p-3 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 dark:border-slate-800 dark:bg-slate-950"
-                            value={inputText}
-                            onChange={(e) => setInputText(e.target.value)}
-                          />
-                          <Button type="submit" size="lg" className="w-full h-12 bg-red-600 hover:bg-red-700" disabled={!inputText.trim()}>
-                            <Download className="mr-2 h-5 w-5" />
-                            형식 선택 및 다운로드 시작
-                          </Button>
-                        </div>
+function DownloadsSection({ onDownloadStart, activeDownloads }: {
+  onDownloadStart: (info: any) => void,
+  activeDownloads: any[]
+}) {
+  const [inputText, setInputText] = useState('');
+
+  const extractUrls = (text: string) => {
+    const youtubeRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}(?:[^\s]*))/g;
+    const matches = text.match(youtubeRegex);
+    return matches ? Array.from(new Set(matches)) : [];
+  };
+
+  const extractedUrls = extractUrls(inputText);
+
+  const handleDownload = (format: 'mp4' | 'mp3') => {
+    if (extractedUrls.length === 0) return;
+
+    const infos = extractedUrls.map(url => ({
+      id: url,
+      title: url.includes('youtu.be/')
+        ? url.split('youtu.be/')[1]?.split(/[?&]/)[0]
+        : url.includes('v=')
+          ? url.split('v=')[1]?.split(/[?&]/)[0]
+          : url.split('/shorts/')[1]?.split(/[?&]/)[0] || url,
+      format,
+      url
+    }));
+
+    onDownloadStart(infos);
+    setInputText('');
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6 py-4">
+      <Card className="border-slate-200 dark:border-slate-800">
+        <CardContent className="p-5 space-y-4">
+          <div className="space-y-3">
+            <textarea
+              placeholder="유튜브 링크를 붙여넣으세요 (여러 개 가능)..."
+              className="w-full h-28 p-3 rounded-lg border border-slate-200 bg-slate-50 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent focus:bg-white dark:border-slate-700 dark:bg-slate-900 dark:focus:bg-slate-950 transition-colors resize-none"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+            />
+
+            {extractedUrls.length > 0 && (
+              <div className="text-xs text-slate-500 px-1">
+                {extractedUrls.length}개의 링크 감지됨
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                onClick={() => handleDownload('mp4')}
+                disabled={extractedUrls.length === 0}
+                className="h-14 bg-red-600 hover:bg-red-700 disabled:bg-slate-200 disabled:text-slate-400 transition-colors"
+              >
+                <FileVideo className="mr-2 h-5 w-5" />
+                <span className="font-bold">MP4 영상</span>
+              </Button>
+              <Button
+                onClick={() => handleDownload('mp3')}
+                disabled={extractedUrls.length === 0}
+                className="h-14 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 transition-colors"
+              >
+                <Music className="mr-2 h-5 w-5" />
+                <span className="font-bold">MP3 음원</span>
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {activeDownloads.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-xs font-bold flex items-center gap-2 text-slate-400 uppercase tracking-wider px-1">
+            <Loader2 className={cn("w-3.5 h-3.5", activeDownloads.some(d => d.status === 'downloading') && "animate-spin")} />
+            다운로드 현황 ({activeDownloads.filter(d => d.status === 'completed').length}/{activeDownloads.length})
+          </h3>
+          <div className="grid gap-2">
+            {activeDownloads.map((download) => (
+              <Card key={download.uniqueId} className="overflow-hidden border-slate-100 dark:border-slate-800">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-9 h-9 rounded-lg flex items-center justify-center shrink-0",
+                      download.format === 'mp4' ? "bg-red-50 text-red-500" : "bg-blue-50 text-blue-500"
+                    )}>
+                      {download.format === 'mp4' ? <FileVideo className="w-4 h-4" /> : <Music className="w-4 h-4" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center gap-2 mb-1.5">
+                        <p className="text-xs font-medium truncate">{download.title}</p>
+                        <Badge variant={
+                          download.status === 'completed' ? 'secondary' :
+                          download.status === 'error' ? 'destructive' : 'outline'
+                        } className="text-[10px] h-5 px-2 shrink-0">
+                          {download.status === 'completed' ? '완료' :
+                           download.status === 'error' ? '에러' :
+                           download.status === 'downloading' ? `${Math.round(download.progress)}%` : '준비 중'}
+                        </Badge>
                       </div>
-                    </form>
-                  </CardContent>
-                </Card>
-          
-                {activeDownloads.length > 0 && (
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold flex items-center gap-2 text-slate-500 uppercase tracking-wider">
-                      <Loader2 className={cn("w-4 h-4", activeDownloads.some(d => d.status === 'downloading') && "animate-spin")} />
-                      다운로드 현황
-                    </h3>
-                    <div className="grid gap-3">
-                      {activeDownloads.map((download) => (
-                        <Card key={download.uniqueId} className="overflow-hidden border-slate-100 dark:border-slate-800">
-                          <CardContent className="p-3">
-                            <div className="flex items-center gap-3">
-                              <div className={cn(
-                                "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
-                                download.format === 'mp4' ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"
-                              )}>
-                                {download.format === 'mp4' ? <FileVideo className="w-5 h-5" /> : <Music className="w-5 h-5" />}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-start gap-2 mb-1">
-                                  <p className="text-xs font-bold truncate pr-4">{download.title}</p>
-                                  <Badge variant={
-                                    download.status === 'completed' ? 'secondary' : 
-                                    download.status === 'error' ? 'destructive' : 'outline'
-                                  } className="text-[10px] h-4 px-1.5">
-                                    {download.status === 'completed' ? '완료' : 
-                                     download.status === 'error' ? '에러' : 
-                                     download.status === 'downloading' ? `${Math.round(download.progress)}%` : '준비 중'}
-                                  </Badge>
-                                </div>
-                                <div className="space-y-1.5">
-                                  <Progress value={download.progress} className="h-1" />
-                                  <p className="text-[10px] text-slate-400 truncate">{download.message}</p>
-                                </div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                      <Progress value={download.progress} className="h-1" />
                     </div>
                   </div>
-                )}
-              </div>
-            );
-          }
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
           
