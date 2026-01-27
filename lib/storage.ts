@@ -7,6 +7,24 @@ const DATA_DIR = path.join(process.cwd(), 'data');
 const CHANNELS_FILE = path.join(DATA_DIR, 'channels.json');
 const ANALYZED_VIDEOS_FILE = path.join(DATA_DIR, 'analyzed-videos.json');
 
+// Simple lock mechanism to prevent concurrent writes
+class Lock {
+  private promise: Promise<void> = Promise.resolve();
+
+  async acquire(): Promise<() => void> {
+    let release: () => void;
+    const nextPromise = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const currentPromise = this.promise;
+    this.promise = currentPromise.then(() => nextPromise);
+    await currentPromise;
+    return release!;
+  }
+}
+
+const storageLock = new Lock();
+
 // 데이터 폴더 및 파일 초기화
 async function initStorage() {
   try {
@@ -44,23 +62,35 @@ export async function getSavedChannels(): Promise<SavedChannel[]> {
 }
 
 export async function saveChannel(channel: SavedChannel) {
-  await initStorage();
-  const channels = await getSavedChannels();
-  
-  if (channels.find(c => c.channelId === channel.channelId)) {
-    return channels; // 이미 존재함
+  const release = await storageLock.acquire();
+  try {
+    await initStorage();
+    const data = await fs.readFile(CHANNELS_FILE, 'utf-8');
+    const channels: SavedChannel[] = JSON.parse(data);
+    
+    if (channels.find(c => c.channelId === channel.channelId)) {
+      return channels; 
+    }
+    
+    const updated = [...channels, channel];
+    await fs.writeFile(CHANNELS_FILE, JSON.stringify(updated, null, 2));
+    return updated;
+  } finally {
+    release();
   }
-  
-  const updated = [...channels, channel];
-  await fs.writeFile(CHANNELS_FILE, JSON.stringify(updated, null, 2));
-  return updated;
 }
 
 export async function removeChannel(channelId: string) {
-  const channels = await getSavedChannels();
-  const updated = channels.filter(c => c.channelId !== channelId);
-  await fs.writeFile(CHANNELS_FILE, JSON.stringify(updated, null, 2));
-  return updated;
+  const release = await storageLock.acquire();
+  try {
+    const data = await fs.readFile(CHANNELS_FILE, 'utf-8');
+    const channels: SavedChannel[] = JSON.parse(data);
+    const updated = channels.filter(c => c.channelId !== channelId);
+    await fs.writeFile(CHANNELS_FILE, JSON.stringify(updated, null, 2));
+    return updated;
+  } finally {
+    release();
+  }
 }
 
 // ============= Analyzed Videos Storage =============
@@ -107,72 +137,90 @@ export async function saveAnalyzedVideo(
   video: EnrichedVideo,
   analysisResult: AnalysisResult
 ): Promise<AnalyzedVideo[]> {
-  await initStorage();
-  const videos = await getAnalyzedVideos();
+  const release = await storageLock.acquire();
+  try {
+    await initStorage();
+    const data = await fs.readFile(ANALYZED_VIDEOS_FILE, 'utf-8');
+    const videos: AnalyzedVideo[] = JSON.parse(data);
 
-  // 중복 제거 (같은 videoId가 있으면 기존 항목 제거)
-  const filtered = videos.filter(v => v.videoId !== video.id);
+    // 중복 제거 (같은 videoId가 있으면 기존 항목 제거)
+    const filtered = videos.filter(v => v.videoId !== video.id);
 
-  // 새로운 분석 결과 추가
-  const analyzedVideo: AnalyzedVideo = {
-    type: 'single',
-    videoId: video.id,
-    title: video.title,
-    channelTitle: video.channelTitle,
-    channelId: video.channelId,
-    thumbnail: video.thumbnail,
-    viewCount: video.viewCount,
-    likeCount: video.likeCount || 0,
-    commentCount: video.commentCount || 0,
-    subscriberCount: video.subscriberCount,
-    engagementRate: video.engagementRate,
-    performanceRatio: video.performanceRatio,
-    analysisResult,
-    analyzedAt: new Date().toISOString(),
-  };
+    // 새로운 분석 결과 추가
+    const analyzedVideo: AnalyzedVideo = {
+      type: 'single',
+      videoId: video.id,
+      title: video.title,
+      channelTitle: video.channelTitle,
+      channelId: video.channelId,
+      thumbnail: video.thumbnail,
+      viewCount: video.viewCount,
+      likeCount: video.likeCount || 0,
+      commentCount: video.commentCount || 0,
+      subscriberCount: video.subscriberCount,
+      engagementRate: video.engagementRate,
+      performanceRatio: video.performanceRatio,
+      analysisResult,
+      analyzedAt: new Date().toISOString(),
+    };
 
-  const updated = [analyzedVideo, ...filtered];
-  await fs.writeFile(ANALYZED_VIDEOS_FILE, JSON.stringify(updated, null, 2));
-  return updated;
+    const updated = [analyzedVideo, ...filtered];
+    await fs.writeFile(ANALYZED_VIDEOS_FILE, JSON.stringify(updated, null, 2));
+    return updated;
+  } finally {
+    release();
+  }
 }
 
 export async function saveContextAnalysis(
   analysisResult: ContextAnalysisResult,
   sourceVideos: EnrichedVideo[]
 ): Promise<AnalyzedVideo[]> {
-  await initStorage();
-  const videos = await getAnalyzedVideos();
+  const release = await storageLock.acquire();
+  try {
+    await initStorage();
+    const data = await fs.readFile(ANALYZED_VIDEOS_FILE, 'utf-8');
+    const videos: AnalyzedVideo[] = JSON.parse(data);
 
-  const reportId = `report-${Date.now()}`;
-  const firstVideo = sourceVideos[0];
-  
-  // Create a summary 'video' object representing the report
-  const analyzedReport: AnalyzedVideo = {
-    type: 'context',
-    videoId: reportId,
-    title: `Context Report: ${sourceVideos.length} Videos Analysis`,
-    channelTitle: `Based on ${sourceVideos[0]?.channelTitle || 'Unknown'} etc.`,
-    channelId: 'report',
-    thumbnail: firstVideo?.thumbnail || '',
-    viewCount: sourceVideos.reduce((acc, v) => acc + v.viewCount, 0),
-    likeCount: sourceVideos.reduce((acc, v) => acc + (v.likeCount || 0), 0),
-    commentCount: sourceVideos.reduce((acc, v) => acc + (v.commentCount || 0), 0),
-    subscriberCount: 0,
-    engagementRate: 0,
-    performanceRatio: 0,
-    analysisResult,
-    analyzedAt: new Date().toISOString(),
-  };
+    const reportId = \`report-\${Date.now()}\`;
+    const firstVideo = sourceVideos[0];
+    
+    // Create a summary 'video' object representing the report
+    const analyzedReport: AnalyzedVideo = {
+      type: 'context',
+      videoId: reportId,
+      title: \`Context Report: \${sourceVideos.length} Videos Analysis\`,
+      channelTitle: \`Based on \${sourceVideos[0]?.channelTitle || 'Unknown'} etc.\`,
+      channelId: 'report',
+      thumbnail: firstVideo?.thumbnail || '',
+      viewCount: sourceVideos.reduce((acc, v) => acc + v.viewCount, 0),
+      likeCount: sourceVideos.reduce((acc, v) => acc + (v.likeCount || 0), 0),
+      commentCount: sourceVideos.reduce((acc, v) => acc + (v.commentCount || 0), 0),
+      subscriberCount: 0,
+      engagementRate: 0,
+      performanceRatio: 0,
+      analysisResult,
+      analyzedAt: new Date().toISOString(),
+    };
 
-  const updated = [analyzedReport, ...videos];
-  await fs.writeFile(ANALYZED_VIDEOS_FILE, JSON.stringify(updated, null, 2));
-  return updated;
+    const updated = [analyzedReport, ...videos];
+    await fs.writeFile(ANALYZED_VIDEOS_FILE, JSON.stringify(updated, null, 2));
+    return updated;
+  } finally {
+    release();
+  }
 }
 
 // 분석 결과 삭제
 export async function deleteAnalyzedVideo(videoId: string): Promise<AnalyzedVideo[]> {
-  const videos = await getAnalyzedVideos();
-  const updated = videos.filter(v => v.videoId !== videoId);
-  await fs.writeFile(ANALYZED_VIDEOS_FILE, JSON.stringify(updated, null, 2));
-  return updated;
+  const release = await storageLock.acquire();
+  try {
+    const data = await fs.readFile(ANALYZED_VIDEOS_FILE, 'utf-8');
+    const videos: AnalyzedVideo[] = JSON.parse(data);
+    const updated = videos.filter(v => v.videoId !== videoId);
+    await fs.writeFile(ANALYZED_VIDEOS_FILE, JSON.stringify(updated, null, 2));
+    return updated;
+  } finally {
+    release();
+  }
 }
