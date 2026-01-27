@@ -60,7 +60,7 @@ export function ReportCard({
         </div>
 
         {/* Aggregate Metrics */}
-        <div className="grid grid-cols-2 gap-2 mb-2 bg-slate-50 dark:bg-slate-900 p-2 rounded-md">
+        <div className="grid grid-cols-2 gap-2 mb-3 bg-slate-50 dark:bg-slate-900 p-2 rounded-md">
           <div className="flex flex-col">
             <span className="text-[10px] text-slate-400 uppercase font-bold">총 조회수</span>
             <div className="flex items-center gap-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -76,7 +76,7 @@ export function ReportCard({
         </div>
 
         {/* Report Highlights Badges */}
-        <div className="flex flex-wrap gap-1.5 mb-2">
+        <div className="flex flex-wrap gap-2 mb-3">
            <Badge variant="outline" className="text-[10px] h-5 border-slate-200 text-slate-500 font-normal">
               <Lightbulb className="w-3 h-3 mr-1" /> 인사이트
            </Badge>
@@ -86,9 +86,9 @@ export function ReportCard({
         </div>
         
         {/* Stats Row with Delete Button (Matches VideoCard) */}
-        <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800 mt-auto">
+        <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
              <div className="flex gap-3">
-                {/* Spacer or additional info could go here */}
+                {/* Spacer to match VideoCard's left side content area if needed, or just keep empty */}
              </div>
              {onDelete && (
                <button
@@ -105,7 +105,7 @@ export function ReportCard({
         </div>
         
         {/* Action Buttons (Matches VideoCard) */}
-        <div className="pt-3">
+        <div className="mt-auto pt-3">
             <Button
               size="sm"
               variant="outline"
