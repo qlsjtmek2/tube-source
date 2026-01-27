@@ -182,15 +182,15 @@ export async function saveContextAnalysis(
     const data = await fs.readFile(ANALYZED_VIDEOS_FILE, 'utf-8');
     const videos: AnalyzedVideo[] = JSON.parse(data);
 
-    const reportId = \`report-\${Date.now()}\`;
+    const reportId = `report-${Date.now()}`;
     const firstVideo = sourceVideos[0];
     
     // Create a summary 'video' object representing the report
     const analyzedReport: AnalyzedVideo = {
       type: 'context',
       videoId: reportId,
-      title: \`Context Report: \${sourceVideos.length} Videos Analysis\`,
-      channelTitle: \`Based on \${sourceVideos[0]?.channelTitle || 'Unknown'} etc.\`,
+      title: `Context Report: ${sourceVideos.length} Videos Analysis`,
+      channelTitle: `Based on ${sourceVideos[0]?.channelTitle || 'Unknown'} etc.`,
       channelId: 'report',
       thumbnail: firstVideo?.thumbnail || '',
       viewCount: sourceVideos.reduce((acc, v) => acc + v.viewCount, 0),
