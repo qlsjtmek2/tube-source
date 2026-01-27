@@ -37,8 +37,27 @@ export default function Home() {
   const [isUrlDownloadOpen, setIsUrlDownloadOpen] = useState(false);
   const [activeDownloads, setActiveDownloads] = useState<any[]>([]);
   
-  const [isBulkMode, setIsBulkMode] = useState(false);
-  const [bulkItems, setBulkItems] = useState<{url: string, title?: string}[]>([]);
+  // Load downloads from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('tube_downloads');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Reset status for any that were left in 'downloading' or 'starting' state
+        const cleaned = parsed.map((d: any) => 
+          (d.status === 'downloading' || d.status === 'starting') 
+            ? { ...d, status: 'interrupted', message: '중단됨 (페이지 새로고침)' } 
+            : d
+        );
+        setActiveDownloads(cleaned);
+      } catch (e) { console.error('Failed to load downloads', e); }
+    }
+  }, []);
+
+  // Save downloads to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('tube_downloads', JSON.stringify(activeDownloads));
+  }, [activeDownloads]);
 
   const handleDownloadStart = (info: any) => {
     // Check if it's a single info or array of info
@@ -71,6 +90,13 @@ export default function Home() {
             if (data.status === "progress") {
               const percent = parseFloat(data.progress.replace("%", ""));
               return { ...d, status: 'downloading', progress: percent, message: data.message };
+            } else if (data.status === "title") {
+              // Update title if provided by server (useful for bare URLs)
+              return { ...d, title: data.title };
+            } else if (data.status === "destination") {
+              // Capture the actual filename
+              const filename = data.path.split('/').pop();
+              return { ...d, filename };
             } else if (data.status === "completed") {
               eventSource.close();
               return { ...d, status: 'completed', progress: 100, message: '완료!' };
@@ -1873,28 +1899,33 @@ function ChannelSearchSection({
                                             <div className="flex justify-between items-start gap-2 mb-1">
                                               <p className="text-xs font-bold truncate pr-4">{download.title}</p>
                                               <div className="flex items-center gap-2">
-                                                <Badge variant={
-                                                  download.status === 'completed' ? 'secondary' : 
-                                                  download.status === 'error' ? 'destructive' : 'outline'
-                                                } className="text-[10px] h-4 px-1.5">
-                                                  {download.status === 'completed' ? '완료' : 
-                                                   download.status === 'error' ? '에러' : 
-                                                   download.status === 'downloading' ? `${Math.round(download.progress)}%` : '준비 중'}
-                                                </Badge>
-                                                {(download.status === 'completed' || download.status === 'error') && (
-                                                  <button 
-                                                    onClick={() => setActiveDownloads(prev => prev.filter(d => d.uniqueId !== download.uniqueId))}
-                                                    className="text-slate-400 hover:text-slate-600 transition-colors"
-                                                  >
-                                                    <Trash2 className="w-3 h-3" />
-                                                  </button>
-                                                )}
-                                              </div>
-                                            </div>
-                                            <div className="space-y-1.5">
-                                              <Progress value={download.progress} className="h-1" />
-                                              <p className="text-[10px] text-slate-400 truncate">{download.message}</p>
-                                            </div>
+                                                                          <Badge variant={
+                                                                            download.status === 'completed' ? 'secondary' : 
+                                                                            download.status === 'error' ? 'destructive' : 
+                                                                            download.status === 'interrupted' ? 'outline' : 'outline'
+                                                                          } className="text-[10px] h-4 px-1.5">
+                                                                            {download.status === 'completed' ? '완료' : 
+                                                                             download.status === 'error' ? '에러' : 
+                                                                             download.status === 'interrupted' ? '중단' :
+                                                                             download.status === 'downloading' ? `${Math.round(download.progress)}%` : '준비 중'}
+                                                                          </Badge>
+                                                                          {(download.status === 'completed' || download.status === 'error' || download.status === 'interrupted') && (
+                                                                            <button 
+                                                                              onClick={() => setActiveDownloads(prev => prev.filter(d => d.uniqueId !== download.uniqueId))}
+                                                                              className="text-slate-400 hover:text-slate-600 transition-colors"
+                                                                            >
+                                                                              <Trash2 className="w-3 h-3" />
+                                                                            </button>
+                                                                          )}
+                                                                        </div>
+                                                                      </div>
+                                                                      <div className="space-y-1.5">
+                                                                        <Progress value={download.progress} className="h-1" />
+                                                                        <p className="text-[10px] text-slate-400 truncate">
+                                                                          {download.status === 'completed' && download.filename ? `저장됨: ${download.filename}` : download.message}
+                                                                        </p>
+                                                                      </div>
+                                                
                                           </div>
                                         </div>
                                       </CardContent>

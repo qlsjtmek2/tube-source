@@ -26,8 +26,14 @@ export async function GET(req: NextRequest) {
       try {
         send({ status: 'starting', message: '다운로드 준비 중...' });
         
-        await downloadVideo({ videoId: videoId || undefined, url: url || undefined, format }, (progress) => {
-          send({ status: 'progress', progress, message: `다운로드 중: ${progress}` });
+        await downloadVideo({ videoId: videoId || undefined, url: url || undefined, format }, (event) => {
+          if (event.type === 'progress') {
+            send({ status: 'progress', progress: event.value, message: `다운로드 중: ${event.value}` });
+          } else if (event.type === 'title') {
+            send({ status: 'title', title: event.value });
+          } else if (event.type === 'destination') {
+            send({ status: 'destination', path: event.value });
+          }
         });
 
         send({ status: 'completed', message: '다운로드 완료!' });

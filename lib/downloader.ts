@@ -18,7 +18,12 @@ export interface DownloadOptions {
   format: 'mp4' | 'mp3';
 }
 
-export function downloadVideo(options: DownloadOptions, onProgress: (progress: string) => void): Promise<string> {
+export interface DownloadEvent {
+  type: 'progress' | 'title' | 'destination';
+  value: string;
+}
+
+export function downloadVideo(options: DownloadOptions, onEvent: (event: DownloadEvent) => void): Promise<string> {
   return new Promise(async (resolve, reject) => {
     await initDownloadsDir();
     
@@ -30,12 +35,12 @@ export function downloadVideo(options: DownloadOptions, onProgress: (progress: s
       url,
       '-o', outputPathTemplate,
       '--no-playlist',
+      '--print', 'after_move:title', // Print title after download starts
     ];
 
     if (options.format === 'mp3') {
       args.push('-x', '--audio-format', 'mp3', '--audio-quality', '0');
     } else {
-      // Best video + best audio merged into mp4
       args.push('-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best');
     }
 
@@ -44,25 +49,40 @@ export function downloadVideo(options: DownloadOptions, onProgress: (progress: s
 
     const child = spawn('yt-dlp', args);
 
-    let lastProgress = '';
     let finalPath = '';
+    let capturedTitle = '';
 
     child.stdout.on('data', (data) => {
       const output = data.toString().trim();
-      // yt-dlp might output progress like " 10.5%"
-      if (output.includes('%')) {
-        const progress = output.match(/(\d+\.\d+)%/);
-        if (progress) {
-          onProgress(progress[0]);
+      const lines = output.split('\n');
+
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        
+        // Progress
+        if (trimmedLine.includes('%')) {
+          const progress = trimmedLine.match(/(\d+\.\d+)%/);
+          if (progress) {
+            onEvent({ type: 'progress', value: progress[0] });
+          }
         }
-      }
-      
-      // Try to capture the destination path
-      if (output.includes('[download] Destination:')) {
-        finalPath = output.split('[download] Destination:')[1].trim();
-      }
-      if (output.includes('[ExtractAudio] Destination:')) {
-        finalPath = output.split('[ExtractAudio] Destination:')[1].trim();
+        
+        // Destination
+        if (trimmedLine.includes('[download] Destination:')) {
+          finalPath = trimmedLine.split('[download] Destination:')[1].trim();
+          onEvent({ type: 'destination', value: finalPath });
+        }
+        if (trimmedLine.includes('[ExtractAudio] Destination:')) {
+          finalPath = trimmedLine.split('[ExtractAudio] Destination:')[1].trim();
+          onEvent({ type: 'destination', value: finalPath });
+        }
+
+        // Title (captured via --print)
+        // yt-dlp outputs the printed title on its own line
+        if (trimmedLine && !trimmedLine.startsWith('[') && !trimmedLine.includes('%') && !capturedTitle) {
+          capturedTitle = trimmedLine;
+          onEvent({ type: 'title', value: capturedTitle });
+        }
       }
     });
 
