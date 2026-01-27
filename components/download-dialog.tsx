@@ -16,33 +16,31 @@ import { Download, FileVideo, Music, CheckCircle2, AlertCircle } from "lucide-re
 interface DownloadDialogProps {
   video: { id: string; title: string } | null;
   url?: string;
-  title?: string;
-  urls?: string[]; // Deprecated, replaced by items
-  items?: { url: string; title?: string }[];
+  urls?: string[];
   isOpen: boolean;
   onClose: () => void;
   onDownloadStart?: (downloadInfo: any) => void;
 }
 
-export function DownloadDialog({ video, url, title, items, isOpen, onClose, onDownloadStart }: DownloadDialogProps) {
+export function DownloadDialog({ video, url, urls, isOpen, onClose, onDownloadStart }: DownloadDialogProps) {
   const [format, setFormat] = useState<"mp4" | "mp3">("mp4");
 
   const startDownload = (selectedFormat: "mp4" | "mp3") => {
-    if (!video && !url && (!items || items.length === 0)) return;
+    if (!video && !url && (!urls || urls.length === 0)) return;
     
     if (onDownloadStart) {
-      if (items && items.length > 0) {
-        const infos = items.map(item => ({
-          id: item.url,
-          title: item.title || item.url,
+      if (urls && urls.length > 0) {
+        const infos = urls.map(u => ({
+          id: u,
+          title: u,
           format: selectedFormat,
-          url: item.url
+          url: u
         }));
         onDownloadStart(infos);
       } else {
         onDownloadStart({
           id: video?.id || url || Date.now().toString(),
-          title: video?.title || title || url || "Unknown",
+          title: video?.title || url || "Unknown",
           format: selectedFormat,
           url: url,
           videoId: video?.id
@@ -52,7 +50,7 @@ export function DownloadDialog({ video, url, title, items, isOpen, onClose, onDo
     onClose();
   };
 
-  const description = video?.title || title || url || (items ? `${items.length}개의 링크` : "");
+  const description = video?.title || url || (urls ? `${urls.length}개의 링크` : "");
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

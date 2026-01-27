@@ -33,31 +33,11 @@ export default function Home() {
   const [savedChannels, setSavedChannels] = useState<SavedChannel[]>([]);
   const [selectedVideoForDownload, setSelectedVideoForDownload] = useState<{ id: string; title: string } | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string>('');
-  const [downloadTitle, setDownloadTitle] = useState<string>('');
   const [isUrlDownloadOpen, setIsUrlDownloadOpen] = useState(false);
   const [activeDownloads, setActiveDownloads] = useState<any[]>([]);
   
-  // Load downloads from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem('tube_downloads');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        // Reset status for any that were left in 'downloading' or 'starting' state
-        const cleaned = parsed.map((d: any) => 
-          (d.status === 'downloading' || d.status === 'starting') 
-            ? { ...d, status: 'interrupted', message: '중단됨 (페이지 새로고침)' } 
-            : d
-        );
-        setActiveDownloads(cleaned);
-      } catch (e) { console.error('Failed to load downloads', e); }
-    }
-  }, []);
-
-  // Save downloads to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('tube_downloads', JSON.stringify(activeDownloads));
-  }, [activeDownloads]);
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [bulkUrls, setBulkUrls] = useState<string[]>([]);
 
   const handleDownloadStart = (info: any) => {
     // Check if it's a single info or array of info
@@ -90,13 +70,6 @@ export default function Home() {
             if (data.status === "progress") {
               const percent = parseFloat(data.progress.replace("%", ""));
               return { ...d, status: 'downloading', progress: percent, message: data.message };
-            } else if (data.status === "title") {
-              // Update title if provided by server (useful for bare URLs)
-              return { ...d, title: data.title };
-            } else if (data.status === "destination") {
-              // Capture the actual filename
-              const filename = data.path.split('/').pop();
-              return { ...d, filename };
             } else if (data.status === "completed") {
               eventSource.close();
               return { ...d, status: 'completed', progress: 100, message: '완료!' };
@@ -608,14 +581,13 @@ export default function Home() {
           )}
           {activeTab === 'downloads' && (
             <DownloadsSection 
-              onDownloadUrl={(url, title) => {
+              onDownloadUrl={(url) => {
                 setDownloadUrl(url);
-                setDownloadTitle(title || '');
                 setIsUrlDownloadOpen(true);
                 setIsBulkMode(false);
               }}
-              onBulkUrl={(items) => {
-                setBulkItems(items);
+              onBulkUrl={(urls) => {
+                setBulkUrls(urls);
                 setIsUrlDownloadOpen(true);
                 setIsBulkMode(true);
               }}
@@ -628,16 +600,14 @@ export default function Home() {
       <DownloadDialog 
         video={selectedVideoForDownload} 
         url={!isBulkMode ? downloadUrl : undefined}
-        title={!isBulkMode ? downloadTitle : undefined}
-        items={isBulkMode ? bulkItems : undefined}
+        urls={isBulkMode ? bulkUrls : undefined}
         isOpen={!!selectedVideoForDownload || isUrlDownloadOpen} 
         onDownloadStart={handleDownloadStart}
         onClose={() => {
           setSelectedVideoForDownload(null);
           setIsUrlDownloadOpen(false);
           setDownloadUrl('');
-          setDownloadTitle('');
-          setBulkItems([]);
+          setBulkUrls([]);
           setIsBulkMode(false);
         }} 
       />
@@ -1697,241 +1667,98 @@ function ChannelSearchSection({
           }
           
           function DownloadsSection({ onDownloadUrl, onBulkUrl, activeDownloads }: { 
-          
-            onDownloadUrl: (url: string, title?: string) => void, 
-          
-            onBulkUrl: (items: {url: string, title?: string}[]) => void,
-          
+            onDownloadUrl: (url: string) => void, 
+            onBulkUrl: (urls: string[]) => void,
             activeDownloads: any[] 
-          
           }) {
-          
             const [inputText, setInputText] = useState('');
           
-          
-          
-            const extractItems = (text: string) => {
-          
-              const markdownRegex = /\[([^\]]+)\]\((https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}[^\s\)\)\]\>]*)\)/g;
-          
-              const bareUrlRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}[^\s\)\)\]\>]*)/g;
-          
-          
-          
-              const results: {url: string, title?: string}[] = [];
-          
-              const foundUrls = new Set<string>();
-          
-          
-          
-              let match;
-          
-              while ((match = markdownRegex.exec(text)) !== null) {
-          
-                const title = match[1];
-          
-                const url = match[2].replace(/[.,\)\)\]\>]+$/, '');
-          
-                results.push({ url, title });
-          
-                foundUrls.add(url);
-          
-              }
-          
-          
-          
-              while ((match = bareUrlRegex.exec(text)) !== null) {
-          
-                const url = match[1].replace(/[.,\)\)\]\>]+$/, '');
-          
-                if (!foundUrls.has(url)) {
-          
-                  results.push({ url });
-          
-                  foundUrls.add(url);
-          
-                }
-          
-              }
-          
-          
-          
-              return results;
-          
+            const extractUrls = (text: string) => {
+              // Regular expression to find YouTube URLs
+              const youtubeRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}(?:[^\s]*))/g;
+              const matches = text.match(youtubeRegex);
+              return matches ? Array.from(new Set(matches)) : [];
             };
-          
-          
           
             const handleSubmit = (e: React.FormEvent) => {
-          
               e.preventDefault();
-          
-              const items = extractItems(inputText);
-          
-              if (items.length > 1) {
-          
-                onBulkUrl(items);
-          
+              const urls = extractUrls(inputText);
+              if (urls.length > 1) {
+                onBulkUrl(urls);
                 setInputText('');
-          
-              } else if (items.length === 1) {
-          
-                onDownloadUrl(items[0].url, items[0].title);
-          
+              } else if (urls.length === 1) {
+                onDownloadUrl(urls[0]);
                 setInputText('');
-          
               }
-          
             };
-          
-          
-          
-            return (
-          
+                      return (
               <div className="max-w-3xl mx-auto space-y-8 py-4">
-          
                 <div className="text-center space-y-2">
-          
                   <h2 className="text-2xl font-bold">유튜브 링크 일괄 다운로드</h2>
-          
                   <p className="text-slate-500">여러 개의 링크가 섞인 텍스트를 붙여넣어도 자동으로 유튜브 주소만 추출하여 다운로드합니다.</p>
-          
                 </div>
           
-          
-          
                 <Card className="border-red-100 dark:border-red-900/30 shadow-md">
-          
                   <CardContent className="p-4">
-          
                     <form onSubmit={handleSubmit} className="space-y-4">
-          
                       <div className="space-y-2">
-          
                         <Label htmlFor="url">유튜브 링크 (일괄 입력 가능)</Label>
-          
                         <div className="flex flex-col gap-3">
-          
                           <textarea
-          
                             id="url"
-          
                             placeholder="여러 개의 유튜브 링크를 여기에 붙여넣으세요..."
-          
                             className="w-full h-32 p-3 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 dark:border-slate-800 dark:bg-slate-950"
-          
                             value={inputText}
-          
                             onChange={(e) => setInputText(e.target.value)}
-          
                           />
-          
                           <Button type="submit" size="lg" className="w-full h-12 bg-red-600 hover:bg-red-700" disabled={!inputText.trim()}>
-          
                             <Download className="mr-2 h-5 w-5" />
-          
                             형식 선택 및 다운로드 시작
-          
                           </Button>
-          
                         </div>
-          
                       </div>
-          
                     </form>
-          
                   </CardContent>
-          
                 </Card>
           
-          
-          
-                      {activeDownloads.length > 0 && (
-          
-                        <div className="space-y-4">
-          
-                          <div className="flex justify-between items-center">
-          
-                            <h3 className="text-sm font-bold flex items-center gap-2 text-slate-500 uppercase tracking-wider">
-          
-                              <Loader2 className={cn("w-4 h-4", activeDownloads.some(d => d.status === 'downloading') && "animate-spin")} />
-          
-                              다운로드 현황
-          
-                            </h3>
-          
-                            {activeDownloads.some(d => d.status === 'completed' || d.status === 'error') && (
-          
-                              <Button 
-          
-                                variant="ghost" 
-          
-                                size="sm" 
-          
-                                className="h-7 text-[10px] text-slate-400 hover:text-red-500"
-          
-                                onClick={() => setActiveDownloads(prev => prev.filter(d => d.status !== 'completed' && d.status !== 'error'))}
-          
-                              >
-          
-                                완료 항목 삭제
-          
-                              </Button>
-          
-                            )}
-          
-                          </div>
-          
-                          <div className="grid gap-3">
-          
-                
-                                  {activeDownloads.map((download) => (
-                                    <Card key={download.uniqueId} className="overflow-hidden border-slate-100 dark:border-slate-800 group">
-                                      <CardContent className="p-3">
-                                        <div className="flex items-center gap-3">
-                                          <div className={cn(
-                                            "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
-                                            download.format === 'mp4' ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"
-                                          )}>
-                                            {download.format === 'mp4' ? <FileVideo className="w-5 h-5" /> : <Music className="w-5 h-5" />}
-                                          </div>
-                                          <div className="flex-1 min-w-0">
-                                            <div className="flex justify-between items-start gap-2 mb-1">
-                                              <p className="text-xs font-bold truncate pr-4">{download.title}</p>
-                                              <div className="flex items-center gap-2">
-                                                                          <Badge variant={
-                                                                            download.status === 'completed' ? 'secondary' : 
-                                                                            download.status === 'error' ? 'destructive' : 
-                                                                            download.status === 'interrupted' ? 'outline' : 'outline'
-                                                                          } className="text-[10px] h-4 px-1.5">
-                                                                            {download.status === 'completed' ? '완료' : 
-                                                                             download.status === 'error' ? '에러' : 
-                                                                             download.status === 'interrupted' ? '중단' :
-                                                                             download.status === 'downloading' ? `${Math.round(download.progress)}%` : '준비 중'}
-                                                                          </Badge>
-                                                                          {(download.status === 'completed' || download.status === 'error' || download.status === 'interrupted') && (
-                                                                            <button 
-                                                                              onClick={() => setActiveDownloads(prev => prev.filter(d => d.uniqueId !== download.uniqueId))}
-                                                                              className="text-slate-400 hover:text-slate-600 transition-colors"
-                                                                            >
-                                                                              <Trash2 className="w-3 h-3" />
-                                                                            </button>
-                                                                          )}
-                                                                        </div>
-                                                                      </div>
-                                                                      <div className="space-y-1.5">
-                                                                        <Progress value={download.progress} className="h-1" />
-                                                                        <p className="text-[10px] text-slate-400 truncate">
-                                                                          {download.status === 'completed' && download.filename ? `저장됨: ${download.filename}` : download.message}
-                                                                        </p>
-                                                                      </div>
-                                                
-                                          </div>
-                                        </div>
-                                      </CardContent>
-                                    </Card>
-                                  ))}
-                      
+                {activeDownloads.length > 0 && (
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold flex items-center gap-2 text-slate-500 uppercase tracking-wider">
+                      <Loader2 className={cn("w-4 h-4", activeDownloads.some(d => d.status === 'downloading') && "animate-spin")} />
+                      다운로드 현황
+                    </h3>
+                    <div className="grid gap-3">
+                      {activeDownloads.map((download) => (
+                        <Card key={download.uniqueId} className="overflow-hidden border-slate-100 dark:border-slate-800">
+                          <CardContent className="p-3">
+                            <div className="flex items-center gap-3">
+                              <div className={cn(
+                                "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
+                                download.format === 'mp4' ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"
+                              )}>
+                                {download.format === 'mp4' ? <FileVideo className="w-5 h-5" /> : <Music className="w-5 h-5" />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-start gap-2 mb-1">
+                                  <p className="text-xs font-bold truncate pr-4">{download.title}</p>
+                                  <Badge variant={
+                                    download.status === 'completed' ? 'secondary' : 
+                                    download.status === 'error' ? 'destructive' : 'outline'
+                                  } className="text-[10px] h-4 px-1.5">
+                                    {download.status === 'completed' ? '완료' : 
+                                     download.status === 'error' ? '에러' : 
+                                     download.status === 'downloading' ? `${Math.round(download.progress)}%` : '준비 중'}
+                                  </Badge>
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Progress value={download.progress} className="h-1" />
+                                  <p className="text-[10px] text-slate-400 truncate">{download.message}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
                     </div>
                   </div>
                 )}
