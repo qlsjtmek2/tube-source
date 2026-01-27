@@ -142,13 +142,26 @@ export default function Home() {
   };
 
   const toggleVideoSelection = (videoId: string) => {
-    const newSet = new Set(selectedVideoIds);
-    if (newSet.has(videoId)) {
-      newSet.delete(videoId);
-    } else {
-      newSet.add(videoId);
-    }
-    setSelectedVideoIds(newSet);
+    setSelectedVideoIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(videoId)) {
+        newSet.delete(videoId);
+      } else {
+        newSet.add(videoId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleBulkSelect = (videoIds: string[], select: boolean) => {
+    setSelectedVideoIds(prev => {
+      const newSet = new Set(prev);
+      videoIds.forEach(id => {
+        if (select) newSet.add(id);
+        else newSet.delete(id);
+      });
+      return newSet;
+    });
   };
 
   const handleBatchAnalyze = async (videosToAnalyze: EnrichedVideo[]) => {
@@ -326,6 +339,7 @@ export default function Home() {
               selectedVideoIds={selectedVideoIds}
               onToggleSelectionMode={toggleSelectionMode}
               onToggleVideoSelection={toggleVideoSelection}
+              onBulkSelect={handleBulkSelect}
               onBatchAnalyze={handleBatchAnalyze}
             />
           )}
@@ -420,6 +434,7 @@ function SearchSection({
   selectedVideoIds,
   onToggleSelectionMode,
   onToggleVideoSelection,
+  onBulkSelect,
   onBatchAnalyze
 }: {
   savedChannelIds: string[],
@@ -432,6 +447,7 @@ function SearchSection({
   selectedVideoIds?: Set<string>,
   onToggleSelectionMode?: () => void,
   onToggleVideoSelection?: (id: string) => void,
+  onBulkSelect?: (ids: string[], select: boolean) => void,
   onBatchAnalyze?: (videos: EnrichedVideo[]) => void
 }) {
   const {
@@ -502,16 +518,15 @@ function SearchSection({
 
   // Batch Select Helper
   const handleSelectAll = () => {
-    if (!onToggleVideoSelection || !selectedVideoIds) return;
+    if (!onBulkSelect || !selectedVideoIds) return;
     const allSelected = videos.every(v => selectedVideoIds.has(v.id));
+    const allIds = videos.map(v => v.id);
     
-    videos.forEach(v => {
-        if (allSelected) {
-            if (selectedVideoIds.has(v.id)) onToggleVideoSelection(v.id);
-        } else {
-            if (!selectedVideoIds.has(v.id)) onToggleVideoSelection(v.id);
-        }
-    });
+    if (allSelected) {
+        onBulkSelect(allIds, false); // Deselect all
+    } else {
+        onBulkSelect(allIds, true); // Select all
+    }
   };
 
   const startBatchAnalysis = () => {
@@ -690,51 +705,51 @@ function SearchSection({
       {allVideos.length > 0 && (
         <Card className="bg-slate-50/50 dark:bg-slate-900/50 border-dashed">
           <CardContent className="py-1.5 px-3">
-            <div className="flex flex-wrap gap-1.5 items-center justify-between">
+            <div className="flex flex-wrap gap-2 items-center">
               
-              {/* Left: Sort Buttons */}
-              <div className="flex flex-wrap gap-1.5 items-center">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mr-2 ml-1">심화 정렬</span>
-                <Button variant={sortBy === 'none' ? 'default' : 'ghost'} size="sm" className="h-7 text-xs px-2.5" onClick={() => setSortBy('none')}>기본</Button>
-                <Button variant={sortBy === 'views' ? 'default' : 'ghost'} size="sm" className="h-7 text-xs px-2.5" onClick={() => setSortBy('views')}>조회수</Button>
-                <Button variant={sortBy === 'subscribers' ? 'default' : 'ghost'} size="sm" className="h-7 text-xs px-2.5" onClick={() => setSortBy('subscribers')}>구독자</Button>
-                <Button variant={sortBy === 'performance' ? 'default' : 'ghost'} size="sm" className="h-7 text-xs px-2.5" onClick={() => setSortBy('performance')}>성과도</Button>
-                <Button variant={sortBy === 'engagement' ? 'default' : 'ghost'} size="sm" className="h-7 text-xs px-2.5" onClick={() => setSortBy('engagement')}>참여율</Button>
-                <Button variant={sortBy === 'likes' ? 'default' : 'ghost'} size="sm" className="h-7 text-xs px-2.5" onClick={() => setSortBy('likes')}>좋아요</Button>
-                <Button variant={sortBy === 'comments' ? 'default' : 'ghost'} size="sm" className="h-7 text-xs px-2.5" onClick={() => setSortBy('comments')}>댓글</Button>
+              {/* Sort Buttons */}
+              <div className="flex flex-wrap gap-1 items-center">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2 ml-1 shrink-0">심화 정렬</span>
+                <Button variant={sortBy === 'none' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('none')}>기본</Button>
+                <Button variant={sortBy === 'views' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('views')}>조회수</Button>
+                <Button variant={sortBy === 'subscribers' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('subscribers')}>구독자</Button>
+                <Button variant={sortBy === 'performance' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('performance')}>성과도</Button>
+                <Button variant={sortBy === 'engagement' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('engagement')}>참여율</Button>
+                <Button variant={sortBy === 'likes' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('likes')}>좋아요</Button>
+                <Button variant={sortBy === 'comments' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('comments')}>댓글</Button>
               </div>
 
-              {/* Right: Batch Action Button */}
+              {/* Batch Actions Group - Pushed to right */}
               {onToggleSelectionMode && (
-                <div className="flex items-center gap-2">
-                  <div className="text-[11px] text-slate-400 font-medium pr-1">총 {videos.length}개</div>
+                <div className="ml-auto flex items-center gap-2">
+                  <div className="text-[10px] text-slate-400 font-medium pr-1 shrink-0 hidden sm:block">총 {videos.length}개</div>
                   {isSelectionMode ? (
-                    <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4 duration-300">
-                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleSelectAll}>
+                    <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-right-4 duration-300">
+                      <Button variant="ghost" size="sm" className="h-7 text-xs px-2 text-slate-500" onClick={onToggleSelectionMode}>
+                        취소
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-7 text-xs px-3 border-purple-200 text-purple-700" onClick={handleSelectAll}>
                         {selectedVideoIds && selectedVideoIds.size === videos.length ? '전체 해제' : '전체 선택'}
                       </Button>
                       <Button 
                         variant="default" 
                         size="sm" 
-                        className="h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white" 
+                        className="h-7 text-xs px-4 bg-purple-600 hover:bg-purple-700 text-white shadow-sm" 
                         onClick={startBatchAnalysis}
                         disabled={!selectedVideoIds || selectedVideoIds.size === 0}
                       >
-                        <Sparkles className="w-3 h-3 mr-1" />
+                        <Sparkles className="w-3 h-3 mr-1.5" />
                         분석 ({selectedVideoIds?.size || 0})
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onToggleSelectionMode}>
-                        취소
                       </Button>
                     </div>
                   ) : (
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="h-7 text-xs border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-900 dark:text-purple-400 dark:hover:bg-purple-950/30"
+                      className="h-7 text-xs px-3 border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-900 dark:text-purple-400 dark:hover:bg-purple-950/30 transition-colors"
                       onClick={onToggleSelectionMode}
                     >
-                      <List className="w-3 h-3 mr-1" />
+                      <List className="w-3 h-3 mr-1.5" />
                       일괄 AI 분석
                     </Button>
                   )}
