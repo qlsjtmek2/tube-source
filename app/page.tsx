@@ -776,11 +776,11 @@ function SearchSection({
                       <Button 
                         variant="default" 
                         size="sm" 
-                        className="h-7 text-xs px-4 bg-red-600 hover:bg-red-700 text-white font-bold shadow-sm disabled:opacity-50 disabled:bg-red-400" 
+                        className="h-7 text-xs px-4 !bg-red-600 !hover:bg-red-700 !text-white font-bold shadow-sm disabled:!bg-red-200 disabled:!text-white/80 disabled:!opacity-100 transition-colors" 
                         onClick={startBatchAnalysis}
                         disabled={!selectedVideoIds || selectedVideoIds.size === 0}
                       >
-                        <Sparkles className="w-3 h-3 mr-1.5 fill-white text-white" />
+                        <Sparkles className="w-3 h-3 mr-1.5 fill-white" />
                         분석 ({selectedVideoIds?.size || 0})
                       </Button>
                     </div>
