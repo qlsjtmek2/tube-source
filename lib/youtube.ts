@@ -1,4 +1,5 @@
 import { google, youtube_v3 } from 'googleapis';
+import { extractSubtitlesBatch, SubtitleData } from './subtitles';
 
 const youtube = google.youtube({
   version: 'v3',
@@ -14,6 +15,7 @@ export interface VideoSearchFilters {
   order?: 'date' | 'rating' | 'relevance' | 'title' | 'videoCount' | 'viewCount';
   creativeCommons?: boolean;
   maxResults?: number; // 1-100 (paginated internally)
+  fetchSubtitles?: boolean; // 자막 수집 여부 (기본값: true)
 }
 
 export interface EnrichedVideo {
@@ -41,6 +43,10 @@ export interface EnrichedVideo {
   // Derived Metrics
   engagementRate: number; // ((Likes + Comments) / Views) * 100
   performanceRatio: number; // (Video Views / Subscriber Count) * 100 (Simplified proxy for contribution)
+
+  // Subtitles
+  subtitleText?: string; // 자막 텍스트 (없으면 undefined)
+  subtitleLanguage?: string; // 자막 언어 (예: 'ko')
 }
 
 export async function searchVideos(filters: VideoSearchFilters): Promise<EnrichedVideo[]> {
@@ -134,7 +140,15 @@ export async function searchVideos(filters: VideoSearchFilters): Promise<Enriche
 
     console.log(`[YouTube Search] Channels found: ${Object.keys(channelsMap).length}`);
 
-    // 4. Merge Data
+    // 4. Fetch Subtitles (if enabled)
+    let subtitlesMap = new Map<string, SubtitleData>();
+    if (filters.fetchSubtitles !== false) { // 기본값 true
+      console.log(`[YouTube Search] Fetching subtitles for ${videoIds.length} videos...`);
+      subtitlesMap = await extractSubtitlesBatch(videoIds, 'ko');
+      console.log(`[YouTube Search] Subtitles fetched: ${subtitlesMap.size}/${videoIds.length}`);
+    }
+
+    // 5. Merge Data
     const enrichedVideos: EnrichedVideo[] = [];
 
     const videoItems = allVideoItems;
@@ -175,6 +189,9 @@ export async function searchVideos(filters: VideoSearchFilters): Promise<Enriche
 
         engagementRate: Number(engagementRate.toFixed(2)),
         performanceRatio: Number(performanceRatio.toFixed(2)),
+
+        subtitleText: subtitlesMap.get(video.id)?.text,
+        subtitleLanguage: subtitlesMap.get(video.id)?.language,
       });
     }
     

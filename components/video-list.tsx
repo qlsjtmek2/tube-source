@@ -10,9 +10,10 @@ interface VideoListProps {
   onToggleSave?: (channel: { channelId: string; channelTitle: string; thumbnail: string }) => void;
   onDownload?: (video: { id: string; title: string }) => void;
   onAnalyze?: (video: EnrichedVideo) => void;
+  onViewSubtitle?: (video: EnrichedVideo) => void;
 }
 
-export function VideoList({ videos, loading, savedChannelIds = [], onToggleSave, onDownload, onAnalyze }: VideoListProps) {
+export function VideoList({ videos, loading, savedChannelIds = [], onToggleSave, onDownload, onAnalyze, onViewSubtitle }: VideoListProps) {
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse">
@@ -35,12 +36,13 @@ export function VideoList({ videos, loading, savedChannelIds = [], onToggleSave,
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20 w-full auto-rows-fr">
       {videos.map((video) => (
         <div key={video.id} className="flex h-full">
-          <VideoCard 
-            video={video} 
+          <VideoCard
+            video={video}
             isSaved={savedChannelIds.includes(video.channelId)}
             onToggleSave={onToggleSave}
             onDownload={onDownload}
             onAnalyze={onAnalyze}
+            onViewSubtitle={onViewSubtitle}
           />
         </div>
       ))}

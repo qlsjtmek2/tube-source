@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { VideoList } from '@/components/video-list';
 import { DownloadDialog } from '@/components/download-dialog';
 import { AnalysisDialog } from '@/components/analysis-dialog';
+import { SubtitleDialog } from '@/components/subtitle-dialog';
 import { EnrichedVideo, VideoSearchFilters } from '@/lib/youtube';
 import { SavedChannel } from '@/lib/storage';
 
@@ -21,6 +22,9 @@ export default function Home() {
   const [selectedVideoForAnalysis, setSelectedVideoForAnalysis] = useState<EnrichedVideo | null>(null);
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
+
+  const [selectedVideoForSubtitle, setSelectedVideoForSubtitle] = useState<EnrichedVideo | null>(null);
+  const [isSubtitleOpen, setIsSubtitleOpen] = useState(false);
 
   const fetchSavedChannels = async () => {
     try {
@@ -69,6 +73,11 @@ export default function Home() {
       console.error(e);
       setAnalysisResult({ error: "분석 중 오류가 발생했습니다." });
     }
+  };
+
+  const handleViewSubtitle = (video: EnrichedVideo) => {
+    setSelectedVideoForSubtitle(video);
+    setIsSubtitleOpen(true);
   };
 
   return (
@@ -140,11 +149,12 @@ export default function Home() {
 
         <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
           {activeTab === 'search' && (
-            <SearchSection 
-              savedChannelIds={savedChannels.map(c => c.channelId)} 
-              onToggleSave={handleToggleSave} 
+            <SearchSection
+              savedChannelIds={savedChannels.map(c => c.channelId)}
+              onToggleSave={handleToggleSave}
               onDownload={(v) => setSelectedVideoForDownload(v)}
               onAnalyze={handleAnalyze}
+              onViewSubtitle={handleViewSubtitle}
             />
           )}
           {activeTab === 'channels' && (
@@ -154,11 +164,12 @@ export default function Home() {
             />
           )}
           {activeTab === 'trends' && (
-            <TrendsSection 
-              savedChannelIds={savedChannels.map(c => c.channelId)} 
-              onToggleSave={handleToggleSave} 
+            <TrendsSection
+              savedChannelIds={savedChannels.map(c => c.channelId)}
+              onToggleSave={handleToggleSave}
               onDownload={(v) => setSelectedVideoForDownload(v)}
               onAnalyze={handleAnalyze}
+              onViewSubtitle={handleViewSubtitle}
             />
           )}
           {activeTab === 'downloads' && (
@@ -173,21 +184,34 @@ export default function Home() {
         onClose={() => setSelectedVideoForDownload(null)} 
       />
 
-      <AnalysisDialog 
+      <AnalysisDialog
         analysis={analysisResult}
         isOpen={isAnalysisOpen}
         onClose={() => setIsAnalysisOpen(false)}
         videoTitle={selectedVideoForAnalysis?.title}
       />
+
+      <SubtitleDialog
+        subtitle={selectedVideoForSubtitle ? {
+          videoId: selectedVideoForSubtitle.id,
+          language: selectedVideoForSubtitle.subtitleLanguage || 'ko',
+          text: selectedVideoForSubtitle.subtitleText || '',
+          format: 'json3'
+        } : null}
+        isOpen={isSubtitleOpen}
+        onClose={() => setIsSubtitleOpen(false)}
+        videoTitle={selectedVideoForSubtitle?.title}
+      />
     </div>
   );
 }
 
-function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }: {
+function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, onViewSubtitle }: {
   savedChannelIds: string[],
   onToggleSave: (c: any) => void,
   onDownload: (v: any) => void,
-  onAnalyze: (v: EnrichedVideo) => void
+  onAnalyze: (v: EnrichedVideo) => void,
+  onViewSubtitle: (v: EnrichedVideo) => void
 }) {
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<Partial<VideoSearchFilters>>({
@@ -195,6 +219,7 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }:
     order: 'relevance',
     maxResults: 100,
     regionCode: 'KR',
+    fetchSubtitles: true,
   });
   const [timePeriod, setTimePeriod] = useState<string>('all'); // all, 1d, 1w, 1m, 3m, 6m, 1y
   const [sortBy, setSortBy] = useState<string>('none'); // none, views, subscribers, performance, engagement, likes, comments
@@ -390,7 +415,7 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }:
               </select>
             </div>
 
-            <div className="flex items-end">
+            <div className="flex items-end gap-4">
               <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer h-10">
                 <input
                   type="checkbox"
@@ -399,6 +424,15 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }:
                   onChange={(e) => setFilters({...filters, creativeCommons: e.target.checked})}
                 />
                 크리에이티브 커먼즈
+              </label>
+              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer h-10">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4"
+                  checked={filters.fetchSubtitles !== false}
+                  onChange={(e) => setFilters({...filters, fetchSubtitles: e.target.checked})}
+                />
+                자막 수집
               </label>
             </div>
           </div>
@@ -490,6 +524,7 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }:
         onToggleSave={onToggleSave}
         onDownload={onDownload}
         onAnalyze={onAnalyze}
+        onViewSubtitle={onViewSubtitle}
       />
     </div>
   );
@@ -529,11 +564,12 @@ function ChannelsSection({ channels, onRemove }: { channels: SavedChannel[], onR
   );
 }
 
-function TrendsSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }: { 
-  savedChannelIds: string[], 
+function TrendsSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, onViewSubtitle }: {
+  savedChannelIds: string[],
   onToggleSave: (c: any) => void,
   onDownload: (v: any) => void,
-  onAnalyze: (v: EnrichedVideo) => void
+  onAnalyze: (v: EnrichedVideo) => void,
+  onViewSubtitle: (v: EnrichedVideo) => void
 }) {
   const [regionCode, setRegionCode] = useState('KR');
   const [categoryId, setCategoryId] = useState('0');
@@ -590,13 +626,14 @@ function TrendsSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze }:
         </div>
       </div>
 
-      <VideoList 
-        videos={videos} 
-        loading={loading} 
-        savedChannelIds={savedChannelIds} 
-        onToggleSave={onToggleSave} 
+      <VideoList
+        videos={videos}
+        loading={loading}
+        savedChannelIds={savedChannelIds}
+        onToggleSave={onToggleSave}
         onDownload={onDownload}
         onAnalyze={onAnalyze}
+        onViewSubtitle={onViewSubtitle}
       />
     </div>
   );

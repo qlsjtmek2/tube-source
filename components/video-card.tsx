@@ -10,9 +10,10 @@ interface VideoCardProps {
   onToggleSave?: (channel: { channelId: string; channelTitle: string; thumbnail: string }) => void;
   onDownload?: (video: { id: string; title: string }) => void;
   onAnalyze?: (video: EnrichedVideo) => void;
+  onViewSubtitle?: (video: EnrichedVideo) => void;
 }
 
-export function VideoCard({ video, isSaved, onToggleSave, onDownload, onAnalyze }: VideoCardProps) {
+export function VideoCard({ video, isSaved, onToggleSave, onDownload, onAnalyze, onViewSubtitle }: VideoCardProps) {
   // Format numbers
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat('en-US', { notation: "compact", maximumFractionDigits: 1 }).format(num);
@@ -133,22 +134,32 @@ export function VideoCard({ video, isSaved, onToggleSave, onDownload, onAnalyze 
         </div>
         
         {/* Action Buttons */}
-        <div className="mt-4 grid grid-cols-2 gap-2">
-            <Button 
-              size="sm" 
-              variant="outline" 
+        <div className="mt-4 grid grid-cols-3 gap-2">
+            <Button
+              size="sm"
+              variant="outline"
               className="h-8 text-xs"
               onClick={() => onAnalyze?.(video)}
             >
               AI 분석
             </Button>
-            <Button 
-              size="sm" 
-              variant="secondary" 
+            <Button
+              size="sm"
+              variant="secondary"
               className="h-8 text-xs"
               onClick={() => onDownload?.({ id: video.id, title: video.title })}
             >
               다운로드
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              onClick={() => onViewSubtitle?.(video)}
+              disabled={!video.subtitleText}
+              title={!video.subtitleText ? "자막 없음" : "자막 보기"}
+            >
+              자막 보기
             </Button>
         </div>
 
