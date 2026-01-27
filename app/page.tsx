@@ -16,6 +16,14 @@ import { EnrichedVideo, VideoSearchFilters, YouTubeComment } from '@/lib/youtube
 import { SavedChannel } from '@/lib/storage';
 import { AnalyzedVideo } from '@/lib/ai';
 import { useSearch } from '@/store/search-context';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from '@/components/ui/label';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('search');
