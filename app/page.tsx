@@ -1100,7 +1100,7 @@ function AnalyzedVideosSection({
           thumbnail: v.thumbnail,
           viewCount: v.viewCount,
           likeCount: v.likeCount,
-          commentCount: 0,
+          commentCount: v.commentCount || 0,
           subscriberCount: v.subscriberCount,
           engagementRate: v.engagementRate,
           performanceRatio: v.performanceRatio,

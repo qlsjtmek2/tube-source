@@ -29,6 +29,7 @@ export interface AnalyzedVideo {
   thumbnail: string; // context일 경우 대표 이미지 또는 빈 값
   viewCount: number; // context일 경우 합계 또는 평균
   likeCount: number;
+  commentCount: number;
   subscriberCount: number;
   engagementRate: number;
   performanceRatio: number;
