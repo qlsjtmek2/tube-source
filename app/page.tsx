@@ -33,11 +33,12 @@ export default function Home() {
   const [savedChannels, setSavedChannels] = useState<SavedChannel[]>([]);
   const [selectedVideoForDownload, setSelectedVideoForDownload] = useState<{ id: string; title: string } | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string>('');
+  const [downloadTitle, setDownloadTitle] = useState<string>('');
   const [isUrlDownloadOpen, setIsUrlDownloadOpen] = useState(false);
   const [activeDownloads, setActiveDownloads] = useState<any[]>([]);
   
   const [isBulkMode, setIsBulkMode] = useState(false);
-  const [bulkUrls, setBulkUrls] = useState<string[]>([]);
+  const [bulkItems, setBulkItems] = useState<{url: string, title?: string}[]>([]);
 
   const handleDownloadStart = (info: any) => {
     // Check if it's a single info or array of info
@@ -581,13 +582,14 @@ export default function Home() {
           )}
           {activeTab === 'downloads' && (
             <DownloadsSection 
-              onDownloadUrl={(url) => {
+              onDownloadUrl={(url, title) => {
                 setDownloadUrl(url);
+                setDownloadTitle(title || '');
                 setIsUrlDownloadOpen(true);
                 setIsBulkMode(false);
               }}
-              onBulkUrl={(urls) => {
-                setBulkUrls(urls);
+              onBulkUrl={(items) => {
+                setBulkItems(items);
                 setIsUrlDownloadOpen(true);
                 setIsBulkMode(true);
               }}
@@ -600,14 +602,16 @@ export default function Home() {
       <DownloadDialog 
         video={selectedVideoForDownload} 
         url={!isBulkMode ? downloadUrl : undefined}
-        urls={isBulkMode ? bulkUrls : undefined}
+        title={!isBulkMode ? downloadTitle : undefined}
+        items={isBulkMode ? bulkItems : undefined}
         isOpen={!!selectedVideoForDownload || isUrlDownloadOpen} 
         onDownloadStart={handleDownloadStart}
         onClose={() => {
           setSelectedVideoForDownload(null);
           setIsUrlDownloadOpen(false);
           setDownloadUrl('');
-          setBulkUrls([]);
+          setDownloadTitle('');
+          setBulkItems([]);
           setIsBulkMode(false);
         }} 
       />
@@ -1667,64 +1671,154 @@ function ChannelSearchSection({
           }
           
           function DownloadsSection({ onDownloadUrl, onBulkUrl, activeDownloads }: { 
-            onDownloadUrl: (url: string) => void, 
-            onBulkUrl: (urls: string[]) => void,
+          
+            onDownloadUrl: (url: string, title?: string) => void, 
+          
+            onBulkUrl: (items: {url: string, title?: string}[]) => void,
+          
             activeDownloads: any[] 
+          
           }) {
+          
             const [inputText, setInputText] = useState('');
           
-              const extractUrls = (text: string) => {
-                // Improved regex to find YouTube URLs and clean them from trailing punctuation/brackets
-                const youtubeRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}[^\s\)\)\]\>]*)/g;
-                const matches = text.match(youtubeRegex);
-                
-                if (!matches) return [];
-                
-                // Clean each URL (remove trailing dots, commas, or brackets that might have been caught)
-                return Array.from(new Set(matches.map(url => {
-                  return url.replace(/[.,\)\)\]\>]+$/, '');
-                })));
-              };
-                        const handleSubmit = (e: React.FormEvent) => {
-              e.preventDefault();
-              const urls = extractUrls(inputText);
-              if (urls.length > 1) {
-                onBulkUrl(urls);
-                setInputText('');
-              } else if (urls.length === 1) {
-                onDownloadUrl(urls[0]);
-                setInputText('');
+          
+          
+            const extractItems = (text: string) => {
+          
+              const markdownRegex = /\[([^\]]+)\]\((https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}[^\s\)\)\]\>]*)\)/g;
+          
+              const bareUrlRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}[^\s\)\)\]\>]*)/g;
+          
+          
+          
+              const results: {url: string, title?: string}[] = [];
+          
+              const foundUrls = new Set<string>();
+          
+          
+          
+              let match;
+          
+              while ((match = markdownRegex.exec(text)) !== null) {
+          
+                const title = match[1];
+          
+                const url = match[2].replace(/[.,\)\)\]\>]+$/, '');
+          
+                results.push({ url, title });
+          
+                foundUrls.add(url);
+          
               }
+          
+          
+          
+              while ((match = bareUrlRegex.exec(text)) !== null) {
+          
+                const url = match[1].replace(/[.,\)\)\]\>]+$/, '');
+          
+                if (!foundUrls.has(url)) {
+          
+                  results.push({ url });
+          
+                  foundUrls.add(url);
+          
+                }
+          
+              }
+          
+          
+          
+              return results;
+          
             };
-                      return (
+          
+          
+          
+            const handleSubmit = (e: React.FormEvent) => {
+          
+              e.preventDefault();
+          
+              const items = extractItems(inputText);
+          
+              if (items.length > 1) {
+          
+                onBulkUrl(items);
+          
+                setInputText('');
+          
+              } else if (items.length === 1) {
+          
+                onDownloadUrl(items[0].url, items[0].title);
+          
+                setInputText('');
+          
+              }
+          
+            };
+          
+          
+          
+            return (
+          
               <div className="max-w-3xl mx-auto space-y-8 py-4">
+          
                 <div className="text-center space-y-2">
+          
                   <h2 className="text-2xl font-bold">유튜브 링크 일괄 다운로드</h2>
+          
                   <p className="text-slate-500">여러 개의 링크가 섞인 텍스트를 붙여넣어도 자동으로 유튜브 주소만 추출하여 다운로드합니다.</p>
+          
                 </div>
           
+          
+          
                 <Card className="border-red-100 dark:border-red-900/30 shadow-md">
+          
                   <CardContent className="p-4">
+          
                     <form onSubmit={handleSubmit} className="space-y-4">
+          
                       <div className="space-y-2">
+          
                         <Label htmlFor="url">유튜브 링크 (일괄 입력 가능)</Label>
+          
                         <div className="flex flex-col gap-3">
+          
                           <textarea
+          
                             id="url"
+          
                             placeholder="여러 개의 유튜브 링크를 여기에 붙여넣으세요..."
+          
                             className="w-full h-32 p-3 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 dark:border-slate-800 dark:bg-slate-950"
+          
                             value={inputText}
+          
                             onChange={(e) => setInputText(e.target.value)}
+          
                           />
+          
                           <Button type="submit" size="lg" className="w-full h-12 bg-red-600 hover:bg-red-700" disabled={!inputText.trim()}>
+          
                             <Download className="mr-2 h-5 w-5" />
+          
                             형식 선택 및 다운로드 시작
+          
                           </Button>
+          
                         </div>
+          
                       </div>
+          
                     </form>
+          
                   </CardContent>
+          
                 </Card>
+          
+          
           
                       {activeDownloads.length > 0 && (
           
