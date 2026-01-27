@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { EnrichedVideo } from './youtube';
-import { AnalysisResult, AnalyzedVideo } from './ai';
+import { AnalysisResult, AnalyzedVideo, ContextAnalysisResult } from './ai';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const CHANNELS_FILE = path.join(DATA_DIR, 'channels.json');
@@ -115,6 +115,7 @@ export async function saveAnalyzedVideo(
 
   // 새로운 분석 결과 추가
   const analyzedVideo: AnalyzedVideo = {
+    type: 'single',
     videoId: video.id,
     title: video.title,
     channelTitle: video.channelTitle,
@@ -130,6 +131,38 @@ export async function saveAnalyzedVideo(
   };
 
   const updated = [analyzedVideo, ...filtered];
+  await fs.writeFile(ANALYZED_VIDEOS_FILE, JSON.stringify(updated, null, 2));
+  return updated;
+}
+
+export async function saveContextAnalysis(
+  analysisResult: ContextAnalysisResult,
+  sourceVideos: EnrichedVideo[]
+): Promise<AnalyzedVideo[]> {
+  await initStorage();
+  const videos = await getAnalyzedVideos();
+
+  const reportId = `report-${Date.now()}`;
+  const firstVideo = sourceVideos[0];
+  
+  // Create a summary 'video' object representing the report
+  const analyzedReport: AnalyzedVideo = {
+    type: 'context',
+    videoId: reportId,
+    title: `Context Report: ${sourceVideos.length} Videos Analysis`,
+    channelTitle: `Based on ${sourceVideos[0]?.channelTitle || 'Unknown'} etc.`,
+    channelId: 'report',
+    thumbnail: firstVideo?.thumbnail || '',
+    viewCount: sourceVideos.reduce((acc, v) => acc + v.viewCount, 0),
+    likeCount: sourceVideos.reduce((acc, v) => acc + (v.likeCount || 0), 0),
+    subscriberCount: 0,
+    engagementRate: 0,
+    performanceRatio: 0,
+    analysisResult,
+    analyzedAt: new Date().toISOString(),
+  };
+
+  const updated = [analyzedReport, ...videos];
   await fs.writeFile(ANALYZED_VIDEOS_FILE, JSON.stringify(updated, null, 2));
   return updated;
 }

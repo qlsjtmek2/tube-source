@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Youtube, Download, BarChart2, List, Settings, Loader2, Trash2, ExternalLink, TrendingUp, Sparkles } from 'lucide-react';
+import { Search, Youtube, Download, BarChart2, List, Settings, Loader2, Trash2, ExternalLink, TrendingUp, Sparkles, Layers } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { VideoList } from '@/components/video-list';
 import { DownloadDialog } from '@/components/download-dialog';
@@ -250,6 +250,51 @@ export default function Home() {
     }
   };
 
+  const handleContextAnalyze = async (videosToAnalyze: EnrichedVideo[]) => {
+    if (videosToAnalyze.length === 0) return;
+
+    setIsAnalyzing(true);
+    setIsAnalysisOpen(true);
+    setAnalysisResult(null);
+    setSelectedVideoForAnalysis({
+      ...videosToAnalyze[0],
+      title: `Context Analysis (${videosToAnalyze.length} videos)`,
+      channelTitle: 'Multiple Channels'
+    });
+
+    try {
+      const res = await fetch('/api/analyze/context', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videos: videosToAnalyze }),
+      });
+      const data = await res.json();
+
+      if (data.analysis) {
+        setAnalysisResult(data.analysis);
+        setIsAnalyzed(true);
+
+        // Save Context Analysis
+        fetch('/api/analyzed-videos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'save_context',
+            videos: videosToAnalyze,
+            analysisResult: data.analysis
+          }),
+        }).catch(e => console.error("Failed to save context analysis:", e));
+      } else {
+        setAnalysisResult({ error: "분석에 실패했습니다." });
+      }
+    } catch (e) {
+      console.error(e);
+      setAnalysisResult({ error: "분석 중 오류가 발생했습니다." });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   const handleViewSubtitle = (video: EnrichedVideo) => {
     setSelectedVideoForSubtitle(video);
     setIsSubtitleOpen(true);
@@ -377,6 +422,7 @@ export default function Home() {
               onToggleVideoSelection={toggleVideoSelection}
               onBulkSelect={handleBulkSelect}
               onBatchAnalyze={handleBatchAnalyze}
+              onContextAnalyze={handleContextAnalyze}
               batchProps={{
                 isOpen: isBatchDialogOpen,
                 isAnalyzing: isBatchAnalyzing,
@@ -477,6 +523,7 @@ function SearchSection({
   onToggleVideoSelection,
   onBulkSelect,
   onBatchAnalyze,
+  onContextAnalyze,
   batchProps
 }: {
   savedChannelIds: string[],
@@ -491,6 +538,7 @@ function SearchSection({
   onToggleVideoSelection?: (id: string) => void,
   onBulkSelect?: (ids: string[], select: boolean) => void,
   onBatchAnalyze?: (videos: EnrichedVideo[]) => void,
+  onContextAnalyze?: (videos: EnrichedVideo[]) => void,
   batchProps?: BatchProps
 }) {
   const {
@@ -502,6 +550,7 @@ function SearchSection({
     allVideos, setAllVideos,
     loading, setLoading,
     applySorting,
+    removeVideo,
     setHasSearched,
   } = useSearch();
 
@@ -576,6 +625,12 @@ function SearchSection({
     if (!onBatchAnalyze || !selectedVideoIds) return;
     const selectedVideos = videos.filter(v => selectedVideoIds.has(v.id));
     onBatchAnalyze(selectedVideos);
+  };
+
+  const startContextAnalysis = () => {
+    if (!onContextAnalyze || !selectedVideoIds) return;
+    const selectedVideos = videos.filter(v => selectedVideoIds.has(v.id));
+    onContextAnalyze(selectedVideos);
   };
 
   return (
@@ -782,7 +837,17 @@ function SearchSection({
                         disabled={!selectedVideoIds || selectedVideoIds.size === 0}
                       >
                         <Sparkles className="w-3 h-3 mr-1.5 fill-white" />
-                        분석 ({selectedVideoIds?.size || 0})
+                        개별 분석 ({selectedVideoIds?.size || 0})
+                      </Button>
+                      <Button 
+                        variant="default" 
+                        size="sm" 
+                        className="h-7 text-xs px-4 !bg-purple-600 !hover:bg-purple-700 !text-white font-bold shadow-sm disabled:!bg-purple-200 disabled:!text-white/80 disabled:!opacity-100 transition-colors" 
+                        onClick={startContextAnalysis}
+                        disabled={!selectedVideoIds || selectedVideoIds.size === 0}
+                      >
+                        <Layers className="w-3 h-3 mr-1.5" />
+                        맥락 분석 ({selectedVideoIds?.size || 0})
                       </Button>
                     </div>
                   ) : (
@@ -825,6 +890,7 @@ function SearchSection({
         onAnalyze={onAnalyze}
         onViewSubtitle={onViewSubtitle}
         onViewComments={onViewComments}
+        onRemove={removeVideo}
         selectionMode={isSelectionMode}
         selectedVideoIds={selectedVideoIds}
         onSelectVideo={onToggleVideoSelection}

@@ -9,23 +9,101 @@ export interface AnalysisResult {
   structure: string;
   target: string;
   insights: string[];
-  community_needs: string; // New field for community analysis
+  community_needs: string; 
+}
+
+export interface ContextAnalysisResult {
+  commonalities: string;
+  strategies: string;
+  insights: string[];
+  action_plan: string;
 }
 
 // 분석된 영상 저장 타입
 export interface AnalyzedVideo {
-  videoId: string;
+  type?: 'single' | 'context'; // 기본값은 single
+  videoId: string; // context일 경우 reportId
   title: string;
-  channelTitle: string;
-  channelId: string;
-  thumbnail: string;
-  viewCount: number;
+  channelTitle: string; // context일 경우 "N개의 영상 분석" 등
+  channelId: string; // context일 경우 빈 값 또는 식별자
+  thumbnail: string; // context일 경우 대표 이미지 또는 빈 값
+  viewCount: number; // context일 경우 합계 또는 평균
   likeCount: number;
   subscriberCount: number;
   engagementRate: number;
   performanceRatio: number;
-  analysisResult: AnalysisResult;
+  analysisResult: AnalysisResult | ContextAnalysisResult;
   analyzedAt: string; // ISO timestamp
+}
+
+export async function analyzeContextStrategy(videos: EnrichedVideo[], userPrompt?: string) {
+  const modelName = "gemini-3-flash-preview";
+  console.log(`[AI Context Analysis] Starting with model: ${modelName}`);
+
+  const model = genAI.getGenerativeModel({ 
+    model: modelName,
+    systemInstruction: `당신은 유튜브 빅데이터 분석가이자 채널 컨설턴트입니다. 
+여러 영상 데이터를 종합적으로 분석하여 공통된 성공 패턴과 트렌드를 도출하는 데 탁월합니다.
+단편적인 분석이 아니라, 전체를 관통하는 맥락(Context)을 읽어내고 실질적인 전략을 제안하십시오.`
+  });
+
+  const videosData = videos.map((v, idx) => `
+    [영상 ${idx + 1}]
+    - 제목: ${v.title}
+    - 채널: ${v.channelTitle}
+    - 성과: 조회수 ${v.viewCount.toLocaleString()}, 성과도 ${v.performanceRatio}%
+    - 설명: ${v.description?.slice(0, 150)}...
+  `).join('\n');
+
+  const prompt = `
+    다음 ${videos.length}개의 유튜브 영상들은 사용자가 수집한 벤치마킹 데이터입니다.
+    이 영상들을 종합적으로 분석하여, 사용자의 채널 성장에 도움이 될 전략 리포트를 작성하십시오.
+    ${userPrompt ? `사용자 추가 요청사항: "${userPrompt}"` : ""}
+
+    [분석 대상 영상 목록]
+    ${videosData}
+
+    [분석 가이드라인]
+    다음 4가지 항목에 대해 심층 분석하고 JSON으로 응답하십시오.
+
+    1. 공통된 성공 요인 (commonalities):
+       - 이 영상들이 공유하는 주제, 톤앤매너, 썸네일 스타일, 서사 구조 등의 공통점은 무엇입니까?
+       - 왜 이 영상들이 시청자들에게 선택받았는지 공통된 패턴을 찾으십시오.
+
+    2. 트렌드 및 전략 분석 (strategies):
+       - 현재 이 카테고리/장르에서 유효한 콘텐츠 전략은 무엇입니까?
+       - 키워드, 편집 스타일, 시청 지속 시간을 늘리는 장치 등을 분석하십시오.
+
+    3. 핵심 인사이트 (insights):
+       - 데이터를 통해 발견한 날카로운 통찰 3~5가지를 나열하십시오.
+
+    4. 내 채널 적용 액션 플랜 (action_plan):
+       - 사용자가 당장 다음 영상 제작에 적용해야 할 구체적인 실행 계획을 제안하십시오.
+
+    [응답 형식 (JSON Only)]
+    {
+      "commonalities": "공통점 분석...",
+      "strategies": "전략 분석...",
+      "insights": ["인사이트 1", "인사이트 2", "인사이트 3"],
+      "action_plan": "액션 플랜..."
+    }
+  `;
+
+  const result = await model.generateContent(prompt);
+  const response = await result.response;
+  const text = response.text();
+
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try {
+        return JSON.parse(jsonMatch[0]);
+    } catch (e) {
+        console.error("JSON Parse Error:", e);
+        return { error: "Failed to parse AI response" };
+    }
+  }
+  
+  return { error: "Failed to parse AI response", raw: text };
 }
 
 export async function analyzeVideoStrategy(videoData: EnrichedVideo, comments: YouTubeComment[] = []) {

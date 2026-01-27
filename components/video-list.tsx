@@ -13,6 +13,7 @@ interface VideoListProps {
   onViewSubtitle?: (video: EnrichedVideo) => void;
   onViewComments?: (video: EnrichedVideo) => void;
   onDeleteAnalysis?: (videoId: string) => void;
+  onRemove?: (videoId: string) => void;
   selectionMode?: boolean;
   selectedVideoIds?: Set<string>;
   onSelectVideo?: (videoId: string) => void;
@@ -28,6 +29,7 @@ export function VideoList({
   onViewSubtitle, 
   onViewComments, 
   onDeleteAnalysis,
+  onRemove,
   selectionMode = false,
   selectedVideoIds = new Set(),
   onSelectVideo
@@ -63,6 +65,7 @@ export function VideoList({
             onViewSubtitle={onViewSubtitle}
             onViewComments={onViewComments}
             onDeleteAnalysis={onDeleteAnalysis}
+            onRemove={onRemove}
             selectionMode={selectionMode}
             isSelected={selectedVideoIds.has(video.id)}
             onSelect={() => onSelectVideo?.(video.id)}

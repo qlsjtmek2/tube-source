@@ -3,10 +3,11 @@ import {
   getAnalyzedVideos,
   getAnalysis,
   saveAnalyzedVideo,
+  saveContextAnalysis,
   deleteAnalyzedVideo
 } from '@/lib/storage';
 import { EnrichedVideo } from '@/lib/youtube';
-import { AnalysisResult } from '@/lib/ai';
+import { AnalysisResult, ContextAnalysisResult } from '@/lib/ai';
 
 // GET: 분석된 영상 조회
 export async function GET(req: NextRequest) {
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { action, videoId, video, analysisResult } = body;
+    const { action, videoId, video, videos, analysisResult } = body;
 
     if (action === 'save') {
       // 분석 결과 저장 또는 업데이트
@@ -50,6 +51,17 @@ export async function POST(req: NextRequest) {
       const updated = await saveAnalyzedVideo(
         video as EnrichedVideo,
         analysisResult as AnalysisResult
+      );
+      return NextResponse.json({ success: true, videos: updated });
+
+    } else if (action === 'save_context') {
+      if (!videos || !analysisResult) {
+        return NextResponse.json({ error: 'Missing videos or analysisResult' }, { status: 400 });
+      }
+
+      const updated = await saveContextAnalysis(
+        analysisResult as ContextAnalysisResult,
+        videos as EnrichedVideo[]
       );
       return NextResponse.json({ success: true, videos: updated });
 

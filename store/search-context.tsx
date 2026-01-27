@@ -32,6 +32,7 @@ interface SearchContextType {
   loading: boolean;
   setLoading: (l: boolean) => void;
   applySorting: (videoList: EnrichedVideo[], sortType: string) => void;
+  removeVideo: (videoId: string) => void;
   clearSearch: () => void;
   isHydrated: boolean;
 }
@@ -121,6 +122,11 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     }
 
     setVideos(sorted);
+  };
+
+  const removeVideo = (videoId: string) => {
+    setVideos((prev) => prev.filter((v) => v.id !== videoId));
+    setAllVideos((prev) => prev.filter((v) => v.id !== videoId));
   };
 
   const clearSearch = () => {
@@ -219,6 +225,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
       allVideos, setAllVideos,
       loading, setLoading,
       applySorting,
+      removeVideo,
       clearSearch,
       isHydrated,
     }}>

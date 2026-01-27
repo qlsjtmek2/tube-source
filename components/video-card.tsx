@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EnrichedVideo } from "@/lib/youtube";
-import { Calendar, Eye, MessageCircle, Star, ThumbsUp, User, Users, CheckCircle2, Circle } from "lucide-react";
+import { Calendar, Eye, MessageCircle, Star, ThumbsUp, User, Users, CheckCircle2, Circle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface VideoCardProps {
@@ -14,6 +14,7 @@ interface VideoCardProps {
   onViewSubtitle?: (video: EnrichedVideo) => void;
   onViewComments?: (video: EnrichedVideo) => void;
   onDeleteAnalysis?: (videoId: string) => void;
+  onRemove?: (videoId: string) => void;
   selectionMode?: boolean;
   isSelected?: boolean;
   onSelect?: () => void;
@@ -28,6 +29,7 @@ export function VideoCard({
   onViewSubtitle, 
   onViewComments, 
   onDeleteAnalysis,
+  onRemove,
   selectionMode = false,
   isSelected = false,
   onSelect
@@ -55,6 +57,9 @@ export function VideoCard({
     return `${m || '0'}:${s.padStart(2, '0')}`;
   };
 
+  const isReport = video.id.startsWith('report-');
+  const linkUrl = isReport || selectionMode ? undefined : `https://www.youtube.com/watch?v=${video.id}`;
+
   return (
     <Card 
       className={cn(
@@ -75,17 +80,31 @@ export function VideoCard({
         </div>
       )}
 
+      {/* Remove Button (Search Result Mode) */}
+      {!selectionMode && onRemove && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(video.id);
+          }}
+          className="absolute top-2 right-2 z-20 p-1.5 bg-black/60 hover:bg-red-600 text-white rounded-full transition-colors opacity-0 group-hover:opacity-100"
+          title="목록에서 제거"
+        >
+          <XCircle className="w-4 h-4" />
+        </button>
+      )}
+
       {/* Thumbnail Link */}
       <div className="relative">
         <a 
-          href={selectionMode ? undefined : `https://www.youtube.com/watch?v=${video.id}`} 
+          href={linkUrl} 
           target="_blank" 
           rel="noopener noreferrer"
           className={cn(
             "aspect-video bg-slate-100 dark:bg-slate-800 relative overflow-hidden shrink-0 block",
-            !selectionMode && "cursor-pointer"
+            !linkUrl && "cursor-default"
           )}
-          onClick={(e) => selectionMode && e.preventDefault()}
+          onClick={(e) => !linkUrl && e.preventDefault()}
         >
           <img 
             src={video.thumbnail} 
@@ -93,10 +112,19 @@ export function VideoCard({
             className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
             loading="lazy"
           />
-          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-mono z-10">
-            {formatDuration(video.duration)}
-          </div>
-          {video.caption && (
+          {!isReport && (
+            <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-mono z-10">
+                {formatDuration(video.duration)}
+            </div>
+          )}
+          {isReport && (
+             <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[1px]">
+                <Badge variant="secondary" className="bg-white/90 text-slate-800 shadow-sm pointer-events-none">
+                    AI 리포트
+                </Badge>
+             </div>
+          )}
+          {video.caption && !isReport && (
              <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-1 rounded z-10">CC</div>
           )}
         </a>
@@ -106,11 +134,11 @@ export function VideoCard({
         {/* Title & Channel */}
         <div className="space-y-1">
           <a 
-            href={selectionMode ? undefined : `https://www.youtube.com/watch?v=${video.id}`} 
+            href={linkUrl} 
             target="_blank" 
             rel="noopener noreferrer"
             className="block group/title"
-            onClick={(e) => selectionMode && e.preventDefault()}
+            onClick={(e) => !linkUrl && e.preventDefault()}
           >
             <h3 className="font-bold text-sm leading-snug line-clamp-2 h-10 group-hover/title:text-red-600 transition-colors">
               {video.title}

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles, Target, Layout, Lightbulb, Zap, RefreshCw, MessageCircle } from "lucide-react";
+import { Loader2, Sparkles, Target, Layout, Lightbulb, Zap, RefreshCw, MessageCircle, Layers, Compass, Rocket, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AnalysisDialogProps {
@@ -72,27 +72,54 @@ export function AnalysisDialog({
             </div>
           ) : analysis ? (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 mb-8">
-              {/* Hook */}
-              <section>
-                <div className="flex items-center gap-2 mb-3 text-red-600 font-bold">
-                  <Zap className="w-4 h-4" /> 핵심 후킹 포인트
-                </div>
-                <div className="p-4 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-100 dark:border-red-900/50 text-sm leading-relaxed whitespace-pre-wrap break-words">
-                  {formatContent(analysis.hook)}
-                </div>
-              </section>
+              {/* Context Analysis Sections */}
+              {analysis.commonalities && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3 text-purple-600 font-bold">
+                    <Layers className="w-4 h-4" /> 공통된 성공 요인
+                  </div>
+                  <div className="p-4 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-100 dark:border-purple-900/50 text-sm leading-relaxed whitespace-pre-wrap break-words">
+                    {formatContent(analysis.commonalities)}
+                  </div>
+                </section>
+              )}
+
+              {analysis.strategies && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3 text-indigo-600 font-bold">
+                    <TrendingUp className="w-4 h-4" /> 트렌드 및 전략 분석
+                  </div>
+                  <div className="p-4 bg-indigo-50 dark:bg-indigo-950/30 rounded-lg border border-indigo-100 dark:border-indigo-900/50 text-sm leading-relaxed whitespace-pre-wrap break-words">
+                    {formatContent(analysis.strategies)}
+                  </div>
+                </section>
+              )}
+
+              {/* Single Video Analysis Sections */}
+              {analysis.hook && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3 text-red-600 font-bold">
+                    <Zap className="w-4 h-4" /> 핵심 후킹 포인트
+                  </div>
+                  <div className="p-4 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-100 dark:border-red-900/50 text-sm leading-relaxed whitespace-pre-wrap break-words">
+                    {formatContent(analysis.hook)}
+                  </div>
+                </section>
+              )}
 
               {/* Target */}
-              <section>
-                <div className="flex items-center gap-2 mb-3 text-blue-600 font-bold">
-                  <Target className="w-4 h-4" /> 타겟 오디언스
-                </div>
-                <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-100 dark:border-blue-900/50 text-sm leading-relaxed whitespace-pre-wrap break-words">
-                  {formatContent(analysis.target)}
-                </div>
-              </section>
+              {analysis.target && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3 text-blue-600 font-bold">
+                    <Target className="w-4 h-4" /> 타겟 오디언스
+                  </div>
+                  <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-100 dark:border-blue-900/50 text-sm leading-relaxed whitespace-pre-wrap break-words">
+                    {formatContent(analysis.target)}
+                  </div>
+                </section>
+              )}
 
-              {/* Community Needs (New Section) */}
+              {/* Community Needs */}
               {analysis.community_needs && (
                 <section>
                   <div className="flex items-center gap-2 mb-3 text-pink-600 font-bold">
@@ -105,19 +132,21 @@ export function AnalysisDialog({
               )}
 
               {/* Structure */}
-              <section>
-                <div className="flex items-center gap-2 mb-3 text-green-600 font-bold">
-                  <Layout className="w-4 h-4" /> 콘텐츠 구성 전략
-                </div>
-                <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-100 dark:border-green-900/50 text-sm leading-relaxed whitespace-pre-wrap break-words">
-                  {formatContent(analysis.structure)}
-                </div>
-              </section>
+              {analysis.structure && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3 text-green-600 font-bold">
+                    <Layout className="w-4 h-4" /> 콘텐츠 구성 전략
+                  </div>
+                  <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-100 dark:border-green-900/50 text-sm leading-relaxed whitespace-pre-wrap break-words">
+                    {formatContent(analysis.structure)}
+                  </div>
+                </section>
+              )}
 
               {/* Insights */}
               <section>
                 <div className="flex items-center gap-2 mb-3 text-orange-600 font-bold">
-                  <Lightbulb className="w-4 h-4" /> 벤치마킹 인사이트
+                  <Lightbulb className="w-4 h-4" /> {analysis.commonalities ? "핵심 인사이트" : "벤치마킹 인사이트"}
                 </div>
                 <div className="grid gap-3">
                   {analysis.insights?.map((insight: string, i: number) => (
@@ -128,6 +157,18 @@ export function AnalysisDialog({
                   ))}
                 </div>
               </section>
+
+              {/* Action Plan (Context Analysis) */}
+              {analysis.action_plan && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3 text-teal-600 font-bold">
+                    <Rocket className="w-4 h-4" /> 내 채널 적용 액션 플랜
+                  </div>
+                  <div className="p-4 bg-teal-50 dark:bg-teal-950/30 rounded-lg border border-teal-100 dark:border-teal-900/50 text-sm leading-relaxed whitespace-pre-wrap break-words">
+                    {formatContent(analysis.action_plan)}
+                  </div>
+                </section>
+              )}
             </div>
           ) : null}
         </div>
