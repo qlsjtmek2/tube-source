@@ -57,9 +57,6 @@ export function VideoCard({
     return `${m || '0'}:${s.padStart(2, '0')}`;
   };
 
-  const isReport = video.id.startsWith('report-');
-  const linkUrl = isReport || selectionMode ? undefined : `https://www.youtube.com/watch?v=${video.id}`;
-
   return (
     <Card 
       className={cn(
@@ -97,14 +94,14 @@ export function VideoCard({
       {/* Thumbnail Link */}
       <div className="relative">
         <a 
-          href={linkUrl} 
+          href={selectionMode ? undefined : `https://www.youtube.com/watch?v=${video.id}`} 
           target="_blank" 
           rel="noopener noreferrer"
           className={cn(
             "aspect-video bg-slate-100 dark:bg-slate-800 relative overflow-hidden shrink-0 block",
-            !linkUrl && "cursor-default"
+            !selectionMode && "cursor-pointer"
           )}
-          onClick={(e) => !linkUrl && e.preventDefault()}
+          onClick={(e) => selectionMode && e.preventDefault()}
         >
           <img 
             src={video.thumbnail} 
@@ -112,19 +109,10 @@ export function VideoCard({
             className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
             loading="lazy"
           />
-          {!isReport && (
-            <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-mono z-10">
-                {formatDuration(video.duration)}
-            </div>
-          )}
-          {isReport && (
-             <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[1px]">
-                <Badge variant="secondary" className="bg-white/90 text-slate-800 shadow-sm pointer-events-none">
-                    AI 리포트
-                </Badge>
-             </div>
-          )}
-          {video.caption && !isReport && (
+          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-mono z-10">
+            {formatDuration(video.duration)}
+          </div>
+          {video.caption && (
              <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-1 rounded z-10">CC</div>
           )}
         </a>
@@ -134,11 +122,11 @@ export function VideoCard({
         {/* Title & Channel */}
         <div className="space-y-1">
           <a 
-            href={linkUrl} 
+            href={selectionMode ? undefined : `https://www.youtube.com/watch?v=${video.id}`} 
             target="_blank" 
             rel="noopener noreferrer"
             className="block group/title"
-            onClick={(e) => !linkUrl && e.preventDefault()}
+            onClick={(e) => selectionMode && e.preventDefault()}
           >
             <h3 className="font-bold text-sm leading-snug line-clamp-2 h-10 group-hover/title:text-red-600 transition-colors">
               {video.title}

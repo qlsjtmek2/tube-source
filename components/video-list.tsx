@@ -1,6 +1,7 @@
 "use client";
 
 import { VideoCard } from "@/components/video-card";
+import { ReportCard } from "@/components/report-card";
 import { EnrichedVideo } from "@/lib/youtube";
 
 interface VideoListProps {
@@ -54,24 +55,36 @@ export function VideoList({
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20 w-full auto-rows-fr">
-      {videos.map((video) => (
-        <div key={video.id} className="flex h-full">
-          <VideoCard
-            video={video}
-            isSaved={savedChannelIds.includes(video.channelId)}
-            onToggleSave={onToggleSave}
-            onDownload={onDownload}
-            onAnalyze={onAnalyze}
-            onViewSubtitle={onViewSubtitle}
-            onViewComments={onViewComments}
-            onDeleteAnalysis={onDeleteAnalysis}
-            onRemove={onRemove}
-            selectionMode={selectionMode}
-            isSelected={selectedVideoIds.has(video.id)}
-            onSelect={() => onSelectVideo?.(video.id)}
-          />
-        </div>
-      ))}
+      {videos.map((video) => {
+        const isReport = video.id.startsWith('report-');
+        
+        return (
+          <div key={video.id} className="flex h-full">
+            {isReport ? (
+              <ReportCard 
+                video={video}
+                onAnalyze={onAnalyze}
+                onDelete={onDeleteAnalysis}
+              />
+            ) : (
+              <VideoCard
+                video={video}
+                isSaved={savedChannelIds.includes(video.channelId)}
+                onToggleSave={onToggleSave}
+                onDownload={onDownload}
+                onAnalyze={onAnalyze}
+                onViewSubtitle={onViewSubtitle}
+                onViewComments={onViewComments}
+                onDeleteAnalysis={onDeleteAnalysis}
+                onRemove={onRemove}
+                selectionMode={selectionMode}
+                isSelected={selectedVideoIds.has(video.id)}
+                onSelect={() => onSelectVideo?.(video.id)}
+              />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
