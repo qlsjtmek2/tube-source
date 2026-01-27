@@ -486,6 +486,39 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
             </div>
 
             <div className="flex flex-col gap-1 min-w-[100px] flex-1 sm:flex-none">
+              <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">구독자 (Min)</Label>
+              <Input 
+                type="number" 
+                placeholder="최소 구독자" 
+                className="h-8 text-xs" 
+                value={filters.minSubscribers || ''}
+                onChange={(e) => setFilters({...filters, minSubscribers: e.target.value ? Number(e.target.value) : undefined})}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1 min-w-[100px] flex-1 sm:flex-none">
+              <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">구독자 (Max)</Label>
+              <Input 
+                type="number" 
+                placeholder="최대 구독자" 
+                className="h-8 text-xs" 
+                value={filters.maxSubscribers || ''}
+                onChange={(e) => setFilters({...filters, maxSubscribers: e.target.value ? Number(e.target.value) : undefined})}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1 min-w-[100px] flex-1 sm:flex-none">
+              <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">성과도 (Min %)</Label>
+              <Input 
+                type="number" 
+                placeholder="최소 성과도" 
+                className="h-8 text-xs" 
+                value={filters.minPerformanceRatio || ''}
+                onChange={(e) => setFilters({...filters, minPerformanceRatio: e.target.value ? Number(e.target.value) : undefined})}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1 min-w-[100px] flex-1 sm:flex-none">
               <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">정렬</Label>
               <Select value={filters.order} onValueChange={(v) => setFilters({...filters, order: v as any})}>
                 <SelectTrigger className="h-8 w-full sm:w-[110px]">

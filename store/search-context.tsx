@@ -79,6 +79,9 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     maxResults: 100,
     regionCode: 'KR',
     fetchSubtitles: true,
+    minSubscribers: undefined,
+    maxSubscribers: undefined,
+    minPerformanceRatio: undefined,
   });
   const [videos, setVideos] = useState<EnrichedVideo[]>([]);
   const [allVideos, setAllVideos] = useState<EnrichedVideo[]>([]);
@@ -128,6 +131,9 @@ export function SearchProvider({ children }: { children: ReactNode }) {
       maxResults: 100,
       regionCode: 'KR',
       fetchSubtitles: true,
+      minSubscribers: undefined,
+      maxSubscribers: undefined,
+      minPerformanceRatio: undefined,
     });
     setTimePeriod('all');
     setSortBy('none');
