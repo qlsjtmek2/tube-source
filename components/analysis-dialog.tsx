@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,7 +50,7 @@ export function AnalysisDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] h-[80vh] flex flex-col p-0 overflow-hidden">
-        <DialogHeader className="p-6 pb-2 pr-14 shrink-0">
+        <DialogHeader className="p-6 pb-2 shrink-0">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <DialogTitle className="flex items-center gap-2">
@@ -60,21 +61,6 @@ export function AnalysisDialog({
                 {videoTitle}
               </DialogDescription>
             </div>
-            {isAnalyzed && onRefresh && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onRefresh}
-                disabled={isAnalyzing}
-                className="shrink-0 mt-0.5"
-              >
-                <RefreshCw className={cn(
-                  "h-4 w-4",
-                  isAnalyzing && "animate-spin"
-                )} />
-                <span className="ml-2">새로고침</span>
-              </Button>
-            )}
           </div>
         </DialogHeader>
 
@@ -133,6 +119,27 @@ export function AnalysisDialog({
             </div>
           ) : null}
         </div>
+
+        <DialogFooter className="p-6 pt-4 border-t bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
+          <div className="flex items-center justify-between w-full gap-4">
+            {isAnalyzed && onRefresh ? (
+              <Button
+                variant="outline"
+                onClick={onRefresh}
+                disabled={isAnalyzing}
+                className="gap-2"
+              >
+                <RefreshCw className={cn("h-4 w-4", isAnalyzing && "animate-spin")} />
+                다시 분석하기
+              </Button>
+            ) : (
+               <div /> /* Spacer */
+            )}
+            <Button onClick={onClose}>
+              닫기
+            </Button>
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
