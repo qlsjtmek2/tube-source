@@ -77,9 +77,16 @@ export default function Home() {
   const handleAnalyze = async (video: EnrichedVideo, forceRefresh = false) => {
     setSelectedVideoForAnalysis(video);
     setIsAnalysisOpen(true);
-    setAnalysisResult(null);
+    
+    // 강제 새로고침이 아닐 때만 초기화 (로딩 표시를 위해)
+    // 강제 새로고침일 때는 기존 내용을 유지하다가 완료되면 교체하는 것이 더 자연스러울 수 있으나,
+    // 명확한 로딩 피드백을 위해 null로 초기화하는 것이 나음
+    if (!forceRefresh) {
+        setAnalysisResult(null);
+        setIsAnalyzed(false);
+    }
+    
     setIsAnalyzing(true);
-    setIsAnalyzed(false);
 
     try {
       // 1. 강제 새로고침이 아니면 캐시 확인
@@ -103,11 +110,12 @@ export default function Home() {
       });
       const data = await res.json();
 
+      // 분석 결과 즉시 반영
       setAnalysisResult(data.analysis);
       setIsAnalyzed(true);
 
-      // 3. 분석 결과 저장
-      await fetch('/api/analyzed-videos', {
+      // 3. 분석 결과 저장 (백그라운드 처리)
+      fetch('/api/analyzed-videos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -116,7 +124,8 @@ export default function Home() {
           video,
           analysisResult: data.analysis
         }),
-      });
+      }).catch(e => console.error("Failed to save analysis:", e));
+
     } catch (e) {
       console.error(e);
       setAnalysisResult({ error: "분석 중 오류가 발생했습니다." });
