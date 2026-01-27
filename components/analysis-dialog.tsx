@@ -8,17 +8,30 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Target, Layout, Lightbulb, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, Sparkles, Target, Layout, Lightbulb, Zap, RefreshCw } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface AnalysisDialogProps {
   analysis: any;
   isOpen: boolean;
   onClose: () => void;
   videoTitle?: string;
+  isAnalyzing?: boolean;
+  isAnalyzed?: boolean;
+  onRefresh?: () => void;
 }
 
-export function AnalysisDialog({ analysis, isOpen, onClose, videoTitle }: AnalysisDialogProps) {
-  const loading = !analysis;
+export function AnalysisDialog({
+  analysis,
+  isOpen,
+  onClose,
+  videoTitle,
+  isAnalyzing = false,
+  isAnalyzed = false,
+  onRefresh
+}: AnalysisDialogProps) {
+  const loading = isAnalyzing;
 
   // 객체인 경우 문자열로 변환
   const formatContent = (content: any) => {
@@ -36,14 +49,33 @@ export function AnalysisDialog({ analysis, isOpen, onClose, videoTitle }: Analys
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] h-[80vh] flex flex-col p-0 overflow-hidden">
-        <DialogHeader className="p-6 pb-2 shrink-0">
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-purple-500" />
-            AI 전략 분석 리포트
-          </DialogTitle>
-          <DialogDescription className="line-clamp-1">
-            {videoTitle}
-          </DialogDescription>
+        <DialogHeader className="p-6 pb-2 pr-14 shrink-0">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <DialogTitle className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-purple-500" />
+                AI 전략 분석 리포트
+              </DialogTitle>
+              <DialogDescription className="line-clamp-1 mt-1.5">
+                {videoTitle}
+              </DialogDescription>
+            </div>
+            {isAnalyzed && onRefresh && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onRefresh}
+                disabled={isAnalyzing}
+                className="shrink-0 mt-0.5"
+              >
+                <RefreshCw className={cn(
+                  "h-4 w-4",
+                  isAnalyzing && "animate-spin"
+                )} />
+                <span className="ml-2">새로고침</span>
+              </Button>
+            )}
+          </div>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 pt-2 min-h-0">
@@ -52,7 +84,7 @@ export function AnalysisDialog({ analysis, isOpen, onClose, videoTitle }: Analys
               <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
               <p>Gemini 3.0 Flash가 영상을 분석 중입니다...</p>
             </div>
-          ) : (
+          ) : analysis ? (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 mb-8">
               {/* Hook */}
               <section>
@@ -99,7 +131,7 @@ export function AnalysisDialog({ analysis, isOpen, onClose, videoTitle }: Analys
                 </div>
               </section>
             </div>
-          )}
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

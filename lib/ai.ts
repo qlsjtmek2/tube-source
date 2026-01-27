@@ -3,6 +3,30 @@ import { EnrichedVideo } from './youtube';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
+// AI 분석 결과 타입
+export interface AnalysisResult {
+  hook: string;
+  structure: string;
+  target: string;
+  insights: string[];
+}
+
+// 분석된 영상 저장 타입
+export interface AnalyzedVideo {
+  videoId: string;
+  title: string;
+  channelTitle: string;
+  channelId: string;
+  thumbnail: string;
+  viewCount: number;
+  likeCount: number;
+  subscriberCount: number;
+  engagementRate: number;
+  performanceRatio: number;
+  analysisResult: AnalysisResult;
+  analyzedAt: string; // ISO timestamp
+}
+
 export async function analyzeVideoStrategy(videoData: EnrichedVideo) {
   const modelName = "gemini-3-flash-preview";
   console.log(`[AI Analysis] Starting analysis with model: ${modelName}`);

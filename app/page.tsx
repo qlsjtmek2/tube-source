@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Youtube, Download, BarChart2, List, Settings, Loader2, Trash2, ExternalLink, TrendingUp } from 'lucide-react';
+import { Search, Youtube, Download, BarChart2, List, Settings, Loader2, Trash2, ExternalLink, TrendingUp, Sparkles } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { VideoList } from '@/components/video-list';
 import { DownloadDialog } from '@/components/download-dialog';
@@ -13,6 +13,8 @@ import { AnalysisDialog } from '@/components/analysis-dialog';
 import { SubtitleDialog } from '@/components/subtitle-dialog';
 import { EnrichedVideo, VideoSearchFilters } from '@/lib/youtube';
 import { SavedChannel } from '@/lib/storage';
+import { AnalyzedVideo } from '@/lib/ai';
+import { useSearch } from '@/store/search-context';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('search');
@@ -22,6 +24,8 @@ export default function Home() {
   const [selectedVideoForAnalysis, setSelectedVideoForAnalysis] = useState<EnrichedVideo | null>(null);
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isAnalyzed, setIsAnalyzed] = useState(false);
 
   const [selectedVideoForSubtitle, setSelectedVideoForSubtitle] = useState<EnrichedVideo | null>(null);
   const [isSubtitleOpen, setIsSubtitleOpen] = useState(false);
@@ -56,28 +60,74 @@ export default function Home() {
     } catch (e) { console.error(e); }
   };
 
-  const handleAnalyze = async (video: EnrichedVideo) => {
+  const handleAnalyze = async (video: EnrichedVideo, forceRefresh = false) => {
     setSelectedVideoForAnalysis(video);
     setIsAnalysisOpen(true);
     setAnalysisResult(null);
+    setIsAnalyzing(true);
+    setIsAnalyzed(false);
 
     try {
+      // 1. 강제 새로고침이 아니면 캐시 확인
+      if (!forceRefresh) {
+        const checkRes = await fetch(`/api/analyzed-videos?videoId=${video.id}`);
+        const { analysis } = await checkRes.json();
+
+        if (analysis) {
+          setAnalysisResult(analysis.analysisResult);
+          setIsAnalyzed(true);
+          setIsAnalyzing(false);
+          return;
+        }
+      }
+
+      // 2. 캐시 없거나 강제 새로고침 → 새로 분석
       const res = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(video),
       });
       const data = await res.json();
+
       setAnalysisResult(data.analysis);
+      setIsAnalyzed(true);
+
+      // 3. 분석 결과 저장
+      await fetch('/api/analyzed-videos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'save',
+          videoId: video.id,
+          video,
+          analysisResult: data.analysis
+        }),
+      });
     } catch (e) {
       console.error(e);
       setAnalysisResult({ error: "분석 중 오류가 발생했습니다." });
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
   const handleViewSubtitle = (video: EnrichedVideo) => {
     setSelectedVideoForSubtitle(video);
     setIsSubtitleOpen(true);
+  };
+
+  const handleRefreshAnalysis = () => {
+    if (selectedVideoForAnalysis) {
+      handleAnalyze(selectedVideoForAnalysis, true);
+    }
+  };
+
+  const handleViewExistingAnalysis = (video: EnrichedVideo, existingAnalysis: any) => {
+    setSelectedVideoForAnalysis(video);
+    setAnalysisResult(existingAnalysis);
+    setIsAnalyzed(true);
+    setIsAnalyzing(false);
+    setIsAnalysisOpen(true);
   };
 
   return (
@@ -108,16 +158,24 @@ export default function Home() {
               <List className="mr-2 h-4 w-4" />
               관심 채널
             </Button>
-            <Button 
-              variant={activeTab === 'trends' ? 'secondary' : 'ghost'} 
+            <Button
+              variant={activeTab === 'trends' ? 'secondary' : 'ghost'}
               className="w-full justify-start"
               onClick={() => setActiveTab('trends')}
             >
               <BarChart2 className="mr-2 h-4 w-4" />
               트렌드 & 인사이트
             </Button>
-            <Button 
-              variant={activeTab === 'downloads' ? 'secondary' : 'ghost'} 
+            <Button
+              variant={activeTab === 'analyzed' ? 'secondary' : 'ghost'}
+              className="w-full justify-start"
+              onClick={() => setActiveTab('analyzed')}
+            >
+              <Sparkles className="mr-2 h-4 w-4" />
+              분석 결과
+            </Button>
+            <Button
+              variant={activeTab === 'downloads' ? 'secondary' : 'ghost'}
               className="w-full justify-start"
               onClick={() => setActiveTab('downloads')}
             >
@@ -138,7 +196,7 @@ export default function Home() {
       <main className="flex-1 min-w-0 flex flex-col relative bg-slate-50 dark:bg-slate-900">
         <header className="h-16 border-b bg-white dark:bg-slate-950 flex items-center justify-between px-6 shrink-0 z-20">
           <h2 className="text-lg font-semibold capitalize">
-            {activeTab === 'search' ? '영상 검색' : activeTab === 'channels' ? '관심 채널' : activeTab === 'trends' ? '트렌드 & 인사이트' : activeTab}
+            {activeTab === 'search' ? '영상 검색' : activeTab === 'channels' ? '관심 채널' : activeTab === 'trends' ? '트렌드 & 인사이트' : activeTab === 'analyzed' ? '분석 결과' : activeTab}
           </h2>
           <div className="flex items-center gap-4">
             <div className="text-sm text-slate-500">
@@ -172,6 +230,14 @@ export default function Home() {
               onViewSubtitle={handleViewSubtitle}
             />
           )}
+          {activeTab === 'analyzed' && (
+            <AnalyzedVideosSection
+              onAnalyze={handleAnalyze}
+              onViewExistingAnalysis={handleViewExistingAnalysis}
+              onDownload={(v) => setSelectedVideoForDownload(v)}
+              onViewSubtitle={handleViewSubtitle}
+            />
+          )}
           {activeTab === 'downloads' && (
             <div className="text-center text-slate-500 mt-20">다운로드 기능 준비 중</div>
           )}
@@ -189,6 +255,9 @@ export default function Home() {
         isOpen={isAnalysisOpen}
         onClose={() => setIsAnalysisOpen(false)}
         videoTitle={selectedVideoForAnalysis?.title}
+        isAnalyzing={isAnalyzing}
+        isAnalyzed={isAnalyzed}
+        onRefresh={handleRefreshAnalysis}
       />
 
       <SubtitleDialog
@@ -213,19 +282,17 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
   onAnalyze: (v: EnrichedVideo) => void,
   onViewSubtitle: (v: EnrichedVideo) => void
 }) {
-  const [query, setQuery] = useState('');
-  const [filters, setFilters] = useState<Partial<VideoSearchFilters>>({
-    videoDuration: 'any',
-    order: 'relevance',
-    maxResults: 100,
-    regionCode: 'KR',
-    fetchSubtitles: true,
-  });
-  const [timePeriod, setTimePeriod] = useState<string>('all'); // all, 1d, 1w, 1m, 3m, 6m, 1y
-  const [sortBy, setSortBy] = useState<string>('none'); // none, views, subscribers, performance, engagement, likes, comments
-  const [videos, setVideos] = useState<EnrichedVideo[]>([]);
-  const [allVideos, setAllVideos] = useState<EnrichedVideo[]>([]); // For client-side sorting
-  const [loading, setLoading] = useState(false);
+  const {
+    query, setQuery,
+    filters, setFilters,
+    videos,
+    timePeriod, setTimePeriod,
+    sortBy, setSortBy,
+    allVideos, setAllVideos,
+    loading, setLoading,
+    applySorting,
+    setHasSearched,
+  } = useSearch();
 
   // Calculate publishedAfter based on time period
   const getPublishedAfter = (period: string): string | undefined => {
@@ -251,7 +318,6 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
   const handleSearch = async () => {
     if (!query.trim()) return;
     setLoading(true);
-    setVideos([]);
     setAllVideos([]);
 
     try {
@@ -271,40 +337,9 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
       if (data.videos) {
         setAllVideos(data.videos);
         applySorting(data.videos, sortBy);
+        setHasSearched(true);
       }
     } catch (e) { console.error(e); } finally { setLoading(false); }
-  };
-
-  // Apply client-side sorting
-  const applySorting = (videoList: EnrichedVideo[], sortType: string) => {
-    let sorted = [...videoList];
-
-    switch (sortType) {
-      case 'views':
-        sorted.sort((a, b) => b.viewCount - a.viewCount);
-        break;
-      case 'subscribers':
-        sorted.sort((a, b) => b.subscriberCount - a.subscriberCount);
-        break;
-      case 'performance':
-        sorted.sort((a, b) => b.performanceRatio - a.performanceRatio);
-        break;
-      case 'engagement':
-        sorted.sort((a, b) => b.engagementRate - a.engagementRate);
-        break;
-      case 'likes':
-        sorted.sort((a, b) => b.likeCount - a.likeCount);
-        break;
-      case 'comments':
-        sorted.sort((a, b) => b.commentCount - a.commentCount);
-        break;
-      case 'none':
-      default:
-        // No sorting - keep original order
-        break;
-    }
-
-    setVideos(sorted);
   };
 
   // Re-apply sorting when sort option changes
@@ -312,7 +347,7 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
     if (allVideos.length > 0) {
       applySorting(allVideos, sortBy);
     }
-  }, [sortBy]);
+  }, [sortBy, allVideos, applySorting]);
 
   return (
     <div className="space-y-6">
@@ -634,6 +669,115 @@ function TrendsSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
         onDownload={onDownload}
         onAnalyze={onAnalyze}
         onViewSubtitle={onViewSubtitle}
+      />
+    </div>
+  );
+}
+function AnalyzedVideosSection({
+  onAnalyze,
+  onViewExistingAnalysis,
+  onDownload,
+  onViewSubtitle
+}: {
+  onAnalyze: (v: EnrichedVideo) => void,
+  onViewExistingAnalysis: (v: EnrichedVideo, analysis: any) => void,
+  onDownload: (v: any) => void,
+  onViewSubtitle: (v: EnrichedVideo) => void
+}) {
+  const [analyzedVideos, setAnalyzedVideos] = useState<AnalyzedVideo[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadAnalyzedVideos();
+  }, []);
+
+  const loadAnalyzedVideos = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/analyzed-videos');
+      const { videos } = await res.json();
+      setAnalyzedVideos(videos || []);
+    } catch (error) {
+      console.error('Failed to load analyzed videos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteAnalysis = async (videoId: string) => {
+    try {
+      await fetch('/api/analyzed-videos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', videoId }),
+      });
+      loadAnalyzedVideos();
+    } catch (error) {
+      console.error('Failed to delete analysis:', error);
+    }
+  };
+
+  const handleViewAnalysis = (video: EnrichedVideo) => {
+    // 원본 analyzedVideos 배열에서 실제 분석 결과 찾기
+    const analyzedVideo = analyzedVideos.find(v => v.videoId === video.id);
+
+    if (analyzedVideo?.analysisResult) {
+      // 이미 분석된 결과가 있으므로 API 호출 없이 바로 표시
+      onViewExistingAnalysis(video, analyzedVideo.analysisResult);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+      </div>
+    );
+  }
+
+  if (analyzedVideos.length === 0) {
+    return (
+      <div className="text-center py-20 text-slate-500">
+        아직 분석된 영상이 없습니다
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          총 {analyzedVideos.length}개의 분석된 영상
+        </p>
+      </div>
+      <VideoList
+        videos={analyzedVideos.map(v => ({
+          id: v.videoId,
+          title: v.title,
+          channelTitle: v.channelTitle,
+          channelId: v.channelId,
+          channelThumbnail: '',
+          thumbnail: v.thumbnail,
+          viewCount: v.viewCount,
+          likeCount: v.likeCount,
+          commentCount: 0,
+          subscriberCount: v.subscriberCount,
+          engagementRate: v.engagementRate,
+          performanceRatio: v.performanceRatio,
+          publishedAt: v.analyzedAt,
+          description: '',
+          duration: '',
+          caption: false,
+          channelVideoCount: 0,
+          channelViewCount: 0,
+        }))}
+        loading={loading}
+        savedChannelIds={[]}
+        onToggleSave={() => {}}
+        onDownload={onDownload}
+        onAnalyze={handleViewAnalysis}
+        onViewSubtitle={onViewSubtitle}
+        onDeleteAnalysis={handleDeleteAnalysis}
       />
     </div>
   );

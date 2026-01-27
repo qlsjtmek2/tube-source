@@ -11,9 +11,10 @@ interface VideoCardProps {
   onDownload?: (video: { id: string; title: string }) => void;
   onAnalyze?: (video: EnrichedVideo) => void;
   onViewSubtitle?: (video: EnrichedVideo) => void;
+  onDeleteAnalysis?: (videoId: string) => void;
 }
 
-export function VideoCard({ video, isSaved, onToggleSave, onDownload, onAnalyze, onViewSubtitle }: VideoCardProps) {
+export function VideoCard({ video, isSaved, onToggleSave, onDownload, onAnalyze, onViewSubtitle, onDeleteAnalysis }: VideoCardProps) {
   // Format numbers
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat('en-US', { notation: "compact", maximumFractionDigits: 1 }).format(num);
