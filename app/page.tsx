@@ -12,7 +12,7 @@ import { DownloadDialog } from '@/components/download-dialog';
 import { AnalysisDialog } from '@/components/analysis-dialog';
 import { SubtitleDialog } from '@/components/subtitle-dialog';
 import { CommentsDialog } from '@/components/comments-dialog';
-import { BatchAnalysisDialog } from '@/components/batch-analysis-dialog';
+import { BatchProcessBar } from '@/components/batch-process-bar';
 import { EnrichedVideo, VideoSearchFilters, YouTubeComment } from '@/lib/youtube';
 import { SavedChannel } from '@/lib/storage';
 import { AnalyzedVideo } from '@/lib/ai';
@@ -376,6 +376,13 @@ export default function Home() {
               onToggleVideoSelection={toggleVideoSelection}
               onBulkSelect={handleBulkSelect}
               onBatchAnalyze={handleBatchAnalyze}
+              batchProps={{
+                isOpen: isBatchDialogOpen,
+                isAnalyzing: isBatchAnalyzing,
+                status: batchStatus,
+                onClose: () => setIsBatchDialogOpen(false),
+                onCancel: cancelBatchAnalysis
+              }}
             />
           )}
           {activeTab === 'channels' && (
@@ -444,19 +451,16 @@ export default function Home() {
         videoTitle={selectedVideoForComments?.title}
         isLoading={isCommentsLoading}
       />
-
-      <BatchAnalysisDialog
-        isOpen={isBatchDialogOpen}
-        total={batchStatus.total}
-        current={batchStatus.current}
-        successCount={batchStatus.success}
-        failCount={batchStatus.fail}
-        isAnalyzing={isBatchAnalyzing}
-        onClose={() => setIsBatchDialogOpen(false)}
-        onCancel={cancelBatchAnalysis}
-      />
     </div>
   );
+}
+
+interface BatchProps {
+  isOpen: boolean;
+  isAnalyzing: boolean;
+  status: { total: number; current: number; success: number; fail: number };
+  onClose: () => void;
+  onCancel: () => void;
 }
 
 function SearchSection({ 
@@ -471,7 +475,8 @@ function SearchSection({
   onToggleSelectionMode,
   onToggleVideoSelection,
   onBulkSelect,
-  onBatchAnalyze
+  onBatchAnalyze,
+  batchProps
 }: {
   savedChannelIds: string[],
   onToggleSave: (c: any) => void,
@@ -484,7 +489,8 @@ function SearchSection({
   onToggleSelectionMode?: () => void,
   onToggleVideoSelection?: (id: string) => void,
   onBulkSelect?: (ids: string[], select: boolean) => void,
-  onBatchAnalyze?: (videos: EnrichedVideo[]) => void
+  onBatchAnalyze?: (videos: EnrichedVideo[]) => void,
+  batchProps?: BatchProps
 }) {
   const {
     query, setQuery,
@@ -794,6 +800,17 @@ function SearchSection({
             </div>
           </CardContent>
         </Card>
+      {/* Batch Process Bar */}
+      {batchProps?.isOpen && (
+        <BatchProcessBar
+          total={batchProps.status.total}
+          current={batchProps.status.current}
+          successCount={batchProps.status.success}
+          failCount={batchProps.status.fail}
+          isAnalyzing={batchProps.isAnalyzing}
+          onClose={batchProps.onClose}
+          onCancel={batchProps.onCancel}
+        />
       )}
 
       <VideoList
