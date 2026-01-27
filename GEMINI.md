@@ -34,6 +34,7 @@ app/
     search/route.ts         # YouTube 검색 API (POST)
     download/route.ts       # yt-dlp 다운로드 API (POST)
     analyze/route.ts        # Gemini AI 분석 API (POST)
+    analyze/context/route.ts # 여러 영상 종합 맥락 분석 API (POST)
     analyzed-videos/route.ts # 분석된 영상 저장/조회 API (GET/POST/DELETE)
     channels/route.ts       # 채널 저장/조회 API (GET/POST/DELETE)
     trends/route.ts         # 실시간 트렌드 API (GET)
@@ -43,10 +44,11 @@ app/
   globals.css               # Tailwind + custom styles
 
 components/
-  video-card.tsx            # 영상 카드 (다운로드/분석/자막/댓글 버튼 포함)
-  video-list.tsx            # 영상 리스트 컨테이너
+  video-card.tsx            # 영상 카드 (삭제/다운로드/분석/자막/댓글 버튼 포함)
+  report-card.tsx           # AI 맥락 분석 리포트 전용 카드 (디자인 특화)
+  video-list.tsx            # 영상 리스트 컨테이너 (일반 영상/리포트 분기 렌더링)
   download-dialog.tsx       # 다운로드 다이얼로그 (MP4/MP3 선택)
-  analysis-dialog.tsx       # AI 분석 결과 다이얼로그
+  analysis-dialog.tsx       # AI 분석 결과 다이얼로그 (단일/맥락 리포트 지원)
   subtitle-dialog.tsx       # 자막 표시 다이얼로그
   comments-dialog.tsx       # 베스트 댓글 표시 다이얼로그
   batch-process-bar.tsx     # 일괄 분석 진행 상황 표시 바 (Inline)
@@ -80,11 +82,17 @@ downloads/                  # yt-dlp 다운로드 경로 (런타임에 자동 �
    - Subtitles are fetched only for valid videos to save resources.
    - Returns `EnrichedVideo[]` with calculated metrics (engagementRate, performanceRatio).
 
-2. **AI Analysis Flow (Single & Batch)**
+2. **AI Analysis Flow (Single, Batch & Context)**
    - **Single**: User clicks Analyze → `/api/analyze` → Gemini API (gemini-3-flash-preview)
    - **Batch**: User selects videos → `BatchProcessBar` shows progress → Parallel API calls (concurrency: 3)
-   - **Context**: Video metadata + Subtitles + **Top 20 Best Comments** are sent to Gemini.
-   - **Prompt**: Socratic method used to derive Hook, Structure, Target, **Community Needs**, Insights.
+   - **Context (Multi-Video)**: User selects videos → `handleContextAnalyze` → `/api/analyze/context` → Gemini API
+     - Analyzes commonalities, market trends, insights, and action plans across multiple videos.
+     - Saved as a special `ReportCard` in the history.
+   - **Context Data**: Video metadata (Views, Likes, Comments, Date) + Subtitles + **Top 20 Best Comments**.
+   - **Prompt Engineering**:
+     - **Persona**: Content Strategy Expert & Behavioral Psychologist.
+     - **Framework**: Socratic method used to derive Hook, Structure, Target, Community Needs, Insights.
+     - **Techniques**: Structured contexts using delimiters, explicit output format control, and role-based behavior.
    - **Cancellation**: User can stop batch analysis mid-process (AbortController).
 
 3. **Comments Analysis Flow**
@@ -99,9 +107,13 @@ downloads/                  # yt-dlp 다운로드 경로 (런타임에 자동 �
 ### Key Features & UX
 
 - **Advanced Filters**: Country, Duration, Date, Count, **Subscribers (Min/Max)**, **Performance (Min %)**.
+- **Context Analysis**: Analyze multiple videos to find overarching patterns and common success strategies.
+- **Video Removal**: Delete unwanted videos from search results instantly.
+- **Korean Localization**: Number formatting using Korean units (천, 만, 억) for better readability.
 - **Compact UI**: Optimized spacing for high information density.
 - **Batch Analysis**: Inline progress bar, parallel processing, cancellation support.
-- **Visual Feedback**: Red theme (branding), pill-style interactive buttons, hover effects.
+- **Visual Feedback**: Red theme (branding), purple theme for reports, interactive buttons, hover effects.
+- **Smart Selection**: Selection mode automatically deactivates after starting analysis to streamline workflow.
 
 ### API Integration
 
