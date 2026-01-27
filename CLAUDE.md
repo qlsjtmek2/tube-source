@@ -58,7 +58,8 @@ lib/
   utils.ts                  # Tailwind utility (cn)
 
 store/
-  search-context.tsx        # Global state (검색어, 필터, 영상 결과)
+  search-context.tsx        # Global state (영상 검색 상태 - 검색어, 필터, 영상 결과)
+  channel-search-context.tsx # Global state (채널 검색 상태 - 채널 검색, 선택된 채널, 비디오 결과)
 
 data/
   channels.json             # 저장된 채널 목록 (런타임에 자동 생성)
@@ -213,11 +214,37 @@ See `.env.example` for template.
 
 ## State Management
 
-- **Global Search State**: `SearchContext` (store/search-context.tsx)
-  - Holds: query, filters, videos[], hasSearched
-  - Wrapped in `SearchProvider` (app/layout.tsx)
-- **Local Component State**: Dialog modals, form inputs
-- No external state libraries (Redux, Zustand) - uses React Context
+### Global State (React Context + sessionStorage)
+
+- **SearchContext** (store/search-context.tsx) - 영상 검색 상태
+  - 저장 키: `tubesource-search-state`
+  - 상태: query, filters, allVideos, videos, sortBy, timePeriod, hasSearched
+  - 기능: sessionStorage에 자동 저장 (300ms 디바운스), 탭 전환 시 상태 유지
+
+- **ChannelSearchContext** (store/channel-search-context.tsx) - 채널 검색 상태
+  - 저장 키: `tubesource-channel-search-state`
+  - 상태: channelQuery, foundChannels, selectedChannel, videoQuery, filters, allVideos, videos, sortBy, timePeriod
+  - 기능: sessionStorage에 자동 저장 (300ms 디바운스), 탭 전환 시 상태 유지
+
+- **Provider 구조** (app/layout.tsx)
+  ```tsx
+  <SearchProvider>
+    <ChannelSearchProvider>
+      {children}
+    </ChannelSearchProvider>
+  </SearchProvider>
+  ```
+
+### Local State
+- Dialog 모달 상태 (open/close)
+- 폼 입력 상태
+- 배치 분석 상태 (isSelectionMode, selectedVideoIds)
+
+### 상태 유지 패턴
+- **하이드레이션**: `isHydrated` 플래그로 SSR/CSR 불일치 방지
+- **최적화**: 큰 데이터(subtitleText, description) 제거/축소하여 4MB 제한 준수
+- **디바운스**: 300ms 디바운스로 과도한 저장 방지
+- **복원**: 마운트 시 sessionStorage에서 상태 로드 + 정렬 적용
 
 ## Important Implementation Details
 
@@ -335,6 +362,24 @@ See `.env.example` for template.
   - Shadcn의 ScrollArea 대신 일반 div + overflow-y-auto 사용
   - `min-h-0`, `flex-1`, `overflow-hidden` 조합으로 flex 레이아웃 내 스크롤 보장
   - `break-words`로 긴 단어 강제 줄바꿈 (화면 밖으로 넘어가는 문제 해결)
+
+### 상태 유지 패턴 (Context + sessionStorage)
+- **Context 구조**: SearchContext와 ChannelSearchContext로 분리하여 각각의 탭 상태 독립 관리
+- **sessionStorage 사용**: 브라우저 탭 세션 동안 상태 유지 (새로고침해도 복원됨)
+- **하이드레이션 처리**:
+  - `isHydrated` 플래그로 클라이언트 마운트 완료 여부 추적
+  - 마운트 전에는 저장 안 함 (SSR/CSR 불일치 방지)
+  - 복원된 상태로 마운트 시 불필요한 API 재호출 방지
+- **용량 최적화**:
+  - `subtitleText`, `subtitleLanguage` 제거 (용량이 큼)
+  - `description`을 200자로 제한
+  - 4MB 초과 시 저장 스킵
+- **디바운스 저장**: 300ms 디바운스로 과도한 sessionStorage 쓰기 방지
+- **정렬 상태 복원**: 저장된 `sortBy`에 따라 복원 시 자동 정렬 적용
+- **채널 변경 감지**:
+  - `useRef`로 이전 채널 ID 추적
+  - 실제로 채널이 변경되었을 때만 비디오 재검색
+  - 하이드레이션 시 이미 비디오가 있으면 재검색 스킵
 
 ## Future Expansion Points
 
