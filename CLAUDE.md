@@ -41,16 +41,18 @@ app/
   globals.css               # Tailwind + custom styles
 
 components/
-  video-card.tsx            # 영상 카드 (다운로드/분석 버튼 포함)
+  video-card.tsx            # 영상 카드 (다운로드/분석/자막 보기 버튼 포함)
   video-list.tsx            # 영상 리스트 컨테이너
   download-dialog.tsx       # 다운로드 다이얼로그 (MP4/MP3 선택)
   analysis-dialog.tsx       # AI 분석 결과 다이얼로그
+  subtitle-dialog.tsx       # 자막 표시 다이얼로그
   ui/                       # Shadcn/UI primitives (button, dialog, tabs 등)
 
 lib/
   youtube.ts                # YouTube API 검색 로직 + 심화 지표 계산
   downloader.ts             # yt-dlp wrapper (progress tracking)
-  ai.ts                     # Gemini API 분석 로직
+  ai.ts                     # Gemini API 분석 로직 (자막 포함)
+  subtitles.ts              # yt-dlp 자막 추출 로직 (JSON3 포맷)
   storage.ts                # Local JSON storage (채널 즐겨찾기)
   utils.ts                  # Tailwind utility (cn)
 
@@ -86,7 +88,14 @@ downloads/                  # yt-dlp 다운로드 경로 (런타임에 자동 �
    - Returns JSON: `{ hook, structure, target, insights[] }`
    - Displayed in modal with formatted sections
 
-4. **Channel Management Flow**
+4. **Subtitle Viewing Flow**
+   - User clicks "자막 보기" → `SubtitleDialog` opens
+   - Subtitles are fetched during search via `lib/subtitles.ts`
+   - `extractSubtitlesBatch()` uses yt-dlp to extract Korean subtitles in parallel
+   - Subtitles stored in memory (EnrichedVideo.subtitleText)
+   - Dialog displays formatted subtitle text with proper word wrapping
+
+5. **Channel Management Flow**
    - User saves channel → POST to `/api/channels`
    - `lib/storage.ts` appends to `data/channels.json`
    - GET `/api/channels` retrieves saved channels list
@@ -106,6 +115,8 @@ interface EnrichedVideo {
   subscriberCount: number;
   engagementRate: number;      // ((Likes + Comments) / Views) * 100
   performanceRatio: number;     // (Video Views / Subscriber Count) * 100
+  subtitleText?: string;        // 자막 텍스트 (없으면 undefined)
+  subtitleLanguage?: string;    // 자막 언어 (예: 'ko')
   // ... 기타 필드
 }
 
@@ -118,6 +129,15 @@ interface VideoSearchFilters {
   order?: 'date' | 'rating' | 'relevance' | 'viewCount' | 'title';
   creativeCommons?: boolean;
   maxResults?: number; // 1-100, default: 100
+  fetchSubtitles?: boolean; // 자막 수집 여부 (기본값: true)
+}
+
+// lib/subtitles.ts
+interface SubtitleData {
+  videoId: string;
+  language: string;
+  text: string;    // 순수 텍스트 (타임스탬프 제거)
+  format: string;  // "json3"
 }
 ```
 
@@ -154,17 +174,32 @@ See `.env.example` for template.
 
 ### Gemini API Usage
 
-- Model: `gemini-3-flash-preview` (lib/ai.ts:6)
+- Model: `gemini-3-flash-preview` (lib/ai.ts:7)
 - Prompt: 한국어로 작성된 4-step 분석 (Hook, Structure, Target, Insights)
+- **자막 통합**: 자막이 있으면 프롬프트에 포함하여 더 정확한 분석
+  - 최대 50,000자 제한 (~12,500 토큰)
+  - 초과 시 앞부분만 사용
 - Response: JSON 형식 (sometimes wrapped in \`\`\`json, extracted via regex)
+- **객체 응답 처리**: structure 등이 객체로 반환될 수 있음 (AnalysisDialog에서 formatContent로 변환)
 
 ### yt-dlp Integration
 
 - Must be installed globally: `brew install yt-dlp` (macOS)
-- Spawned as child process in `lib/downloader.ts`
+- Spawned as child process in `lib/downloader.ts` and `lib/subtitles.ts`
+
+#### Video Download (lib/downloader.ts)
 - Progress tracked via stdout parsing (`%(progress._percent_str)s`)
 - MP3: `-x --audio-format mp3`
 - MP4: `-f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'`
+
+#### Subtitle Extraction (lib/subtitles.ts)
+- `--write-subs --write-auto-subs`: 자막 및 자동 생성 자막 다운로드
+- `--sub-langs ko`: 한국어 자막 우선
+- `--sub-format json3`: JSON3 포맷 (파싱 용이)
+- `--skip-download`: 영상 다운로드 생략 (자막만 추출)
+- 병렬 처리: `extractSubtitlesBatch()` - Promise.allSettled로 100개 병렬 처리
+- 임시 파일 사용: OS tmpdir에 저장 후 파싱 완료 시 삭제
+- 성능: 100개 영상 자막 수집 약 5-10초 추가
 
 ## Shadcn/UI Configuration
 
@@ -227,6 +262,9 @@ See `.env.example` for template.
 - **order**: YouTube API 정렬 기준 (relevance, date, viewCount, rating, title)
 - **videoDuration**: 영상 길이 (any, short, medium, long)
 - **creativeCommons**: CC 라이선스 필터
+- **fetchSubtitles**: 자막 수집 여부 (기본값: true)
+  - 체크박스로 on/off 가능
+  - false 시 검색 속도 향상 (자막 수집 단계 스킵)
 
 ### Client-Side Sorting
 검색 결과를 받은 후 클라이언트에서 재정렬:
@@ -271,6 +309,16 @@ See `.env.example` for template.
 ### 채널 데이터
 - **채널 썸네일**: `channels.list()`에서 `snippet.thumbnails`로 프로필 사진 가져오기
 - 관심 채널 저장 시 썸네일도 함께 저장하여 UI에 표시
+
+### 자막 추출 및 표시
+- **yt-dlp 자막 포맷**: JSON3가 파싱하기 가장 용이함 (SRT는 텍스트 파싱 필요)
+- **병렬 처리**: Promise.allSettled로 실패한 영상이 있어도 전체 처리 계속 진행
+- **임시 파일 관리**: OS tmpdir 사용 + 파싱 후 즉시 삭제로 디스크 공간 절약
+- **자막 포맷팅**: 연속된 줄바꿈 제거 후 공백으로 연결하여 읽기 편하게 표시
+- **Dialog 스크롤 문제**:
+  - Shadcn의 ScrollArea 대신 일반 div + overflow-y-auto 사용
+  - `min-h-0`, `flex-1`, `overflow-hidden` 조합으로 flex 레이아웃 내 스크롤 보장
+  - `break-words`로 긴 단어 강제 줄바꿈 (화면 밖으로 넘어가는 문제 해결)
 
 ## Future Expansion Points
 
