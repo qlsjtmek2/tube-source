@@ -34,6 +34,62 @@ export default function Home() {
   const [selectedVideoForDownload, setSelectedVideoForDownload] = useState<{ id: string; title: string } | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string>('');
   const [isUrlDownloadOpen, setIsUrlDownloadOpen] = useState(false);
+  const [activeDownloads, setActiveDownloads] = useState<any[]>([]);
+  
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [bulkUrls, setBulkUrls] = useState<string[]>([]);
+
+  const handleDownloadStart = (info: any) => {
+    // Check if it's a single info or array of info
+    const infoArray = Array.isArray(info) ? info : [info];
+    
+    infoArray.forEach(item => {
+      const downloadId = item.id + '-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+      const newDownload = {
+        ...item,
+        uniqueId: downloadId,
+        status: 'starting',
+        progress: 0,
+        message: '준비 중...'
+      };
+      
+      setActiveDownloads(prev => [newDownload, ...prev]);
+
+      const queryParams = new URLSearchParams();
+      if (item.videoId) queryParams.set("videoId", item.videoId);
+      if (item.url) queryParams.set("url", item.url);
+      queryParams.set("format", item.format);
+
+      const eventSource = new EventSource(`/api/download?${queryParams.toString()}`);
+
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        
+        setActiveDownloads(prev => prev.map(d => {
+          if (d.uniqueId === downloadId) {
+            if (data.status === "progress") {
+              const percent = parseFloat(data.progress.replace("%", ""));
+              return { ...d, status: 'downloading', progress: percent, message: data.message };
+            } else if (data.status === "completed") {
+              eventSource.close();
+              return { ...d, status: 'completed', progress: 100, message: '완료!' };
+            } else if (data.status === "error") {
+              eventSource.close();
+              return { ...d, status: 'error', message: `에러: ${data.message}` };
+            }
+          }
+          return d;
+        }));
+      };
+
+      eventSource.onerror = () => {
+        setActiveDownloads(prev => prev.map(d => 
+          d.uniqueId === downloadId ? { ...d, status: 'error', message: '서버 연결 실패' } : d
+        ));
+        eventSource.close();
+      };
+    });
+  };
 
   const [selectedVideoForAnalysis, setSelectedVideoForAnalysis] = useState<EnrichedVideo | null>(null);
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
@@ -528,7 +584,14 @@ export default function Home() {
               onDownloadUrl={(url) => {
                 setDownloadUrl(url);
                 setIsUrlDownloadOpen(true);
+                setIsBulkMode(false);
               }}
+              onBulkUrl={(urls) => {
+                setBulkUrls(urls);
+                setIsUrlDownloadOpen(true);
+                setIsBulkMode(true);
+              }}
+              activeDownloads={activeDownloads}
             />
           )}
         </div>
@@ -536,12 +599,16 @@ export default function Home() {
 
       <DownloadDialog 
         video={selectedVideoForDownload} 
-        url={isUrlDownloadOpen ? downloadUrl : undefined}
+        url={!isBulkMode ? downloadUrl : undefined}
+        urls={isBulkMode ? bulkUrls : undefined}
         isOpen={!!selectedVideoForDownload || isUrlDownloadOpen} 
+        onDownloadStart={handleDownloadStart}
         onClose={() => {
           setSelectedVideoForDownload(null);
           setIsUrlDownloadOpen(false);
           setDownloadUrl('');
+          setBulkUrls([]);
+          setIsBulkMode(false);
         }} 
       />
 
@@ -1599,43 +1666,54 @@ function ChannelSearchSection({
             );
           }
           
-          function DownloadsSection({ onDownloadUrl }: { onDownloadUrl: (url: string) => void }) {
-            const [url, setUrl] = useState('');
+          function DownloadsSection({ onDownloadUrl, onBulkUrl, activeDownloads }: { 
+            onDownloadUrl: (url: string) => void, 
+            onBulkUrl: (urls: string[]) => void,
+            activeDownloads: any[] 
+          }) {
+            const [inputText, setInputText] = useState('');
+          
+            const extractUrls = (text: string) => {
+              // Regular expression to find YouTube URLs
+              const youtubeRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}(?:[^\s]*))/g;
+              const matches = text.match(youtubeRegex);
+              return matches ? Array.from(new Set(matches)) : [];
+            };
           
             const handleSubmit = (e: React.FormEvent) => {
               e.preventDefault();
-              if (url.trim()) {
-                onDownloadUrl(url.trim());
-                setUrl('');
+              const urls = extractUrls(inputText);
+              if (urls.length > 1) {
+                onBulkUrl(urls);
+                setInputText('');
+              } else if (urls.length === 1) {
+                onDownloadUrl(urls[0]);
+                setInputText('');
               }
             };
-          
-            return (
-              <div className="max-w-2xl mx-auto space-y-8 py-10">
+                      return (
+              <div className="max-w-3xl mx-auto space-y-8 py-4">
                 <div className="text-center space-y-2">
-                  <h2 className="text-2xl font-bold">유튜브 링크 다운로드</h2>
-                  <p className="text-slate-500">유튜브 영상 또는 쇼츠 링크를 입력하여 MP4/MP3로 다운로드하세요.</p>
+                  <h2 className="text-2xl font-bold">유튜브 링크 일괄 다운로드</h2>
+                  <p className="text-slate-500">여러 개의 링크가 섞인 텍스트를 붙여넣어도 자동으로 유튜브 주소만 추출하여 다운로드합니다.</p>
                 </div>
           
-                <Card className="border-red-100 dark:border-red-900/30 shadow-lg">
-                  <CardContent className="p-6">
+                <Card className="border-red-100 dark:border-red-900/30 shadow-md">
+                  <CardContent className="p-4">
                     <form onSubmit={handleSubmit} className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="url">유튜브 링크</Label>
-                        <div className="flex gap-2">
-                          <div className="relative flex-1">
-                            <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                            <Input
-                              id="url"
-                              placeholder="https://www.youtube.com/watch?v=... 또는 https://youtu.be/..."
-                              className="pl-10 h-12 text-base"
-                              value={url}
-                              onChange={(e) => setUrl(e.target.value)}
-                            />
-                          </div>
-                          <Button type="submit" size="lg" className="h-12 px-8 bg-red-600 hover:bg-red-700" disabled={!url.trim()}>
+                        <Label htmlFor="url">유튜브 링크 (일괄 입력 가능)</Label>
+                        <div className="flex flex-col gap-3">
+                          <textarea
+                            id="url"
+                            placeholder="여러 개의 유튜브 링크를 여기에 붙여넣으세요..."
+                            className="w-full h-32 p-3 rounded-md border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 dark:border-slate-800 dark:bg-slate-950"
+                            value={inputText}
+                            onChange={(e) => setInputText(e.target.value)}
+                          />
+                          <Button type="submit" size="lg" className="w-full h-12 bg-red-600 hover:bg-red-700" disabled={!inputText.trim()}>
                             <Download className="mr-2 h-5 w-5" />
-                            다운로드
+                            형식 선택 및 다운로드 시작
                           </Button>
                         </div>
                       </div>
@@ -1643,34 +1721,47 @@ function ChannelSearchSection({
                   </CardContent>
                 </Card>
           
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Card className="bg-white/50 dark:bg-slate-900/50">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                          <BarChart2 className="w-4 h-4 text-red-600" />
-                        </div>
-                        고화질 MP4 지원
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-xs text-slate-500">최상의 화질로 영상을 소장하세요. 교육용이나 자료 수집에 용이합니다.</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="bg-white/50 dark:bg-slate-900/50">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                          <Sparkles className="w-4 h-4 text-blue-600" />
-                        </div>
-                        고품질 MP3 추출
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-xs text-slate-500">배경 음악이나 팟캐스트 소스를 위해 음원만 깔끔하게 추출합니다.</p>
-                    </CardContent>
-                  </Card>
-                </div>
+                {activeDownloads.length > 0 && (
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold flex items-center gap-2 text-slate-500 uppercase tracking-wider">
+                      <Loader2 className={cn("w-4 h-4", activeDownloads.some(d => d.status === 'downloading') && "animate-spin")} />
+                      다운로드 현황
+                    </h3>
+                    <div className="grid gap-3">
+                      {activeDownloads.map((download) => (
+                        <Card key={download.uniqueId} className="overflow-hidden border-slate-100 dark:border-slate-800">
+                          <CardContent className="p-3">
+                            <div className="flex items-center gap-3">
+                              <div className={cn(
+                                "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
+                                download.format === 'mp4' ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"
+                              )}>
+                                {download.format === 'mp4' ? <FileVideo className="w-5 h-5" /> : <Music className="w-5 h-5" />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-start gap-2 mb-1">
+                                  <p className="text-xs font-bold truncate pr-4">{download.title}</p>
+                                  <Badge variant={
+                                    download.status === 'completed' ? 'secondary' : 
+                                    download.status === 'error' ? 'destructive' : 'outline'
+                                  } className="text-[10px] h-4 px-1.5">
+                                    {download.status === 'completed' ? '완료' : 
+                                     download.status === 'error' ? '에러' : 
+                                     download.status === 'downloading' ? `${Math.round(download.progress)}%` : '준비 중'}
+                                  </Badge>
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Progress value={download.progress} className="h-1" />
+                                  <p className="text-[10px] text-slate-400 truncate">{download.message}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           }
