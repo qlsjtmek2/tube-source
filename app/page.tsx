@@ -1673,14 +1673,19 @@ function ChannelSearchSection({
           }) {
             const [inputText, setInputText] = useState('');
           
-            const extractUrls = (text: string) => {
-              // Regular expression to find YouTube URLs
-              const youtubeRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}(?:[^\s]*))/g;
-              const matches = text.match(youtubeRegex);
-              return matches ? Array.from(new Set(matches)) : [];
-            };
-          
-            const handleSubmit = (e: React.FormEvent) => {
+              const extractUrls = (text: string) => {
+                // Improved regex to find YouTube URLs and clean them from trailing punctuation/brackets
+                const youtubeRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}[^\s\)\)\]\>]*)/g;
+                const matches = text.match(youtubeRegex);
+                
+                if (!matches) return [];
+                
+                // Clean each URL (remove trailing dots, commas, or brackets that might have been caught)
+                return Array.from(new Set(matches.map(url => {
+                  return url.replace(/[.,\)\)\]\>]+$/, '');
+                })));
+              };
+                        const handleSubmit = (e: React.FormEvent) => {
               e.preventDefault();
               const urls = extractUrls(inputText);
               if (urls.length > 1) {
@@ -1721,44 +1726,87 @@ function ChannelSearchSection({
                   </CardContent>
                 </Card>
           
-                {activeDownloads.length > 0 && (
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold flex items-center gap-2 text-slate-500 uppercase tracking-wider">
-                      <Loader2 className={cn("w-4 h-4", activeDownloads.some(d => d.status === 'downloading') && "animate-spin")} />
-                      다운로드 현황
-                    </h3>
-                    <div className="grid gap-3">
-                      {activeDownloads.map((download) => (
-                        <Card key={download.uniqueId} className="overflow-hidden border-slate-100 dark:border-slate-800">
-                          <CardContent className="p-3">
-                            <div className="flex items-center gap-3">
-                              <div className={cn(
-                                "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
-                                download.format === 'mp4' ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"
-                              )}>
-                                {download.format === 'mp4' ? <FileVideo className="w-5 h-5" /> : <Music className="w-5 h-5" />}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-start gap-2 mb-1">
-                                  <p className="text-xs font-bold truncate pr-4">{download.title}</p>
-                                  <Badge variant={
-                                    download.status === 'completed' ? 'secondary' : 
-                                    download.status === 'error' ? 'destructive' : 'outline'
-                                  } className="text-[10px] h-4 px-1.5">
-                                    {download.status === 'completed' ? '완료' : 
-                                     download.status === 'error' ? '에러' : 
-                                     download.status === 'downloading' ? `${Math.round(download.progress)}%` : '준비 중'}
-                                  </Badge>
-                                </div>
-                                <div className="space-y-1.5">
-                                  <Progress value={download.progress} className="h-1" />
-                                  <p className="text-[10px] text-slate-400 truncate">{download.message}</p>
-                                </div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                      {activeDownloads.length > 0 && (
+          
+                        <div className="space-y-4">
+          
+                          <div className="flex justify-between items-center">
+          
+                            <h3 className="text-sm font-bold flex items-center gap-2 text-slate-500 uppercase tracking-wider">
+          
+                              <Loader2 className={cn("w-4 h-4", activeDownloads.some(d => d.status === 'downloading') && "animate-spin")} />
+          
+                              다운로드 현황
+          
+                            </h3>
+          
+                            {activeDownloads.some(d => d.status === 'completed' || d.status === 'error') && (
+          
+                              <Button 
+          
+                                variant="ghost" 
+          
+                                size="sm" 
+          
+                                className="h-7 text-[10px] text-slate-400 hover:text-red-500"
+          
+                                onClick={() => setActiveDownloads(prev => prev.filter(d => d.status !== 'completed' && d.status !== 'error'))}
+          
+                              >
+          
+                                완료 항목 삭제
+          
+                              </Button>
+          
+                            )}
+          
+                          </div>
+          
+                          <div className="grid gap-3">
+          
+                
+                                  {activeDownloads.map((download) => (
+                                    <Card key={download.uniqueId} className="overflow-hidden border-slate-100 dark:border-slate-800 group">
+                                      <CardContent className="p-3">
+                                        <div className="flex items-center gap-3">
+                                          <div className={cn(
+                                            "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
+                                            download.format === 'mp4' ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"
+                                          )}>
+                                            {download.format === 'mp4' ? <FileVideo className="w-5 h-5" /> : <Music className="w-5 h-5" />}
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex justify-between items-start gap-2 mb-1">
+                                              <p className="text-xs font-bold truncate pr-4">{download.title}</p>
+                                              <div className="flex items-center gap-2">
+                                                <Badge variant={
+                                                  download.status === 'completed' ? 'secondary' : 
+                                                  download.status === 'error' ? 'destructive' : 'outline'
+                                                } className="text-[10px] h-4 px-1.5">
+                                                  {download.status === 'completed' ? '완료' : 
+                                                   download.status === 'error' ? '에러' : 
+                                                   download.status === 'downloading' ? `${Math.round(download.progress)}%` : '준비 중'}
+                                                </Badge>
+                                                {(download.status === 'completed' || download.status === 'error') && (
+                                                  <button 
+                                                    onClick={() => setActiveDownloads(prev => prev.filter(d => d.uniqueId !== download.uniqueId))}
+                                                    className="text-slate-400 hover:text-slate-600 transition-colors"
+                                                  >
+                                                    <Trash2 className="w-3 h-3" />
+                                                  </button>
+                                                )}
+                                              </div>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                              <Progress value={download.progress} className="h-1" />
+                                              <p className="text-[10px] text-slate-400 truncate">{download.message}</p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </CardContent>
+                                    </Card>
+                                  ))}
+                      
                     </div>
                   </div>
                 )}
