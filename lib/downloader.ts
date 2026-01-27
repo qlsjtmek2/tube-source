@@ -23,19 +23,42 @@ export interface DownloadEvent {
   value: string;
 }
 
+function cleanYouTubeUrl(url: string): string {
+  // Remove trailing parentheses and other invalid characters
+  let cleanUrl = url.replace(/[)\]}>]+$/, '');
+
+  // Extract video ID and rebuild clean URL
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = cleanUrl.match(pattern);
+    if (match) {
+      return `https://www.youtube.com/watch?v=${match[1]}`;
+    }
+  }
+
+  return cleanUrl;
+}
+
 export function downloadVideo(options: DownloadOptions, onEvent: (event: DownloadEvent) => void): Promise<string> {
   return new Promise(async (resolve, reject) => {
     await initDownloadsDir();
-    
-    const url = options.url || `https://www.youtube.com/watch?v=${options.videoId}`;
-    const filenameTemplate = `%({title})s.%({ext})s`;
+
+    const rawUrl = options.url || `https://www.youtube.com/watch?v=${options.videoId}`;
+    const url = cleanYouTubeUrl(rawUrl);
+    const filenameTemplate = '%(title)s.%(ext)s';
     const outputPathTemplate = path.join(DOWNLOADS_DIR, filenameTemplate);
+
+    console.log(`[downloader] Starting download: ${url}`);
+    console.log(`[downloader] Output path: ${outputPathTemplate}`);
 
     const args = [
       url,
       '-o', outputPathTemplate,
       '--no-playlist',
-      '--print', 'after_move:title', // Print title after download starts
+      '--newline',
     ];
 
     if (options.format === 'mp3') {
@@ -44,58 +67,59 @@ export function downloadVideo(options: DownloadOptions, onEvent: (event: Downloa
       args.push('-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best');
     }
 
-    // Progress tracking
-    args.push('--newline', '--progress-template', '%(progress._percent_str)s');
+    console.log(`[downloader] Command: yt-dlp ${args.join(' ')}`);
 
     const child = spawn('yt-dlp', args);
 
     let finalPath = '';
-    let capturedTitle = '';
 
     child.stdout.on('data', (data) => {
-      const output = data.toString().trim();
+      const output = data.toString();
       const lines = output.split('\n');
 
       for (const line of lines) {
         const trimmedLine = line.trim();
-        
-        // Progress
-        if (trimmedLine.includes('%')) {
-          const progress = trimmedLine.match(/(\d+\.\d+)%/);
-          if (progress) {
-            onEvent({ type: 'progress', value: progress[0] });
-          }
+        if (!trimmedLine) continue;
+
+        console.log(`[yt-dlp stdout] ${trimmedLine}`);
+
+        // Progress percentage
+        const progressMatch = trimmedLine.match(/(\d+\.?\d*)%/);
+        if (progressMatch) {
+          onEvent({ type: 'progress', value: `${progressMatch[1]}%` });
         }
-        
-        // Destination
+
+        // Destination paths
         if (trimmedLine.includes('[download] Destination:')) {
           finalPath = trimmedLine.split('[download] Destination:')[1].trim();
           onEvent({ type: 'destination', value: finalPath });
+          // Extract title from filename
+          const title = path.basename(finalPath).replace(/\.[^.]+$/, '');
+          onEvent({ type: 'title', value: title });
         }
         if (trimmedLine.includes('[ExtractAudio] Destination:')) {
           finalPath = trimmedLine.split('[ExtractAudio] Destination:')[1].trim();
           onEvent({ type: 'destination', value: finalPath });
         }
-
-        // Title (captured via --print)
-        // yt-dlp outputs the printed title on its own line
-        if (trimmedLine && !trimmedLine.startsWith('[') && !trimmedLine.includes('%') && !capturedTitle) {
-          capturedTitle = trimmedLine;
-          onEvent({ type: 'title', value: capturedTitle });
-        }
       }
     });
 
     child.stderr.on('data', (data) => {
-      console.error(`yt-dlp error: ${data}`);
+      console.error(`[yt-dlp stderr] ${data.toString().trim()}`);
     });
 
     child.on('close', (code) => {
+      console.log(`[downloader] yt-dlp exited with code ${code}`);
       if (code === 0) {
         resolve(finalPath || 'Download complete');
       } else {
         reject(new Error(`yt-dlp exited with code ${code}`));
       }
+    });
+
+    child.on('error', (error) => {
+      console.error(`[downloader] spawn error:`, error);
+      reject(error);
     });
   });
 }

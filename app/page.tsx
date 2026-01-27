@@ -65,10 +65,12 @@ export default function Home() {
 
       eventSource.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        
+
         setActiveDownloads(prev => prev.map(d => {
           if (d.uniqueId === downloadId) {
-            if (data.status === "progress") {
+            if (data.status === "title") {
+              return { ...d, title: data.title };
+            } else if (data.status === "progress") {
               const percent = parseFloat(data.progress.replace("%", ""));
               return { ...d, status: 'downloading', progress: percent, message: data.message };
             } else if (data.status === "completed") {
@@ -973,20 +975,20 @@ function SearchSection({
                       <Button variant="outline" size="sm" className="h-7 text-xs px-3 border-red-200 text-red-700 dark:border-red-900 dark:text-red-400" onClick={handleSelectAll}>
                         {selectedVideoIds && selectedVideoIds.size === videos.length ? '전체 해제' : '전체 선택'}
                       </Button>
-                      <Button 
-                        variant="default" 
-                        size="sm" 
-                        className="h-7 text-xs px-4 !bg-red-600 !hover:bg-red-700 !text-white font-bold shadow-sm disabled:!bg-red-200 disabled:!text-white/80 disabled:!opacity-100 transition-colors" 
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        className="h-7 text-xs px-4 font-bold shadow-sm"
                         onClick={startBatchAnalysis}
                         disabled={!selectedVideoIds || selectedVideoIds.size === 0}
                       >
                         <Sparkles className="w-3 h-3 mr-1.5 fill-white" />
                         개별 분석 ({selectedVideoIds?.size || 0})
                       </Button>
-                      <Button 
-                        variant="default" 
-                        size="sm" 
-                        className="h-7 text-xs px-4 !bg-purple-600 !hover:bg-purple-700 !text-white font-bold shadow-sm disabled:!bg-purple-200 disabled:!text-white/80 disabled:!opacity-100 transition-colors" 
+                      <Button
+                        variant="purple"
+                        size="sm"
+                        className="h-7 text-xs px-4 font-bold shadow-sm"
                         onClick={startContextAnalysis}
                         disabled={!selectedVideoIds || selectedVideoIds.size === 0}
                       >
@@ -1517,7 +1519,7 @@ function ChannelSearchSection({
                     onKeyDown={(e) => e.key === 'Enter' && handleVideoSearch()}
                   />
                 </div>
-                <Button onClick={handleVideoSearch} disabled={loading} className="h-10 !bg-red-600 hover:!bg-red-700 text-white border-none">
+                <Button onClick={handleVideoSearch} disabled={loading} variant="danger" size="lg">
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                   <span className="ml-2">영상 검색</span>
                 </Button>
@@ -1607,10 +1609,10 @@ function ChannelSearchSection({
                           <Button variant="outline" size="sm" className="h-7 text-xs px-3" onClick={handleSelectAll}>
                             {selectedVideoIds?.size === videos.length ? '전체 해제' : '전체 선택'}
                           </Button>
-                          <Button variant="default" size="sm" className="h-7 text-xs px-4 !bg-red-600" onClick={() => onBatchAnalyze?.(videos.filter(v => selectedVideoIds?.has(v.id)))} disabled={!selectedVideoIds?.size}>
+                          <Button variant="danger" size="sm" className="h-7 text-xs px-4" onClick={() => onBatchAnalyze?.(videos.filter(v => selectedVideoIds?.has(v.id)))} disabled={!selectedVideoIds?.size}>
                             개별 분석 ({selectedVideoIds?.size || 0})
                           </Button>
-                          <Button variant="default" size="sm" className="h-7 text-xs px-4 !bg-purple-600" onClick={() => onContextAnalyze?.(videos.filter(v => selectedVideoIds?.has(v.id)))} disabled={!selectedVideoIds?.size}>
+                          <Button variant="purple" size="sm" className="h-7 text-xs px-4" onClick={() => onContextAnalyze?.(videos.filter(v => selectedVideoIds?.has(v.id)))} disabled={!selectedVideoIds?.size}>
                             맥락 분석 ({selectedVideoIds?.size || 0})
                           </Button>
                         </div>
@@ -1672,16 +1674,17 @@ function DownloadsSection({ onDownloadStart, activeDownloads }: {
 
   const extractedUrls = extractUrls(inputText);
 
+  const extractVideoId = (url: string): string => {
+    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);
+    return match ? match[1] : url;
+  };
+
   const handleDownload = (format: 'mp4' | 'mp3') => {
     if (extractedUrls.length === 0) return;
 
     const infos = extractedUrls.map(url => ({
       id: url,
-      title: url.includes('youtu.be/')
-        ? url.split('youtu.be/')[1]?.split(/[?&]/)[0]
-        : url.includes('v=')
-          ? url.split('v=')[1]?.split(/[?&]/)[0]
-          : url.split('/shorts/')[1]?.split(/[?&]/)[0] || url,
+      title: `로딩 중... (${extractVideoId(url)})`,
       format,
       url
     }));
@@ -1691,82 +1694,88 @@ function DownloadsSection({ onDownloadStart, activeDownloads }: {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 py-4">
-      <Card className="border-slate-200 dark:border-slate-800">
-        <CardContent className="p-5 space-y-4">
-          <div className="space-y-3">
-            <textarea
-              placeholder="유튜브 링크를 붙여넣으세요 (여러 개 가능)..."
-              className="w-full h-28 p-3 rounded-lg border border-slate-200 bg-slate-50 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent focus:bg-white dark:border-slate-700 dark:bg-slate-900 dark:focus:bg-slate-950 transition-colors resize-none"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-            />
-
-            {extractedUrls.length > 0 && (
-              <div className="text-xs text-slate-500 px-1">
-                {extractedUrls.length}개의 링크 감지됨
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                onClick={() => handleDownload('mp4')}
-                disabled={extractedUrls.length === 0}
-                className="h-14 bg-red-600 hover:bg-red-700 disabled:bg-slate-200 disabled:text-slate-400 transition-colors"
-              >
-                <FileVideo className="mr-2 h-5 w-5" />
-                <span className="font-bold">MP4 영상</span>
-              </Button>
-              <Button
-                onClick={() => handleDownload('mp3')}
-                disabled={extractedUrls.length === 0}
-                className="h-14 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 transition-colors"
-              >
-                <Music className="mr-2 h-5 w-5" />
-                <span className="font-bold">MP3 음원</span>
-              </Button>
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Download className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="유튜브 링크를 붙여넣으세요..."
+                className="pl-10 h-10"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+              />
             </div>
+            <Button
+              onClick={() => handleDownload('mp4')}
+              disabled={extractedUrls.length === 0}
+              variant="danger"
+              size="lg"
+            >
+              <FileVideo className="h-4 w-4" />
+              <span>MP4</span>
+            </Button>
+            <Button
+              onClick={() => handleDownload('mp3')}
+              disabled={extractedUrls.length === 0}
+              variant="info"
+              size="lg"
+            >
+              <Music className="h-4 w-4" />
+              <span>MP3</span>
+            </Button>
           </div>
+
+          {extractedUrls.length > 0 && (
+            <div className="flex items-center gap-2 text-xs text-slate-500 border-t pt-3">
+              <Badge variant="secondary" className="text-[10px]">{extractedUrls.length}개</Badge>
+              <span>링크 감지됨</span>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {activeDownloads.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-xs font-bold flex items-center gap-2 text-slate-400 uppercase tracking-wider px-1">
-            <Loader2 className={cn("w-3.5 h-3.5", activeDownloads.some(d => d.status === 'downloading') && "animate-spin")} />
-            다운로드 현황 ({activeDownloads.filter(d => d.status === 'completed').length}/{activeDownloads.length})
-          </h3>
-          <div className="grid gap-2">
-            {activeDownloads.map((download) => (
-              <Card key={download.uniqueId} className="overflow-hidden border-slate-100 dark:border-slate-800">
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "w-9 h-9 rounded-lg flex items-center justify-center shrink-0",
-                      download.format === 'mp4' ? "bg-red-50 text-red-500" : "bg-blue-50 text-blue-500"
-                    )}>
-                      {download.format === 'mp4' ? <FileVideo className="w-4 h-4" /> : <Music className="w-4 h-4" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-center gap-2 mb-1.5">
-                        <p className="text-xs font-medium truncate">{download.title}</p>
-                        <Badge variant={
-                          download.status === 'completed' ? 'secondary' :
-                          download.status === 'error' ? 'destructive' : 'outline'
-                        } className="text-[10px] h-5 px-2 shrink-0">
-                          {download.status === 'completed' ? '완료' :
-                           download.status === 'error' ? '에러' :
-                           download.status === 'downloading' ? `${Math.round(download.progress)}%` : '준비 중'}
-                        </Badge>
-                      </div>
-                      <Progress value={download.progress} className="h-1" />
-                    </div>
+        <Card className="bg-slate-50/50 dark:bg-slate-900/50 border-dashed">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <Loader2 className={cn("w-3 h-3", activeDownloads.some(d => d.status === 'downloading') && "animate-spin")} />
+                다운로드 현황
+              </h3>
+              <span className="text-[10px] text-slate-400">
+                {activeDownloads.filter(d => d.status === 'completed').length}/{activeDownloads.length} 완료
+              </span>
+            </div>
+            <div className="space-y-2">
+              {activeDownloads.map((download) => (
+                <div key={download.uniqueId} className="flex items-center gap-3 p-2 rounded-lg bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800">
+                  <div className={cn(
+                    "w-8 h-8 rounded-md flex items-center justify-center shrink-0",
+                    download.format === 'mp4' ? "bg-red-50 text-red-500 dark:bg-red-950/30" : "bg-blue-50 text-blue-500 dark:bg-blue-950/30"
+                  )}>
+                    {download.format === 'mp4' ? <FileVideo className="w-4 h-4" /> : <Music className="w-4 h-4" />}
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-center gap-2 mb-1">
+                      <p className="text-xs font-medium truncate">{download.title}</p>
+                      <Badge variant={
+                        download.status === 'completed' ? 'secondary' :
+                        download.status === 'error' ? 'destructive' : 'outline'
+                      } className="text-[10px] h-5 px-2 shrink-0">
+                        {download.status === 'completed' ? '완료' :
+                         download.status === 'error' ? '에러' :
+                         download.status === 'downloading' ? `${Math.round(download.progress)}%` : '준비 중'}
+                      </Badge>
+                    </div>
+                    <Progress value={download.progress} className="h-1" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

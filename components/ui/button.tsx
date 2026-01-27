@@ -19,6 +19,9 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
+        danger: "",
+        info: "",
+        purple: "",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",
@@ -38,17 +41,42 @@ const buttonVariants = cva(
   }
 )
 
+// Color variants with inline styles (Tailwind CSS 4 compatible)
+const colorStyles: Record<string, React.CSSProperties> = {
+  danger: { backgroundColor: '#dc2626', color: 'white' },
+  info: { backgroundColor: '#2563eb', color: 'white' },
+  purple: { backgroundColor: '#9333ea', color: 'white' },
+}
+
+const hoverStyles: Record<string, string> = {
+  danger: '#b91c1c',
+  info: '#1d4ed8',
+  purple: '#7e22ce',
+}
+
 function Button({
   className,
   variant = "default",
   size = "default",
   asChild = false,
+  style,
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean
   }) {
   const Comp = asChild ? Slot : "button"
+  const isColorVariant = variant && ['danger', 'info', 'purple'].includes(variant)
+
+  const [isHovered, setIsHovered] = React.useState(false)
+
+  const inlineStyle: React.CSSProperties = isColorVariant
+    ? {
+        ...colorStyles[variant],
+        backgroundColor: isHovered ? hoverStyles[variant] : colorStyles[variant].backgroundColor,
+        ...style,
+      }
+    : style || {}
 
   return (
     <Comp
@@ -56,6 +84,15 @@ function Button({
       data-variant={variant}
       data-size={size}
       className={cn(buttonVariants({ variant, size, className }))}
+      style={inlineStyle}
+      onMouseEnter={(e) => {
+        setIsHovered(true)
+        props.onMouseEnter?.(e as React.MouseEvent<HTMLButtonElement>)
+      }}
+      onMouseLeave={(e) => {
+        setIsHovered(false)
+        props.onMouseLeave?.(e as React.MouseEvent<HTMLButtonElement>)
+      }}
       {...props}
     />
   )

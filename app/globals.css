@@ -44,12 +44,28 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+
+  /* Button colors for Tailwind */
+  --color-btn-danger: var(--btn-danger);
+  --color-btn-danger-hover: var(--btn-danger-hover);
+  --color-btn-info: var(--btn-info);
+  --color-btn-info-hover: var(--btn-info-hover);
+  --color-btn-purple: var(--btn-purple);
+  --color-btn-purple-hover: var(--btn-purple-hover);
 }
 
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
+
+  /* Custom button colors */
+  --btn-danger: oklch(0.577 0.245 27.325);
+  --btn-danger-hover: oklch(0.505 0.213 27.325);
+  --btn-info: oklch(0.546 0.245 262.881);
+  --btn-info-hover: oklch(0.488 0.243 264.376);
+  --btn-purple: oklch(0.558 0.288 302.321);
+  --btn-purple-hover: oklch(0.496 0.265 301.924);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
