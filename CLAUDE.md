@@ -32,7 +32,8 @@ npm run lint
 app/
   api/                      # Next.js API Routes
     search/route.ts         # YouTube 검색 API (POST)
-    download/route.ts       # yt-dlp 다운로드 API (POST)
+    download/route.ts       # yt-dlp 다운로드 API (GET, SSE)
+    download/open/route.ts  # 다운로드 폴더 열기 API (POST)
     analyze/route.ts        # Gemini AI 분석 API (POST)
     channels/route.ts       # 채널 저장/조회 API (GET/POST/DELETE)
     trends/route.ts         # 실시간 트렌드 API (GET)
@@ -75,11 +76,12 @@ downloads/                  # yt-dlp 다운로드 경로 (런타임에 자동 �
    - Returns `EnrichedVideo[]` with calculated metrics (engagementRate, performanceRatio)
 
 2. **Video Download Flow**
-   - User clicks Download → `DownloadDialog` opens
-   - POST to `/api/download` with `{ videoId, format: 'mp4' | 'mp3' }`
+   - User clicks Download → `DownloadDialog` opens or uses Downloads tab
+   - GET to `/api/download?url=...&format=mp4|mp3` (SSE stream)
    - Server spawns `yt-dlp` process via `lib/downloader.ts`
-   - Streams progress via SSE-like output parsing
-   - Files saved to `downloads/` directory
+   - SSE events: `starting`, `title`, `progress`, `destination`, `completed`, `error`
+   - UI에서 title 이벤트 수신 시 유튜브 제목으로 표시 업데이트
+   - Files saved to `downloads/` directory (파일명: 유튜브 제목)
 
 3. **AI Analysis Flow**
    - User clicks Analyze → `AnalysisDialog` opens
@@ -293,6 +295,20 @@ See `.env.example` for template.
 - Gemini API 응답은 항상 JSON으로 오지 않으므로 regex fallback 필요
 - `data/` 및 `downloads/` 폴더는 .gitignore에 포함 (런타임 생성)
 - 기간 필터는 `publishedAfter`로 구현 (현재 시간 - N일을 ISO 8601 형식으로 계산)
+
+### Tailwind CSS 4 색상 문제
+- Tailwind CSS 4에서 `bg-red-600` 같은 기본 색상 클래스가 작동하지 않을 수 있음
+- **해결책**: Button 컴포넌트에 인라인 스타일로 색상 variant 구현
+  - `variant="danger"`: 빨간색 (#dc2626)
+  - `variant="info"`: 파란색 (#2563eb)
+  - `variant="purple"`: 보라색 (#9333ea)
+- `components/ui/button.tsx`에서 `colorStyles` 객체로 색상 정의, hover 상태도 관리
+
+### yt-dlp 파일명 템플릿
+- **올바른 문법**: `%(title)s.%(ext)s` (중괄호 없이)
+- **잘못된 문법**: `%({title})s.%({ext})s` → `NA.NA` 파일 생성됨
+- URL에 괄호 등 불필요한 문자가 포함될 수 있으므로 `cleanYouTubeUrl()` 함수로 정리 필요
+  - video ID만 추출하여 깨끗한 URL 생성: `https://www.youtube.com/watch?v=${videoId}`
 
 ### YouTube API 최적화
 - **50개 제한**: `search.list()`, `videos.list()`, `channels.list()` 모두 최대 50개 ID 제한
