@@ -36,7 +36,7 @@ export function BatchAnalysisDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !isAnalyzing && open && onClose()}>
-      <DialogContent className="sm:max-w-[400px]">
+      <DialogContent className="w-[90vw] max-w-[400px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isAnalyzing ? (
