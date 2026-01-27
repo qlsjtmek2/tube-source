@@ -359,9 +359,9 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
   }, [sortBy, allVideos, applySorting]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Card>
-        <CardContent className="pt-6 space-y-4">
+        <CardContent className="p-4 space-y-4">
           {/* 검색어 & 검색 버튼 */}
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -494,7 +494,7 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
       {/* 결과 정렬 버튼 */}
       {allVideos.length > 0 && (
         <Card className="bg-slate-50/50 dark:bg-slate-900/50 border-dashed">
-          <CardContent className="p-3">
+          <CardContent className="py-1.5 px-3">
             <div className="flex flex-wrap gap-1.5 items-center">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mr-2 ml-1">심화 정렬</span>
               <Button
