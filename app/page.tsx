@@ -168,6 +168,7 @@ export default function Home() {
   const handleBatchAnalyze = async (videosToAnalyze: EnrichedVideo[]) => {
     if (videosToAnalyze.length === 0) return;
 
+    setIsSelectionMode(false);
     setIsBatchAnalyzing(true);
     setIsBatchDialogOpen(true);
     setBatchStatus({ total: videosToAnalyze.length, current: 0, success: 0, fail: 0 });
@@ -253,6 +254,7 @@ export default function Home() {
   const handleContextAnalyze = async (videosToAnalyze: EnrichedVideo[]) => {
     if (videosToAnalyze.length === 0) return;
 
+    setIsSelectionMode(false);
     setIsAnalyzing(true);
     setIsAnalysisOpen(true);
     setAnalysisResult(null);
