@@ -11,10 +11,11 @@ interface VideoCardProps {
   onDownload?: (video: { id: string; title: string }) => void;
   onAnalyze?: (video: EnrichedVideo) => void;
   onViewSubtitle?: (video: EnrichedVideo) => void;
+  onViewComments?: (video: EnrichedVideo) => void;
   onDeleteAnalysis?: (videoId: string) => void;
 }
 
-export function VideoCard({ video, isSaved, onToggleSave, onDownload, onAnalyze, onViewSubtitle, onDeleteAnalysis }: VideoCardProps) {
+export function VideoCard({ video, isSaved, onToggleSave, onDownload, onAnalyze, onViewSubtitle, onViewComments, onDeleteAnalysis }: VideoCardProps) {
   // Format numbers
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat('en-US', { notation: "compact", maximumFractionDigits: 1 }).format(num);
@@ -129,17 +130,33 @@ export function VideoCard({ video, isSaved, onToggleSave, onDownload, onAnalyze,
         <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
              <div className="flex gap-3">
                 <span className="flex items-center gap-1"><ThumbsUp className="w-3 h-3" /> {formatNumber(video.likeCount)}</span>
-                <span className="flex items-center gap-1"><MessageCircle className="w-3 h-3" /> {formatNumber(video.commentCount)}</span>
+                <button 
+                  onClick={() => onViewComments?.(video)}
+                  className="flex items-center gap-1 hover:text-blue-500 transition-colors"
+                  title="베스트 댓글 보기"
+                >
+                  <MessageCircle className="w-3 h-3" /> {formatNumber(video.commentCount)}
+                </button>
              </div>
-             <span className="text-[10px]">총 영상 수: {formatNumber(video.channelVideoCount)}</span>
+             {onDeleteAnalysis ? (
+               <button
+                 onClick={() => onDeleteAnalysis(video.id)}
+                 className="text-red-400 hover:text-red-600 transition-colors"
+                 title="분석 결과 삭제"
+               >
+                 삭제
+               </button>
+             ) : (
+               <span className="text-[10px]">총 영상 수: {formatNumber(video.channelVideoCount)}</span>
+             )}
         </div>
         
         {/* Action Buttons */}
-        <div className="mt-4 grid grid-cols-3 gap-2">
+        <div className="mt-auto pt-3 grid grid-cols-3 gap-2">
             <Button
               size="sm"
               variant="outline"
-              className="h-8 text-xs"
+              className="h-8 text-[11px] px-1"
               onClick={() => onAnalyze?.(video)}
             >
               AI 분석
@@ -147,7 +164,7 @@ export function VideoCard({ video, isSaved, onToggleSave, onDownload, onAnalyze,
             <Button
               size="sm"
               variant="secondary"
-              className="h-8 text-xs"
+              className="h-8 text-[11px] px-1"
               onClick={() => onDownload?.({ id: video.id, title: video.title })}
             >
               다운로드
@@ -155,7 +172,7 @@ export function VideoCard({ video, isSaved, onToggleSave, onDownload, onAnalyze,
             <Button
               size="sm"
               variant="outline"
-              className="h-8 text-xs"
+              className="h-8 text-[11px] px-1"
               onClick={() => onViewSubtitle?.(video)}
               disabled={!video.subtitleText}
               title={!video.subtitleText ? "자막 없음" : "자막 보기"}

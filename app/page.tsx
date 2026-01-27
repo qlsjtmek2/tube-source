@@ -11,19 +11,11 @@ import { VideoList } from '@/components/video-list';
 import { DownloadDialog } from '@/components/download-dialog';
 import { AnalysisDialog } from '@/components/analysis-dialog';
 import { SubtitleDialog } from '@/components/subtitle-dialog';
-import { EnrichedVideo, VideoSearchFilters } from '@/lib/youtube';
+import { CommentsDialog } from '@/components/comments-dialog';
+import { EnrichedVideo, VideoSearchFilters, YouTubeComment } from '@/lib/youtube';
 import { SavedChannel } from '@/lib/storage';
 import { AnalyzedVideo } from '@/lib/ai';
 import { useSearch } from '@/store/search-context';
-
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from '@/components/ui/label';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('search');
@@ -38,6 +30,11 @@ export default function Home() {
 
   const [selectedVideoForSubtitle, setSelectedVideoForSubtitle] = useState<EnrichedVideo | null>(null);
   const [isSubtitleOpen, setIsSubtitleOpen] = useState(false);
+
+  const [selectedVideoForComments, setSelectedVideoForComments] = useState<EnrichedVideo | null>(null);
+  const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+  const [comments, setComments] = useState<YouTubeComment[]>([]);
+  const [isCommentsLoading, setIsCommentsLoading] = useState(false);
 
   const fetchSavedChannels = async () => {
     try {
@@ -123,6 +120,23 @@ export default function Home() {
   const handleViewSubtitle = (video: EnrichedVideo) => {
     setSelectedVideoForSubtitle(video);
     setIsSubtitleOpen(true);
+  };
+
+  const handleViewComments = async (video: EnrichedVideo) => {
+    setSelectedVideoForComments(video);
+    setIsCommentsOpen(true);
+    setIsCommentsLoading(true);
+    setComments([]);
+
+    try {
+      const res = await fetch(`/api/comments?videoId=${video.id}`);
+      const data = await res.json();
+      setComments(data.comments || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsCommentsLoading(false);
+    }
   };
 
   const handleRefreshAnalysis = () => {
@@ -222,6 +236,7 @@ export default function Home() {
               onDownload={(v) => setSelectedVideoForDownload(v)}
               onAnalyze={handleAnalyze}
               onViewSubtitle={handleViewSubtitle}
+              onViewComments={handleViewComments}
             />
           )}
           {activeTab === 'channels' && (
@@ -237,6 +252,7 @@ export default function Home() {
               onDownload={(v) => setSelectedVideoForDownload(v)}
               onAnalyze={handleAnalyze}
               onViewSubtitle={handleViewSubtitle}
+              onViewComments={handleViewComments}
             />
           )}
           {activeTab === 'analyzed' && (
@@ -245,6 +261,7 @@ export default function Home() {
               onViewExistingAnalysis={handleViewExistingAnalysis}
               onDownload={(v) => setSelectedVideoForDownload(v)}
               onViewSubtitle={handleViewSubtitle}
+              onViewComments={handleViewComments}
             />
           )}
           {activeTab === 'downloads' && (
@@ -280,16 +297,25 @@ export default function Home() {
         onClose={() => setIsSubtitleOpen(false)}
         videoTitle={selectedVideoForSubtitle?.title}
       />
+
+      <CommentsDialog
+        comments={comments}
+        isOpen={isCommentsOpen}
+        onClose={() => setIsCommentsOpen(false)}
+        videoTitle={selectedVideoForComments?.title}
+        isLoading={isCommentsLoading}
+      />
     </div>
   );
 }
 
-function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, onViewSubtitle }: {
+function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, onViewSubtitle, onViewComments }: {
   savedChannelIds: string[],
   onToggleSave: (c: any) => void,
   onDownload: (v: any) => void,
   onAnalyze: (v: EnrichedVideo) => void,
-  onViewSubtitle: (v: EnrichedVideo) => void
+  onViewSubtitle: (v: EnrichedVideo) => void,
+  onViewComments: (v: EnrichedVideo) => void
 }) {
   const {
     query, setQuery,
@@ -359,33 +385,33 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
   }, [sortBy, allVideos, applySorting]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Card>
-        <CardContent className="p-4 space-y-4">
+        <CardContent className="py-2 px-4 space-y-3">
           {/* 검색어 & 검색 버튼 */}
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
                 placeholder="유튜브 영상 검색..."
-                className="pl-10 h-11"
+                className="pl-10 h-10"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               />
             </div>
-            <Button onClick={handleSearch} disabled={loading} size="lg" className="h-11 px-8">
+            <Button onClick={handleSearch} disabled={loading} size="default" className="h-10 px-6">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
               <span className="ml-2 hidden sm:inline">검색</span>
             </Button>
           </div>
 
           {/* 필터 그룹 */}
-          <div className="flex flex-wrap items-end gap-3 sm:gap-4 border-t pt-4">
-            <div className="flex flex-col gap-1.5 min-w-[100px] flex-1 sm:flex-none">
-              <Label className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">국가</Label>
+          <div className="flex flex-wrap items-end gap-3 sm:gap-4 border-t pt-2">
+            <div className="flex flex-col gap-1 min-w-[100px] flex-1 sm:flex-none">
+              <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">국가</Label>
               <Select value={filters.regionCode} onValueChange={(v) => setFilters({...filters, regionCode: v})}>
-                <SelectTrigger className="h-9 w-full sm:w-[130px]">
+                <SelectTrigger className="h-8 w-full sm:w-[120px]">
                   <SelectValue placeholder="전체 국가" />
                 </SelectTrigger>
                 <SelectContent>
@@ -402,10 +428,10 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
               </Select>
             </div>
 
-            <div className="flex flex-col gap-1.5 min-w-[100px] flex-1 sm:flex-none">
-              <Label className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">길이</Label>
+            <div className="flex flex-col gap-1 min-w-[100px] flex-1 sm:flex-none">
+              <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">길이</Label>
               <Select value={filters.videoDuration} onValueChange={(v) => setFilters({...filters, videoDuration: v as any})}>
-                <SelectTrigger className="h-9 w-full sm:w-[130px]">
+                <SelectTrigger className="h-8 w-full sm:w-[120px]">
                   <SelectValue placeholder="모든 길이" />
                 </SelectTrigger>
                 <SelectContent>
@@ -417,10 +443,10 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
               </Select>
             </div>
 
-            <div className="flex flex-col gap-1.5 min-w-[100px] flex-1 sm:flex-none">
-              <Label className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">기간</Label>
+            <div className="flex flex-col gap-1 min-w-[100px] flex-1 sm:flex-none">
+              <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">기간</Label>
               <Select value={timePeriod} onValueChange={setTimePeriod}>
-                <SelectTrigger className="h-9 w-full sm:w-[120px]">
+                <SelectTrigger className="h-8 w-full sm:w-[110px]">
                   <SelectValue placeholder="모든 기간" />
                 </SelectTrigger>
                 <SelectContent>
@@ -435,11 +461,11 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
               </Select>
             </div>
 
-            <div className="flex flex-col gap-1.5 min-w-[80px] flex-1 sm:flex-none">
-              <Label className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">개수</Label>
+            <div className="flex flex-col gap-1 min-w-[70px] flex-1 sm:flex-none">
+              <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">개수</Label>
               <Select value={String(filters.maxResults)} onValueChange={(v) => setFilters({...filters, maxResults: Number(v)})}>
-                <SelectTrigger className="h-9 w-full sm:w-[90px]">
-                  <SelectValue placeholder="수집 개수" />
+                <SelectTrigger className="h-8 w-full sm:w-[80px]">
+                  <SelectValue placeholder="개수" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="10">10개</SelectItem>
@@ -451,11 +477,11 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
               </Select>
             </div>
 
-            <div className="flex flex-col gap-1.5 min-w-[110px] flex-1 sm:flex-none">
-              <Label className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">정렬</Label>
+            <div className="flex flex-col gap-1 min-w-[100px] flex-1 sm:flex-none">
+              <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">정렬</Label>
               <Select value={filters.order} onValueChange={(v) => setFilters({...filters, order: v as any})}>
-                <SelectTrigger className="h-9 w-full sm:w-[120px]">
-                  <SelectValue placeholder="YouTube 정렬" />
+                <SelectTrigger className="h-8 w-full sm:w-[110px]">
+                  <SelectValue placeholder="정렬" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="relevance">관련성순</SelectItem>
@@ -467,24 +493,24 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
               </Select>
             </div>
 
-            <div className="flex items-center gap-4 h-9 ml-auto pr-2">
-              <label className="flex items-center gap-2 text-[12px] text-slate-600 cursor-pointer">
+            <div className="flex items-center gap-3 h-8 ml-auto pr-1">
+              <label className="flex items-center gap-1.5 text-[11px] text-slate-600 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="w-3.5 h-3.5 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+                  className="w-3 h-3 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
                   checked={filters.creativeCommons || false}
                   onChange={(e) => setFilters({...filters, creativeCommons: e.target.checked})}
                 />
-                CC 라이선스
+                CC
               </label>
-              <label className="flex items-center gap-2 text-[12px] text-slate-600 cursor-pointer">
+              <label className="flex items-center gap-1.5 text-[11px] text-slate-600 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="w-3.5 h-3.5 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+                  className="w-3 h-3 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
                   checked={filters.fetchSubtitles !== false}
                   onChange={(e) => setFilters({...filters, fetchSubtitles: e.target.checked})}
                 />
-                자막 포함
+                자막
               </label>
             </div>
           </div>
@@ -494,8 +520,87 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
       {/* 결과 정렬 버튼 */}
       {allVideos.length > 0 && (
         <Card className="bg-slate-50/50 dark:bg-slate-900/50 border-dashed">
-          <CardContent className="py-1.5 px-3">
-            <div className="flex flex-wrap gap-1.5 items-center">
+          <CardContent className="py-0.5 px-3">
+            <div className="flex flex-wrap gap-1 items-center">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2 ml-1">심화 정렬</span>
+              <Button
+                variant={sortBy === 'none' ? 'default' : 'ghost'}
+                size="sm"
+                className="h-6 text-[11px] px-2"
+                onClick={() => setSortBy('none')}
+              >
+                기본
+              </Button>
+              <Button
+                variant={sortBy === 'views' ? 'default' : 'ghost'}
+                size="sm"
+                className="h-6 text-[11px] px-2"
+                onClick={() => setSortBy('views')}
+              >
+                조회수
+              </Button>
+              <Button
+                variant={sortBy === 'subscribers' ? 'default' : 'ghost'}
+                size="sm"
+                className="h-6 text-[11px] px-2"
+                onClick={() => setSortBy('subscribers')}
+              >
+                구독자
+              </Button>
+              <Button
+                variant={sortBy === 'performance' ? 'default' : 'ghost'}
+                size="sm"
+                className="h-6 text-[11px] px-2"
+                onClick={() => setSortBy('performance')}
+              >
+                성과도
+              </Button>
+              <Button
+                variant={sortBy === 'engagement' ? 'default' : 'ghost'}
+                size="sm"
+                className="h-6 text-[11px] px-2"
+                onClick={() => setSortBy('engagement')}
+              >
+                참여율
+              </Button>
+              <Button
+                variant={sortBy === 'likes' ? 'default' : 'ghost'}
+                size="sm"
+                className="h-6 text-[11px] px-2"
+                onClick={() => setSortBy('likes')}
+              >
+                좋아요
+              </Button>
+              <Button
+                variant={sortBy === 'comments' ? 'default' : 'ghost'}
+                size="sm"
+                className="h-6 text-[11px] px-2"
+                onClick={() => setSortBy('comments')}
+              >
+                댓글
+              </Button>
+              
+              <div className="ml-auto text-[10px] text-slate-400 font-medium pr-1">
+                {videos.length} items
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <VideoList
+        videos={videos}
+        loading={loading}
+        savedChannelIds={savedChannelIds}
+        onToggleSave={onToggleSave}
+        onDownload={onDownload}
+        onAnalyze={onAnalyze}
+        onViewSubtitle={onViewSubtitle}
+        onViewComments={onViewComments}
+      />
+    </div>
+  );
+}
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mr-2 ml-1">심화 정렬</span>
               <Button
                 variant={sortBy === 'none' ? 'default' : 'ghost'}
@@ -609,12 +714,13 @@ function ChannelsSection({ channels, onRemove }: { channels: SavedChannel[], onR
   );
 }
 
-function TrendsSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, onViewSubtitle }: {
+function TrendsSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, onViewSubtitle, onViewComments }: {
   savedChannelIds: string[],
   onToggleSave: (c: any) => void,
   onDownload: (v: any) => void,
   onAnalyze: (v: EnrichedVideo) => void,
-  onViewSubtitle: (v: EnrichedVideo) => void
+  onViewSubtitle: (v: EnrichedVideo) => void,
+  onViewComments: (v: EnrichedVideo) => void
 }) {
   const [regionCode, setRegionCode] = useState('KR');
   const [categoryId, setCategoryId] = useState('0');
@@ -679,6 +785,7 @@ function TrendsSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
         onDownload={onDownload}
         onAnalyze={onAnalyze}
         onViewSubtitle={onViewSubtitle}
+        onViewComments={onViewComments}
       />
     </div>
   );
@@ -687,12 +794,14 @@ function AnalyzedVideosSection({
   onAnalyze,
   onViewExistingAnalysis,
   onDownload,
-  onViewSubtitle
+  onViewSubtitle,
+  onViewComments
 }: {
   onAnalyze: (v: EnrichedVideo) => void,
   onViewExistingAnalysis: (v: EnrichedVideo, analysis: any) => void,
   onDownload: (v: any) => void,
-  onViewSubtitle: (v: EnrichedVideo) => void
+  onViewSubtitle: (v: EnrichedVideo) => void,
+  onViewComments: (v: EnrichedVideo) => void
 }) {
   const [analyzedVideos, setAnalyzedVideos] = useState<AnalyzedVideo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -787,6 +896,7 @@ function AnalyzedVideosSection({
         onDownload={onDownload}
         onAnalyze={handleViewAnalysis}
         onViewSubtitle={onViewSubtitle}
+        onViewComments={onViewComments}
         onDeleteAnalysis={handleDeleteAnalysis}
       />
     </div>

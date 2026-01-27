@@ -49,6 +49,15 @@ export interface EnrichedVideo {
   subtitleLanguage?: string; // 자막 언어 (예: 'ko')
 }
 
+export interface YouTubeComment {
+  id: string;
+  authorName: string;
+  authorThumbnail: string;
+  text: string;
+  likeCount: number;
+  publishedAt: string;
+}
+
 export async function searchVideos(filters: VideoSearchFilters): Promise<EnrichedVideo[]> {
   try {
     const targetMaxResults = filters.maxResults && filters.maxResults >= 1 && filters.maxResults <= 100
@@ -200,5 +209,31 @@ export async function searchVideos(filters: VideoSearchFilters): Promise<Enriche
   } catch (error) {
     console.error('YouTube API Error:', error);
     throw error;
+  }
+}
+
+export async function getTopComments(videoId: string, maxResults: number = 20): Promise<YouTubeComment[]> {
+  try {
+    const res = await youtube.commentThreads.list({
+      part: ['snippet'],
+      videoId: videoId,
+      order: 'relevance',
+      maxResults: maxResults,
+    });
+
+    return (res.data.items || []).map(item => {
+      const comment = item.snippet?.topLevelComment?.snippet;
+      return {
+        id: item.id!,
+        authorName: comment?.authorDisplayName || 'Unknown',
+        authorThumbnail: comment?.authorProfileImageUrl || '',
+        text: comment?.textDisplay || '',
+        likeCount: Number(comment?.likeCount) || 0,
+        publishedAt: comment?.publishedAt || '',
+      };
+    });
+  } catch (error) {
+    console.error(`[YouTube API] Error fetching comments for ${videoId}:`, error);
+    return [];
   }
 }
