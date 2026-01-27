@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles, Target, Layout, Lightbulb, Zap, RefreshCw } from "lucide-react";
+import { Loader2, Sparkles, Target, Layout, Lightbulb, Zap, RefreshCw, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AnalysisDialogProps {
@@ -68,7 +68,7 @@ export function AnalysisDialog({
           {loading ? (
             <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-500">
               <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
-              <p>Gemini 3.0 Flash가 영상을 분석 중입니다...</p>
+              <p>Gemini 2.0 Flash가 영상을 분석 중입니다...</p>
             </div>
           ) : analysis ? (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 mb-8">
@@ -91,6 +91,18 @@ export function AnalysisDialog({
                   {formatContent(analysis.target)}
                 </div>
               </section>
+
+              {/* Community Needs (New Section) */}
+              {analysis.community_needs && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3 text-pink-600 font-bold">
+                    <MessageCircle className="w-4 h-4" /> 커뮤니티 니즈 & 반응
+                  </div>
+                  <div className="p-4 bg-pink-50 dark:bg-pink-950/30 rounded-lg border border-pink-100 dark:border-pink-900/50 text-sm leading-relaxed whitespace-pre-wrap break-words">
+                    {formatContent(analysis.community_needs)}
+                  </div>
+                </section>
+              )}
 
               {/* Structure */}
               <section>
