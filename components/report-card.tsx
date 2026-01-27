@@ -105,11 +105,11 @@ export function ReportCard({
         </div>
         
         {/* Action Buttons (Matches VideoCard) */}
-        <div className="mt-auto pt-3">
+        <div className="pt-3">
             <Button
               size="sm"
               variant="outline"
-              className="w-full h-8 text-[11px] px-1 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 dark:hover:bg-purple-900/30 dark:hover:border-purple-800 transition-all"
+              className="w-full h-8 text-[11px] px-1 border-purple-200 dark:border-purple-800 hover:bg-purple-600 hover:text-white hover:border-purple-600 transition-colors"
               onClick={(e) => { e.stopPropagation(); onAnalyze?.(video); }}
             >
               <Layers className="w-3 h-3 mr-1.5" />
