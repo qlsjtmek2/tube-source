@@ -6,6 +6,13 @@ const youtube = google.youtube({
   auth: process.env.YOUTUBE_API_KEY,
 });
 
+export interface SavedChannel {
+  channelId: string;
+  channelTitle: string;
+  thumbnail: string;
+  addedAt: string;
+}
+
 export interface VideoSearchFilters {
   q: string;
   publishedAfter?: string;
@@ -85,9 +92,9 @@ export async function searchVideos(filters: VideoSearchFilters): Promise<Enriche
 
       const searchRes = await youtube.search.list({
         part: ['snippet'],
-        q: filters.q,
+        q: filters.q || '', // Ensure q is at least an empty string
         type: ['video'],
-        channelId: filters.channelId, // Add channelId filter
+        channelId: filters.channelId, 
         publishedAfter: filters.publishedAfter,
         publishedBefore: filters.publishedBefore,
         regionCode: filters.regionCode,
@@ -242,6 +249,27 @@ export async function getTopComments(videoId: string, maxResults: number = 20): 
     });
   } catch (error) {
     console.error(`[YouTube API] Error fetching comments for ${videoId}:`, error);
+    return [];
+  }
+}
+
+export async function searchChannels(query: string): Promise<SavedChannel[]> {
+  try {
+    const res = await youtube.search.list({
+      part: ['snippet'],
+      q: query,
+      type: ['channel'],
+      maxResults: 5,
+    });
+
+    return (res.data.items || []).map(item => ({
+      channelId: item.snippet?.channelId || '',
+      channelTitle: item.snippet?.title || '',
+      thumbnail: item.snippet?.thumbnails?.default?.url || '',
+      addedAt: new Date().toISOString(),
+    }));
+  } catch (error) {
+    console.error('Channel Search Error:', error);
     return [];
   }
 }

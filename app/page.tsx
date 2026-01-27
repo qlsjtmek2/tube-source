@@ -18,6 +18,7 @@ import { SavedChannel } from '@/lib/storage';
 import { AnalyzedVideo } from '@/lib/ai';
 import { useSearch } from '@/store/search-context';
 import { ChannelDetailDialog } from '@/components/channel-detail-dialog';
+import { cn } from '@/lib/utils';
 import {
   Select,
   SelectContent,
@@ -1237,7 +1238,15 @@ function ChannelSearchSection({
   onContextAnalyze?: (videos: EnrichedVideo[]) => void,
   batchProps?: BatchProps
 }) {
-  const [query, setQuery] = useState('');
+  const [channelQuery, setChannelQuery] = useState('');
+  const [foundChannels, setFoundChannels] = useState<SavedChannel[]>([]);
+  const [isSearchingChannels, setIsSearchingChannels] = useState(false);
+  
+  const [selectedChannel, setSelectedChannel] = useState<{id: string, title: string} | null>(
+    initialChannelId ? { id: initialChannelId, title: initialChannelTitle } : null
+  );
+
+  const [videoQuery, setVideoQuery] = useState('');
   const [filters, setFilters] = useState<Partial<VideoSearchFilters>>({
     videoDuration: 'any',
     order: 'date',
@@ -1247,38 +1256,47 @@ function ChannelSearchSection({
   });
   const [videos, setVideos] = useState<EnrichedVideo[]>([]);
   const [loading, setLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
   const [sortBy, setSortBy] = useState('none');
   const [timePeriod, setTimePeriod] = useState('all');
 
-  // Trigger search when initialChannelId changes
+  // Update selection if initial props change
   useEffect(() => {
     if (initialChannelId) {
-      handleSearch();
+      setSelectedChannel({ id: initialChannelId, title: initialChannelTitle });
     }
-  }, [initialChannelId]);
+  }, [initialChannelId, initialChannelTitle]);
 
-  const getPublishedAfter = (period: string): string | undefined => {
-    if (period === 'all') return undefined;
-    const now = new Date();
-    const periods: Record<string, number> = {
-      '1d': 1, '1w': 7, '1m': 30, '3m': 90, '6m': 180, '1y': 365,
-    };
-    const daysAgo = periods[period];
-    if (!daysAgo) return undefined;
-    const date = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
-    return date.toISOString();
+  // Auto-search videos when channel is selected
+  useEffect(() => {
+    if (selectedChannel) {
+      handleVideoSearch();
+    } else {
+      setVideos([]);
+    }
+  }, [selectedChannel]);
+
+  const handleChannelSearch = async () => {
+    if (!channelQuery.trim()) return;
+    setIsSearchingChannels(true);
+    try {
+      const res = await fetch(`/api/channels/search?q=${encodeURIComponent(channelQuery)}`);
+      const data = await res.json();
+      setFoundChannels(data.channels || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSearchingChannels(false);
+    }
   };
 
-  const handleSearch = async () => {
-    if (!initialChannelId) return;
+  const handleVideoSearch = async () => {
+    if (!selectedChannel) return;
     setLoading(true);
-    setVideos([]);
 
     try {
       const searchFilters = {
-        q: query, // Search within channel if query exists
-        channelId: initialChannelId,
+        q: videoQuery,
+        channelId: selectedChannel.id,
         ...filters,
         publishedAfter: getPublishedAfter(timePeriod),
       };
@@ -1291,11 +1309,28 @@ function ChannelSearchSection({
       const data = await res.json();
 
       if (data.videos) {
-        let fetchedVideos = data.videos;
-        applySorting(fetchedVideos, sortBy);
-        setHasSearched(true);
+        applySorting(data.videos, sortBy);
+      } else {
+        setVideos([]);
       }
-    } catch (e) { console.error(e); } finally { setLoading(false); }
+    } catch (e) { 
+      console.error(e); 
+      setVideos([]);
+    } finally { 
+      setLoading(false); 
+    }
+  };
+
+  const getPublishedAfter = (period: string): string | undefined => {
+    if (period === 'all') return undefined;
+    const now = new Date();
+    const periods: Record<string, number> = {
+      '1d': 1, '1w': 7, '1m': 30, '3m': 90, '6m': 180, '1y': 365,
+    };
+    const daysAgo = periods[period];
+    if (!daysAgo) return undefined;
+    const date = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+    return date.toISOString();
   };
 
   const applySorting = (videoList: EnrichedVideo[], sortType: string) => {
@@ -1317,222 +1352,228 @@ function ChannelSearchSection({
       applySorting(videos, sortBy);
     }
   }, [sortBy]);
-  
-  // Batch Helpers (Reuse logic from parent if provided)
+
+  // Batch Helpers
   const handleSelectAll = () => {
     if (!onBulkSelect || !selectedVideoIds) return;
     const allSelected = videos.every(v => selectedVideoIds.has(v.id));
     const allIds = videos.map(v => v.id);
-    
     if (allSelected) onBulkSelect(allIds, false);
     else onBulkSelect(allIds, true);
   };
 
-  const startBatchAnalysis = () => {
-    if (!onBatchAnalyze || !selectedVideoIds) return;
-    const selectedVideos = videos.filter(v => selectedVideoIds.has(v.id));
-    onBatchAnalyze(selectedVideos);
-  };
-
-  const startContextAnalysis = () => {
-    if (!onContextAnalyze || !selectedVideoIds) return;
-    const selectedVideos = videos.filter(v => selectedVideoIds.has(v.id));
-    onContextAnalyze(selectedVideos);
-  };
-
-  if (!initialChannelId) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full py-20 text-slate-500 gap-4">
-        <Search className="w-12 h-12 opacity-20" />
-        <p>채널이 선택되지 않았습니다.</p>
-        <p className="text-sm">영상 검색 탭에서 채널 이름을 클릭하여 채널 정보를 확인하고,<br/> '채널 검색 탭으로 불러오기'를 눌러주세요.</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2 mb-2 p-2 bg-slate-100 dark:bg-slate-800 rounded-md">
-        <User className="w-5 h-5 text-slate-500" />
-        <span className="font-bold">{initialChannelTitle}</span>
-        <span className="text-sm text-slate-400">채널의 영상을 검색합니다.</span>
-      </div>
-
-      <Card>
+    <div className="space-y-6">
+      {/* Channel Search / Selector */}
+      <Card className="border-red-100 dark:border-red-900/30">
         <CardContent className="p-4 space-y-4">
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
-                placeholder="채널 내 검색 (비워두면 전체 영상)..."
+                placeholder="채널 이름으로 검색..."
                 className="pl-10 h-10"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                value={channelQuery}
+                onChange={(e) => setChannelQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleChannelSearch()}
               />
             </div>
-            <Button onClick={handleSearch} disabled={loading} size="default" className="h-10 px-6">
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-              <span className="ml-2 hidden sm:inline">검색</span>
+            <Button onClick={handleChannelSearch} disabled={isSearchingChannels} variant="outline" className="h-10">
+              {isSearchingChannels ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              <span className="ml-2">채널 찾기</span>
             </Button>
           </div>
-          
-           {/* Filters (Simplified for Channel Search) */}
-          <div className="flex flex-wrap items-end gap-3 sm:gap-4 border-t pt-4">
-            <div className="flex flex-col gap-1 min-w-[100px] flex-1 sm:flex-none">
-              <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">정렬</Label>
-              <Select value={filters.order} onValueChange={(v) => setFilters({...filters, order: v as any})}>
-                <SelectTrigger className="h-8 w-full sm:w-[110px]">
-                  <SelectValue placeholder="정렬" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="date">최신순</SelectItem>
-                  <SelectItem value="viewCount">조회수순</SelectItem>
-                  <SelectItem value="rating">평점순</SelectItem>
-                  <SelectItem value="relevance">관련성순</SelectItem>
-                </SelectContent>
-              </Select>
+
+          {foundChannels.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 pt-2">
+              {foundChannels.map(channel => (
+                <button
+                  key={channel.channelId}
+                  onClick={() => {
+                    setSelectedChannel({ id: channel.channelId, title: channel.channelTitle });
+                    setFoundChannels([]);
+                    setChannelQuery('');
+                  }}
+                  className={cn(
+                    "flex items-center gap-2 p-2 rounded-lg border transition-all text-left group",
+                    selectedChannel?.id === channel.channelId 
+                      ? "border-red-500 bg-red-50 dark:bg-red-950/20" 
+                      : "border-slate-200 hover:border-red-300 dark:border-slate-800"
+                  )}
+                >
+                  <img src={channel.thumbnail} alt="" className="w-8 h-8 rounded-full" />
+                  <span className="text-xs font-medium truncate flex-1">{channel.channelTitle}</span>
+                </button>
+              ))}
             </div>
-             <div className="flex flex-col gap-1 min-w-[100px] flex-1 sm:flex-none">
-              <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">기간</Label>
-              <Select value={timePeriod} onValueChange={setTimePeriod}>
-                <SelectTrigger className="h-8 w-full sm:w-[110px]">
-                  <SelectValue placeholder="모든 기간" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">모든 기간</SelectItem>
-                  <SelectItem value="1d">1일 이내</SelectItem>
-                  <SelectItem value="1w">1주일 이내</SelectItem>
-                  <SelectItem value="1m">1개월 이내</SelectItem>
-                  <SelectItem value="3m">3개월 이내</SelectItem>
-                  <SelectItem value="6m">6개월 이내</SelectItem>
-                  <SelectItem value="1y">1년 이내</SelectItem>
-                </SelectContent>
-              </Select>
+          )}
+
+          {selectedChannel && (
+            <div className="flex items-center justify-between p-3 bg-red-50/50 dark:bg-red-950/10 rounded-lg border border-red-100 dark:border-red-900/20">
+              <div className="flex items-center gap-2">
+                <Badge className="bg-red-600">선택됨</Badge>
+                <span className="font-bold text-sm">{selectedChannel.title}</span>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedChannel(null)} className="h-7 text-xs text-slate-500">
+                변경
+              </Button>
             </div>
-             <div className="flex flex-col gap-1 min-w-[70px] flex-1 sm:flex-none">
-              <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">개수</Label>
-              <Select value={String(filters.maxResults)} onValueChange={(v) => setFilters({...filters, maxResults: Number(v)})}>
-                <SelectTrigger className="h-8 w-full sm:w-[80px]">
-                  <SelectValue placeholder="개수" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10개</SelectItem>
-                  <SelectItem value="20">20개</SelectItem>
-                  <SelectItem value="30">30개</SelectItem>
-                  <SelectItem value="50">50개</SelectItem>
-                  <SelectItem value="100">100개</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-             <div className="flex items-center gap-3 h-8 ml-auto pr-1">
-              <label className="flex items-center gap-1.5 text-[11px] text-slate-600 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-3 h-3 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
-                  checked={filters.fetchSubtitles !== false}
-                  onChange={(e) => setFilters({...filters, fetchSubtitles: e.target.checked})}
-                />
-                자막
-              </label>
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
-      
-      {/* Sort Buttons & Batch Actions */}
-      {videos.length > 0 && (
-        <Card className="bg-slate-50/50 dark:bg-slate-900/50 border-dashed">
-          <CardContent className="py-1.5 px-3">
-             <div className="flex flex-wrap gap-2 items-center">
-                <div className="flex flex-wrap gap-1 items-center">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2 ml-1 shrink-0">심화 정렬</span>
-                  <Button variant={sortBy === 'none' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('none')}>기본</Button>
-                  <Button variant={sortBy === 'views' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('views')}>조회수</Button>
-                  <Button variant={sortBy === 'performance' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('performance')}>성과도</Button>
-                  <Button variant={sortBy === 'engagement' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('engagement')}>참여율</Button>
-                  <Button variant={sortBy === 'likes' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('likes')}>좋아요</Button>
-                  <Button variant={sortBy === 'comments' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('comments')}>댓글</Button>
+
+      {selectedChannel && (
+        <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+          <Card>
+            <CardContent className="p-4 space-y-4">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    placeholder="채널 내 영상 검색 (비워두면 전체)..."
+                    className="pl-10 h-10"
+                    value={videoQuery}
+                    onChange={(e) => setVideoQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleVideoSearch()}
+                  />
                 </div>
-                
-                 {/* Batch Actions Group */}
+                <Button onClick={handleVideoSearch} disabled={loading} className="h-10 bg-red-600 hover:bg-red-700">
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  <span className="ml-2">영상 검색</span>
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap items-end gap-3 sm:gap-4 border-t pt-4">
+                <div className="flex flex-col gap-1 min-w-[100px] flex-1 sm:flex-none">
+                  <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">정렬</Label>
+                  <Select value={filters.order} onValueChange={(v) => setFilters({...filters, order: v as any})}>
+                    <SelectTrigger className="h-8 w-full sm:w-[110px]">
+                      <SelectValue placeholder="정렬" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date">최신순</SelectItem>
+                      <SelectItem value="viewCount">조회수순</SelectItem>
+                      <SelectItem value="rating">평점순</SelectItem>
+                      <SelectItem value="relevance">관련성순</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1 min-w-[100px] flex-1 sm:flex-none">
+                  <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">기간</Label>
+                  <Select value={timePeriod} onValueChange={setTimePeriod}>
+                    <SelectTrigger className="h-8 w-full sm:w-[110px]">
+                      <SelectValue placeholder="모든 기간" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">모든 기간</SelectItem>
+                      <SelectItem value="1d">1일 이내</SelectItem>
+                      <SelectItem value="1w">1주일 이내</SelectItem>
+                      <SelectItem value="1m">1개월 이내</SelectItem>
+                      <SelectItem value="3m">3개월 이내</SelectItem>
+                      <SelectItem value="6m">6개월 이내</SelectItem>
+                      <SelectItem value="1y">1년 이내</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1 min-w-[70px] flex-1 sm:flex-none">
+                  <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">개수</Label>
+                  <Select value={String(filters.maxResults)} onValueChange={(v) => setFilters({...filters, maxResults: Number(v)})}>
+                    <SelectTrigger className="h-8 w-full sm:w-[80px]">
+                      <SelectValue placeholder="개수" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10개</SelectItem>
+                      <SelectItem value="20">20개</SelectItem>
+                      <SelectItem value="50">50개</SelectItem>
+                      <SelectItem value="100">100개</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-3 h-8 ml-auto pr-1">
+                  <label className="flex items-center gap-1.5 text-[11px] text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="w-3 h-3 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+                      checked={filters.fetchSubtitles !== false}
+                      onChange={(e) => setFilters({...filters, fetchSubtitles: e.target.checked})}
+                    />
+                    자막 포함
+                  </label>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {videos.length > 0 && (
+            <Card className="bg-slate-50/50 dark:bg-slate-900/50 border-dashed">
+              <CardContent className="py-1.5 px-3">
+                <div className="flex flex-wrap gap-2 items-center">
+                  <div className="flex flex-wrap gap-1 items-center">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2 ml-1 shrink-0">심화 정렬</span>
+                    <Button variant={sortBy === 'none' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('none')}>기본</Button>
+                    <Button variant={sortBy === 'views' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('views')}>조회수</Button>
+                    <Button variant={sortBy === 'performance' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('performance')}>성과도</Button>
+                    <Button variant={sortBy === 'engagement' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('engagement')}>참여율</Button>
+                    <Button variant={sortBy === 'likes' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('likes')}>좋아요</Button>
+                    <Button variant={sortBy === 'comments' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('comments')}>댓글</Button>
+                  </div>
+
                   {onToggleSelectionMode && (
                     <div className="ml-auto flex items-center gap-2">
                       <div className="text-[10px] text-slate-400 font-medium pr-1 shrink-0 hidden sm:block">총 {videos.length}개</div>
                       {isSelectionMode ? (
-                        <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-right-4 duration-300">
-                          <Button variant="ghost" size="sm" className="h-7 text-xs px-2 text-slate-500" onClick={onToggleSelectionMode}>
-                            취소
+                        <div className="flex items-center gap-1.5">
+                          <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={onToggleSelectionMode}>취소</Button>
+                          <Button variant="outline" size="sm" className="h-7 text-xs px-3" onClick={handleSelectAll}>
+                            {selectedVideoIds?.size === videos.length ? '전체 해제' : '전체 선택'}
                           </Button>
-                          <Button variant="outline" size="sm" className="h-7 text-xs px-3 border-red-200 text-red-700 dark:border-red-900 dark:text-red-400" onClick={handleSelectAll}>
-                            {selectedVideoIds && selectedVideoIds.size === videos.length ? '전체 해제' : '전체 선택'}
-                          </Button>
-                          <Button 
-                            variant="default" 
-                            size="sm" 
-                            className="h-7 text-xs px-4 !bg-red-600 !hover:bg-red-700 !text-white font-bold shadow-sm disabled:!bg-red-200 disabled:!text-white/80 disabled:!opacity-100 transition-colors" 
-                            onClick={startBatchAnalysis}
-                            disabled={!selectedVideoIds || selectedVideoIds.size === 0}
-                          >
-                            <Sparkles className="w-3 h-3 mr-1.5 fill-white" />
+                          <Button variant="default" size="sm" className="h-7 text-xs px-4 !bg-red-600" onClick={() => onBatchAnalyze?.(videos.filter(v => selectedVideoIds?.has(v.id)))} disabled={!selectedVideoIds?.size}>
                             개별 분석 ({selectedVideoIds?.size || 0})
                           </Button>
-                          <Button 
-                            variant="default" 
-                            size="sm" 
-                            className="h-7 text-xs px-4 !bg-purple-600 !hover:bg-purple-700 !text-white font-bold shadow-sm disabled:!bg-purple-200 disabled:!text-white/80 disabled:!opacity-100 transition-colors" 
-                            onClick={startContextAnalysis}
-                            disabled={!selectedVideoIds || selectedVideoIds.size === 0}
-                          >
-                            <Layers className="w-3 h-3 mr-1.5" />
+                          <Button variant="default" size="sm" className="h-7 text-xs px-4 !bg-purple-600" onClick={() => onContextAnalyze?.(videos.filter(v => selectedVideoIds?.has(v.id)))} disabled={!selectedVideoIds?.size}>
                             맥락 분석 ({selectedVideoIds?.size || 0})
                           </Button>
                         </div>
                       ) : (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-7 text-xs px-3 border-red-200 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
-                          onClick={onToggleSelectionMode}
-                        >
-                          <List className="w-3 h-3 mr-1.5" />
+                        <Button variant="outline" size="sm" className="h-7 text-xs px-3" onClick={onToggleSelectionMode}>
                           일괄 AI 분석
                         </Button>
                       )}
                     </div>
                   )}
-             </div>
-          </CardContent>
-        </Card>
-      )}
-      
-       {/* Batch Process Bar (Reused) */}
-      {batchProps?.isOpen && (
-        <BatchProcessBar
-          total={batchProps.status.total}
-          current={batchProps.status.current}
-          successCount={batchProps.status.success}
-          failCount={batchProps.status.fail}
-          isAnalyzing={batchProps.isAnalyzing}
-          onClose={batchProps.onClose}
-          onCancel={batchProps.onCancel}
-        />
-      )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-      <VideoList
-        videos={videos}
-        loading={loading}
-        savedChannelIds={savedChannelIds}
-        onToggleSave={onToggleSave}
-        onDownload={onDownload}
-        onAnalyze={onAnalyze}
-        onViewSubtitle={onViewSubtitle}
-        onViewComments={onViewComments}
-        onChannelClick={onChannelClick}
-        selectionMode={isSelectionMode}
-        selectedVideoIds={selectedVideoIds}
-        onSelectVideo={onToggleVideoSelection}
-      />
+          {batchProps?.isOpen && (
+            <BatchProcessBar
+              total={batchProps.status.total}
+              current={batchProps.status.current}
+              successCount={batchProps.status.success}
+              failCount={batchProps.status.fail}
+              isAnalyzing={batchProps.isAnalyzing}
+              onClose={batchProps.onClose}
+              onCancel={batchProps.onCancel}
+            />
+          )}
+
+          <VideoList
+            videos={videos}
+            loading={loading}
+            savedChannelIds={savedChannelIds}
+            onToggleSave={onToggleSave}
+            onDownload={onDownload}
+            onAnalyze={onAnalyze}
+            onViewSubtitle={onViewSubtitle}
+            onViewComments={onViewComments}
+            onChannelClick={onChannelClick}
+            selectionMode={isSelectionMode}
+            selectedVideoIds={selectedVideoIds}
+            onSelectVideo={onToggleVideoSelection}
+          />
+        </div>
+      )}
     </div>
   );
 }

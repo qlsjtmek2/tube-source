@@ -57,6 +57,12 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
+        <DialogHeader className="sr-only">
+          <DialogTitle>
+            {loading ? "채널 정보 불러오는 중..." : error ? "오류 발생" : details?.title || "채널 상세 정보"}
+          </DialogTitle>
+        </DialogHeader>
+
         {loading ? (
           <div className="p-10 space-y-4">
              <div className="flex items-center gap-4">
@@ -83,27 +89,21 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
                    <img src={details.banner} alt="Banner" className="w-full h-full object-cover" />
                  </div>
                )}
-               <div className="absolute top-4 right-4 z-10">
-                 <Button onClick={() => onLoadToSearch(details.id, details.title)} className="bg-white/90 text-black hover:bg-white shadow-sm border border-slate-200">
-                   <Search className="w-4 h-4 mr-2" />
-                   채널 검색 탭으로 불러오기
-                 </Button>
-               </div>
             </div>
 
             <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
                {/* Channel Profile */}
-               <div className="flex flex-col md:flex-row gap-6 mb-8 -mt-12 relative z-10">
+               <div className="flex flex-col md:flex-row gap-5 mb-6 -mt-10 relative z-10">
                   <div className="shrink-0">
                     <img 
                       src={details.thumbnail} 
                       alt={details.title} 
-                      className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-white shadow-md bg-white" 
+                      className="w-20 h-20 md:w-24 md:h-24 rounded-full border-4 border-white shadow-sm bg-white" 
                     />
                   </div>
-                  <div className="flex-1 pt-4 md:pt-12">
-                    <h2 className="text-2xl font-bold mb-1">{details.title}</h2>
-                    <div className="flex flex-wrap gap-2 text-sm text-slate-500 mb-4">
+                  <div className="flex-1 pt-2 md:pt-10">
+                    <DialogTitle className="text-xl font-bold mb-1">{details.title}</DialogTitle>
+                    <div className="flex flex-wrap gap-2 text-xs text-slate-500 mb-4">
                       {details.customUrl && <span>{details.customUrl}</span>}
                       <span>•</span>
                       <span>개설일: {formatDate(details.publishedAt)}</span>
@@ -135,31 +135,12 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
                  </div>
                </div>
 
-               {/* Popular Videos */}
-               <div>
-                 <h3 className="font-semibold mb-3 flex items-center gap-2">
-                   <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                   인기 영상 Top 3
-                 </h3>
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                   {details.topVideos.map(video => (
-                     <div key={video.id} className="group relative rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:shadow-md transition-all">
-                       <a href={`https://www.youtube.com/watch?v=${video.id}`} target="_blank" rel="noreferrer" className="block aspect-video bg-slate-100 relative">
-                         <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover" />
-                         <div className="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1 rounded">
-                           {video.duration.replace('PT','').replace('H',':').replace('M',':').replace('S','')}
-                         </div>
-                       </a>
-                       <div className="p-3">
-                         <h4 className="text-xs font-bold line-clamp-2 mb-2 group-hover:text-blue-600 transition-colors">{video.title}</h4>
-                         <div className="flex justify-between text-[10px] text-slate-500">
-                           <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {formatNumber(video.viewCount)}</span>
-                           <span>{formatDate(video.publishedAt)}</span>
-                         </div>
-                       </div>
-                     </div>
-                   ))}
-                 </div>
+               {/* Action Button at the bottom */}
+               <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                 <Button onClick={() => onLoadToSearch(details.id, details.title)} className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white shadow-sm">
+                   <Search className="w-4 h-4 mr-2" />
+                   채널 검색 탭으로 불러오기
+                 </Button>
                </div>
             </div>
           </>
