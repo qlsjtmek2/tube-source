@@ -393,9 +393,9 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
   }, [sortBy, allVideos, applySorting]);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <Card>
-        <CardContent className="py-2 px-4 space-y-3">
+        <CardContent className="p-4 space-y-4">
           {/* 검색어 & 검색 버튼 */}
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -415,7 +415,7 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
           </div>
 
           {/* 필터 그룹 */}
-          <div className="flex flex-wrap items-end gap-3 sm:gap-4 border-t pt-2">
+          <div className="flex flex-wrap items-end gap-3 sm:gap-4 border-t pt-4">
             <div className="flex flex-col gap-1 min-w-[100px] flex-1 sm:flex-none">
               <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">국가</Label>
               <Select value={filters.regionCode} onValueChange={(v) => setFilters({...filters, regionCode: v})}>
@@ -528,7 +528,7 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
       {/* 결과 정렬 버튼 */}
       {allVideos.length > 0 && (
         <Card className="bg-slate-50/50 dark:bg-slate-900/50 border-dashed">
-          <CardContent className="py-0.5 px-3">
+          <CardContent className="py-1.5 px-3">
             <div className="flex flex-wrap gap-1 items-center">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2 ml-1">심화 정렬</span>
               <Button
