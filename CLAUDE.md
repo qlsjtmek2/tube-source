@@ -240,7 +240,10 @@ See `.env.example` for template.
 ### Local State
 - Dialog 모달 상태 (open/close)
 - 폼 입력 상태
-- 배치 분석 상태 (isSelectionMode, selectedVideoIds)
+- 배치 분석 상태
+  - `isSelectionMode`: 영상 선택 모드 활성화 여부
+  - `selectedVideoIds`: 선택된 영상 ID Set
+  - `batchJobs`: 다중 배치 작업 배열 (BatchJob[])
 
 ### 상태 유지 패턴
 - **하이드레이션**: `isHydrated` 플래그로 SSR/CSR 불일치 방지
@@ -382,6 +385,32 @@ See `.env.example` for template.
   - `useRef`로 이전 채널 ID 추적
   - 실제로 채널이 변경되었을 때만 비디오 재검색
   - 하이드레이션 시 이미 비디오가 있으면 재검색 스킵
+
+### 다중 배치 분석 큐 (Multiple Batch Analysis Queue)
+- **BatchJob 인터페이스**: 각 분석 작업을 독립적으로 관리
+  - `id`: 고유 식별자 (timestamp + random)
+  - `label`: 사용자에게 표시될 작업 라벨
+  - `status`: 'running' | 'completed' | 'cancelled'
+  - `progress`: { total, current, success, fail }
+  - `abortController`: 독립적인 취소 제어
+  - `startedAt`: 작업 시작 시간
+- **batchJobs 배열 상태**: 여러 분석 작업을 동시에 관리
+  - 기존 단일 상태(`isBatchAnalyzing`, `batchStatus`)를 배열로 확장
+  - 각 작업은 독립적인 AbortController를 가짐
+- **동시성 제어**: 다른 작업이 진행 중이면 CONCURRENCY를 3에서 2로 동적 조절
+- **BatchProcessStack 컴포넌트**: 여러 진행 바를 스택으로 표시
+  - 실행 중인 작업이 항상 상단에 정렬
+  - 2개 이상 실행 중일 때 진행 중인 작업 수 표시
+  - 각 작업별로 독립적인 취소/닫기 버튼
+- **상태별 UI 표시**:
+  - `running`: 빨간색 스피너 + "분석 진행 중..."
+  - `completed`: 초록색 체크 + "분석 완료"
+  - `cancelled`: 노란색 경고 아이콘 + "취소됨"
+- **사용자 경험**:
+  - 분석 중에도 추가 분석 요청 가능 (기존 분석에 영향 없음)
+  - 각 분석을 독립적으로 취소 가능 (AbortController.abort())
+  - 완료/취소된 작업은 닫기 버튼으로 수동 제거
+  - 작업 라벨로 어떤 분석인지 구분 가능
 
 ## Future Expansion Points
 
