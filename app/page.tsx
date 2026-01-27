@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,6 +51,7 @@ export default function Home() {
   const [isBatchAnalyzing, setIsBatchAnalyzing] = useState(false);
   const [batchStatus, setBatchStatus] = useState({ total: 0, current: 0, success: 0, fail: 0 });
   const [isBatchDialogOpen, setIsBatchDialogOpen] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchSavedChannels = async () => {
     try {
