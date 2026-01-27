@@ -6,9 +6,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const filters: VideoSearchFilters = body.filters;
     
-    // Validate Query
-    if (!filters?.q) {
-      return NextResponse.json({ error: 'Search query is required' }, { status: 400 });
+    // Validate Query: Require 'q' unless 'channelId' is provided (to allow full channel list)
+    if (!filters?.q && !filters?.channelId) {
+      return NextResponse.json({ error: 'Search query or Channel ID is required' }, { status: 400 });
     }
 
     const videos = await searchVideos(filters);

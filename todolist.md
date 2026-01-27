@@ -32,6 +32,7 @@
 - [x] `yt-dlp` 환경 설정 및 연동
 - [x] MP4/MP3 선택 다운로드 API 구현
 - [x] 다운로드 진행률 표시 UI 구현
+- [x] 유튜브 링크 직접 입력 다운로드 기능 추가
 
 ## 🎯 Phase 5: Gemini AI 전략 분석
 - [ ] Google Gemini SDK 통합

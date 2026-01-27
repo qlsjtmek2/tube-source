@@ -32,6 +32,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('search');
   const [savedChannels, setSavedChannels] = useState<SavedChannel[]>([]);
   const [selectedVideoForDownload, setSelectedVideoForDownload] = useState<{ id: string; title: string } | null>(null);
+  const [downloadUrl, setDownloadUrl] = useState<string>('');
+  const [isUrlDownloadOpen, setIsUrlDownloadOpen] = useState(false);
 
   const [selectedVideoForAnalysis, setSelectedVideoForAnalysis] = useState<EnrichedVideo | null>(null);
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
@@ -522,15 +524,25 @@ export default function Home() {
             />
           )}
           {activeTab === 'downloads' && (
-            <div className="text-center text-slate-500 mt-20">다운로드 기능 준비 중</div>
+            <DownloadsSection 
+              onDownloadUrl={(url) => {
+                setDownloadUrl(url);
+                setIsUrlDownloadOpen(true);
+              }}
+            />
           )}
         </div>
       </main>
 
       <DownloadDialog 
         video={selectedVideoForDownload} 
-        isOpen={!!selectedVideoForDownload} 
-        onClose={() => setSelectedVideoForDownload(null)} 
+        url={isUrlDownloadOpen ? downloadUrl : undefined}
+        isOpen={!!selectedVideoForDownload || isUrlDownloadOpen} 
+        onClose={() => {
+          setSelectedVideoForDownload(null);
+          setIsUrlDownloadOpen(false);
+          setDownloadUrl('');
+        }} 
       />
 
       <ChannelDetailDialog
@@ -1242,7 +1254,7 @@ function ChannelSearchSection({
   const [foundChannels, setFoundChannels] = useState<SavedChannel[]>([]);
   const [isSearchingChannels, setIsSearchingChannels] = useState(false);
   
-  const [selectedChannel, setSelectedChannel] = useState<{id: string, title: string} | null>(
+  const [selectedChannel, setSelectedChannel] = useState<{id: string, title: string, thumbnail?: string} | null>(
     initialChannelId ? { id: initialChannelId, title: initialChannelTitle } : null
   );
 
@@ -1390,7 +1402,11 @@ function ChannelSearchSection({
                 <button
                   key={channel.channelId}
                   onClick={() => {
-                    setSelectedChannel({ id: channel.channelId, title: channel.channelTitle });
+                    setSelectedChannel({ 
+                      id: channel.channelId, 
+                      title: channel.channelTitle, 
+                      thumbnail: channel.thumbnail 
+                    });
                     setFoundChannels([]);
                     setChannelQuery('');
                   }}
@@ -1410,9 +1426,14 @@ function ChannelSearchSection({
 
           {selectedChannel && (
             <div className="flex items-center justify-between p-3 bg-red-50/50 dark:bg-red-950/10 rounded-lg border border-red-100 dark:border-red-900/20">
-              <div className="flex items-center gap-2">
-                <Badge className="bg-red-600">선택됨</Badge>
-                <span className="font-bold text-sm">{selectedChannel.title}</span>
+              <div className="flex items-center gap-3">
+                {selectedChannel.thumbnail && (
+                  <img src={selectedChannel.thumbnail} alt="" className="w-10 h-10 rounded-full border border-white shadow-sm" />
+                )}
+                <div className="flex flex-col">
+                  <span className="font-bold text-sm">{selectedChannel.title}</span>
+                  <span className="text-[10px] text-slate-400">ID: {selectedChannel.id}</span>
+                </div>
               </div>
               <Button variant="ghost" size="sm" onClick={() => setSelectedChannel(null)} className="h-7 text-xs text-slate-500">
                 변경
@@ -1437,7 +1458,7 @@ function ChannelSearchSection({
                     onKeyDown={(e) => e.key === 'Enter' && handleVideoSearch()}
                   />
                 </div>
-                <Button onClick={handleVideoSearch} disabled={loading} className="h-10 bg-red-600 hover:bg-red-700">
+                <Button onClick={handleVideoSearch} disabled={loading} className="h-10 !bg-red-600 hover:!bg-red-700 text-white border-none">
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                   <span className="ml-2">영상 검색</span>
                 </Button>
@@ -1571,9 +1592,86 @@ function ChannelSearchSection({
             selectionMode={isSelectionMode}
             selectedVideoIds={selectedVideoIds}
             onSelectVideo={onToggleVideoSelection}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          }
+          
+          function DownloadsSection({ onDownloadUrl }: { onDownloadUrl: (url: string) => void }) {
+            const [url, setUrl] = useState('');
+          
+            const handleSubmit = (e: React.FormEvent) => {
+              e.preventDefault();
+              if (url.trim()) {
+                onDownloadUrl(url.trim());
+                setUrl('');
+              }
+            };
+          
+            return (
+              <div className="max-w-2xl mx-auto space-y-8 py-10">
+                <div className="text-center space-y-2">
+                  <h2 className="text-2xl font-bold">유튜브 링크 다운로드</h2>
+                  <p className="text-slate-500">유튜브 영상 또는 쇼츠 링크를 입력하여 MP4/MP3로 다운로드하세요.</p>
+                </div>
+          
+                <Card className="border-red-100 dark:border-red-900/30 shadow-lg">
+                  <CardContent className="p-6">
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="url">유튜브 링크</Label>
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <Input
+                              id="url"
+                              placeholder="https://www.youtube.com/watch?v=... 또는 https://youtu.be/..."
+                              className="pl-10 h-12 text-base"
+                              value={url}
+                              onChange={(e) => setUrl(e.target.value)}
+                            />
+                          </div>
+                          <Button type="submit" size="lg" className="h-12 px-8 bg-red-600 hover:bg-red-700" disabled={!url.trim()}>
+                            <Download className="mr-2 h-5 w-5" />
+                            다운로드
+                          </Button>
+                        </div>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+          
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Card className="bg-white/50 dark:bg-slate-900/50">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                          <BarChart2 className="w-4 h-4 text-red-600" />
+                        </div>
+                        고화질 MP4 지원
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-xs text-slate-500">최상의 화질로 영상을 소장하세요. 교육용이나 자료 수집에 용이합니다.</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-white/50 dark:bg-slate-900/50">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                          <Sparkles className="w-4 h-4 text-blue-600" />
+                        </div>
+                        고품질 MP3 추출
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-xs text-slate-500">배경 음악이나 팟캐스트 소스를 위해 음원만 깔끔하게 추출합니다.</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            );
+          }
+          

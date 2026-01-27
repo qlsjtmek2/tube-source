@@ -6,9 +6,10 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const videoId = searchParams.get('videoId');
+  const url = searchParams.get('url');
   const format = searchParams.get('format') as 'mp4' | 'mp3';
 
-  if (!videoId || !format) {
+  if ((!videoId && !url) || !format) {
     return new Response('Missing parameters', { status: 400 });
   }
 
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
       try {
         send({ status: 'starting', message: '다운로드 준비 중...' });
         
-        await downloadVideo({ videoId, format }, (progress) => {
+        await downloadVideo({ videoId: videoId || undefined, url: url || undefined, format }, (progress) => {
           send({ status: 'progress', progress, message: `다운로드 중: ${progress}` });
         });
 

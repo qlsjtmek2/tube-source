@@ -13,7 +13,8 @@ export async function initDownloadsDir() {
 }
 
 export interface DownloadOptions {
-  videoId: string;
+  videoId?: string;
+  url?: string;
   format: 'mp4' | 'mp3';
 }
 
@@ -21,7 +22,7 @@ export function downloadVideo(options: DownloadOptions, onProgress: (progress: s
   return new Promise(async (resolve, reject) => {
     await initDownloadsDir();
     
-    const url = `https://www.youtube.com/watch?v=${options.videoId}`;
+    const url = options.url || `https://www.youtube.com/watch?v=${options.videoId}`;
     const filenameTemplate = `%({title})s.%({ext})s`;
     const outputPathTemplate = path.join(DOWNLOADS_DIR, filenameTemplate);
 

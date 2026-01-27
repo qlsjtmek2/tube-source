@@ -15,24 +15,30 @@ import { Download, FileVideo, Music, CheckCircle2, AlertCircle } from "lucide-re
 
 interface DownloadDialogProps {
   video: { id: string; title: string } | null;
+  url?: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export function DownloadDialog({ video, isOpen, onClose }: DownloadDialogProps) {
+export function DownloadDialog({ video, url, isOpen, onClose }: DownloadDialogProps) {
   const [format, setFormat] = useState<"mp4" | "mp3">("mp4");
   const [status, setStatus] = useState<"idle" | "downloading" | "completed" | "error">("idle");
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState("");
 
   const startDownload = () => {
-    if (!video) return;
+    if (!video && !url) return;
     
     setStatus("downloading");
     setProgress(0);
     setMessage("다운로드 시작 중...");
 
-    const eventSource = new EventSource(`/api/download?videoId=${video.id}&format=${format}`);
+    const queryParams = new URLSearchParams();
+    if (video) queryParams.set("videoId", video.id);
+    if (url) queryParams.set("url", url);
+    queryParams.set("format", format);
+
+    const eventSource = new EventSource(`/api/download?${queryParams.toString()}`);
 
     eventSource.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -76,7 +82,7 @@ export function DownloadDialog({ video, isOpen, onClose }: DownloadDialogProps) 
         <DialogHeader>
           <DialogTitle>영상 다운로드</DialogTitle>
           <DialogDescription className="line-clamp-1">
-            {video?.title}
+            {video?.title || url}
           </DialogDescription>
         </DialogHeader>
 
