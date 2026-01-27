@@ -109,7 +109,7 @@ export function ReportCard({
             <Button
               size="sm"
               variant="outline"
-              className="w-full h-8 text-[11px] px-1 border-purple-200 dark:border-purple-800 hover:bg-purple-600 hover:text-white hover:border-purple-600 transition-colors"
+              className="w-full h-8 text-[11px] px-1 border-purple-200 dark:border-purple-800 !hover:bg-purple-600 !hover:text-white !hover:border-purple-600 transition-colors"
               onClick={(e) => { e.stopPropagation(); onAnalyze?.(video); }}
             >
               <Layers className="w-3 h-3 mr-1.5" />
