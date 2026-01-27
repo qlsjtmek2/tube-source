@@ -29,10 +29,11 @@ export interface AnalyzedVideo {
 }
 
 export async function analyzeVideoStrategy(videoData: EnrichedVideo, comments: YouTubeComment[] = []) {
-  const modelName = "gemini-2.0-flash-exp";
+  // CRITICAL: MUST use gemini-3-flash-preview as confirmed by project requirements
+  const modelName = "gemini-3-flash-preview";
   console.log(`[AI Analysis] Starting analysis with model: ${modelName}`);
 
-  // Use Gemini 2.0 Flash (latest fast model)
+  // Use Gemini 3 Flash (Preview) - DO NOT CHANGE THIS MODEL NAME
   const model = genAI.getGenerativeModel({ 
     model: modelName,
     systemInstruction: `당신은 세계적인 유튜브 콘텐츠 전략가이자 행동 심리학 전문가입니다. 
