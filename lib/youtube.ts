@@ -208,7 +208,9 @@ export async function searchVideos(filters: VideoSearchFilters): Promise<Enriche
       if (!pageToken) break;
     }
     
-    return enrichedVideos;
+    // Final deduplication just in case
+    const uniqueVideos = Array.from(new Map(enrichedVideos.map(item => [item.id, item])).values());
+    return uniqueVideos;
 
   } catch (error) {
     console.error('YouTube API Error:', error);
