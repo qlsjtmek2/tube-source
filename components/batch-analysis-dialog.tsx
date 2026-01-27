@@ -7,8 +7,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, XCircle } from "lucide-react";
 
 interface BatchAnalysisDialogProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ interface BatchAnalysisDialogProps {
   failCount: number;
   isAnalyzing: boolean;
   onClose: () => void;
+  onCancel?: () => void;
 }
 
 export function BatchAnalysisDialog({
@@ -28,6 +30,7 @@ export function BatchAnalysisDialog({
   failCount,
   isAnalyzing,
   onClose,
+  onCancel,
 }: BatchAnalysisDialogProps) {
   const progress = total > 0 ? (current / total) * 100 : 0;
 
@@ -50,7 +53,7 @@ export function BatchAnalysisDialog({
           </DialogTitle>
           <DialogDescription>
             {isAnalyzing 
-              ? "선택한 영상들을 AI가 분석하고 있습니다. 창을 닫지 마세요." 
+              ? "선택한 영상들을 AI가 분석하고 있습니다." 
               : "모든 영상의 분석이 완료되었습니다."}
           </DialogDescription>
         </DialogHeader>
@@ -74,6 +77,13 @@ export function BatchAnalysisDialog({
               <div className="text-xs text-red-600/80 dark:text-red-400/80">실패</div>
             </div>
           </div>
+
+          {isAnalyzing && onCancel && (
+            <Button variant="outline" className="w-full mt-2" onClick={onCancel}>
+              <XCircle className="w-4 h-4 mr-2" />
+              분석 중단하기
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

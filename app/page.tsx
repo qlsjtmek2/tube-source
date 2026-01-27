@@ -170,48 +170,83 @@ export default function Home() {
     setIsBatchAnalyzing(true);
     setIsBatchDialogOpen(true);
     setBatchStatus({ total: videosToAnalyze.length, current: 0, success: 0, fail: 0 });
+    
+    // Setup AbortController
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
 
-    for (let i = 0; i < videosToAnalyze.length; i++) {
-      const video = videosToAnalyze[i];
-      try {
-        const checkRes = await fetch(`/api/analyzed-videos?videoId=${video.id}`);
-        const { analysis: cachedAnalysis } = await checkRes.json();
+    // Concurrency Limit (3 parallel requests)
+    const CONCURRENCY = 3;
+    
+    // Process in chunks for better control
+    for (let i = 0; i < videosToAnalyze.length; i += CONCURRENCY) {
+        if (signal.aborted) break;
 
-        if (!cachedAnalysis) {
-            const res = await fetch('/api/analyze', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(video),
-            });
-            const data = await res.json();
-            
-            if (data.analysis) {
-                await fetch('/api/analyzed-videos', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'save',
-                        videoId: video.id,
-                        video,
-                        analysisResult: data.analysis
-                    }),
-                });
-                setBatchStatus(prev => ({ ...prev, success: prev.success + 1 }));
-            } else {
-                setBatchStatus(prev => ({ ...prev, fail: prev.fail + 1 }));
+        const chunk = videosToAnalyze.slice(i, i + CONCURRENCY);
+        
+        await Promise.all(chunk.map(async (video) => {
+            if (signal.aborted) return;
+
+            try {
+                // Check cache first
+                const checkRes = await fetch(`/api/analyzed-videos?videoId=${video.id}`, { signal });
+                const { analysis: cachedAnalysis } = await checkRes.json();
+
+                if (signal.aborted) return;
+
+                if (!cachedAnalysis) {
+                    // New analysis
+                    const res = await fetch('/api/analyze', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(video),
+                        signal
+                    });
+                    const data = await res.json();
+                    
+                    if (data.analysis) {
+                        // Save result (fire and forget)
+                        fetch('/api/analyzed-videos', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'save',
+                                videoId: video.id,
+                                video,
+                                analysisResult: data.analysis
+                            }),
+                        }).catch(e => console.error("Save failed:", e));
+                        
+                        setBatchStatus(prev => ({ ...prev, success: prev.success + 1 }));
+                    } else {
+                        setBatchStatus(prev => ({ ...prev, fail: prev.fail + 1 }));
+                    }
+                } else {
+                    // Already analyzed
+                    setBatchStatus(prev => ({ ...prev, success: prev.success + 1 }));
+                }
+            } catch (e: any) {
+                if (e.name !== 'AbortError') {
+                    console.error(`Failed to analyze video ${video.id}:`, e);
+                    setBatchStatus(prev => ({ ...prev, fail: prev.fail + 1 }));
+                }
+            } finally {
+                if (!signal.aborted) {
+                    setBatchStatus(prev => ({ ...prev, current: prev.current + 1 }));
+                }
             }
-        } else {
-            setBatchStatus(prev => ({ ...prev, success: prev.success + 1 }));
-        }
-      } catch (e) {
-        console.error(`Failed to analyze video ${video.id}:`, e);
-        setBatchStatus(prev => ({ ...prev, fail: prev.fail + 1 }));
-      }
-      
-      setBatchStatus(prev => ({ ...prev, current: prev.current + 1 }));
+        }));
     }
 
     setIsBatchAnalyzing(false);
+    abortControllerRef.current = null;
+  };
+
+  const cancelBatchAnalysis = () => {
+    if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        setIsBatchAnalyzing(false);
+    }
   };
 
   const handleViewSubtitle = (video: EnrichedVideo) => {
@@ -418,6 +453,7 @@ export default function Home() {
         failCount={batchStatus.fail}
         isAnalyzing={isBatchAnalyzing}
         onClose={() => setIsBatchDialogOpen(false)}
+        onCancel={cancelBatchAnalysis}
       />
     </div>
   );
