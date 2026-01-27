@@ -16,6 +16,15 @@ import { SavedChannel } from '@/lib/storage';
 import { AnalyzedVideo } from '@/lib/ai';
 import { useSearch } from '@/store/search-context';
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from '@/components/ui/label';
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState('search');
   const [savedChannels, setSavedChannels] = useState<SavedChannel[]>([]);
@@ -352,201 +361,202 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader><CardTitle>검색 필터</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          {/* 검색어 */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">검색어</label>
-            <Input
-              placeholder="검색어 입력..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            />
+        <CardContent className="pt-6 space-y-4">
+          {/* 검색어 & 검색 버튼 */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="유튜브 영상 검색..."
+                className="pl-10 h-11"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              />
+            </div>
+            <Button onClick={handleSearch} disabled={loading} size="lg" className="h-11 px-8">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              <span className="ml-2 hidden sm:inline">검색</span>
+            </Button>
           </div>
 
-          {/* 기본 필터 */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">국가</label>
-              <select
-                className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
-                value={filters.regionCode}
-                onChange={(e) => setFilters({...filters, regionCode: e.target.value})}
-              >
-                <option value="">전체 국가</option>
-                <option value="KR">🇰🇷 한국</option>
-                <option value="US">🇺🇸 미국</option>
-                <option value="JP">🇯🇵 일본</option>
-                <option value="GB">🇬🇧 영국</option>
-                <option value="IN">🇮🇳 인도</option>
-                <option value="CN">🇨🇳 중국</option>
-                <option value="FR">🇫🇷 프랑스</option>
-                <option value="DE">🇩🇪 독일</option>
-              </select>
+          {/* 필터 그룹 */}
+          <div className="flex flex-wrap items-end gap-3 sm:gap-4 border-t pt-4">
+            <div className="flex flex-col gap-1.5 min-w-[100px] flex-1 sm:flex-none">
+              <Label className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">국가</Label>
+              <Select value={filters.regionCode} onValueChange={(v) => setFilters({...filters, regionCode: v})}>
+                <SelectTrigger className="h-9 w-full sm:w-[130px]">
+                  <SelectValue placeholder="전체 국가" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 국가</SelectItem>
+                  <SelectItem value="KR">🇰🇷 한국</SelectItem>
+                  <SelectItem value="US">🇺🇸 미국</SelectItem>
+                  <SelectItem value="JP">🇯🇵 일본</SelectItem>
+                  <SelectItem value="GB">🇬🇧 영국</SelectItem>
+                  <SelectItem value="IN">🇮🇳 인도</SelectItem>
+                  <SelectItem value="CN">🇨🇳 중국</SelectItem>
+                  <SelectItem value="FR">🇫🇷 프랑스</SelectItem>
+                  <SelectItem value="DE">🇩🇪 독일</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <div>
-              <label className="text-sm font-medium mb-2 block">영상 길이</label>
-              <select
-                className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
-                value={filters.videoDuration}
-                onChange={(e) => setFilters({...filters, videoDuration: e.target.value as any})}
-              >
-                <option value="any">모든 길이</option>
-                <option value="short">쇼츠 (&lt; 4분)</option>
-                <option value="medium">미디엄 (4-20분)</option>
-                <option value="long">롱폼 (&gt; 20분)</option>
-              </select>
+            <div className="flex flex-col gap-1.5 min-w-[100px] flex-1 sm:flex-none">
+              <Label className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">길이</Label>
+              <Select value={filters.videoDuration} onValueChange={(v) => setFilters({...filters, videoDuration: v as any})}>
+                <SelectTrigger className="h-9 w-full sm:w-[130px]">
+                  <SelectValue placeholder="모든 길이" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">모든 길이</SelectItem>
+                  <SelectItem value="short">쇼츠 (&lt; 4분)</SelectItem>
+                  <SelectItem value="medium">미디엄 (4-20분)</SelectItem>
+                  <SelectItem value="long">롱폼 (&gt; 20분)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <div>
-              <label className="text-sm font-medium mb-2 block">업로드 기간</label>
-              <select
-                className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
-                value={timePeriod}
-                onChange={(e) => setTimePeriod(e.target.value)}
-              >
-                <option value="all">모든 기간</option>
-                <option value="1d">1일 이내</option>
-                <option value="1w">1주일 이내</option>
-                <option value="1m">1개월 이내</option>
-                <option value="3m">3개월 이내</option>
-                <option value="6m">6개월 이내</option>
-                <option value="1y">1년 이내</option>
-              </select>
+            <div className="flex flex-col gap-1.5 min-w-[100px] flex-1 sm:flex-none">
+              <Label className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">기간</Label>
+              <Select value={timePeriod} onValueChange={setTimePeriod}>
+                <SelectTrigger className="h-9 w-full sm:w-[120px]">
+                  <SelectValue placeholder="모든 기간" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">모든 기간</SelectItem>
+                  <SelectItem value="1d">1일 이내</SelectItem>
+                  <SelectItem value="1w">1주일 이내</SelectItem>
+                  <SelectItem value="1m">1개월 이내</SelectItem>
+                  <SelectItem value="3m">3개월 이내</SelectItem>
+                  <SelectItem value="6m">6개월 이내</SelectItem>
+                  <SelectItem value="1y">1년 이내</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <div>
-              <label className="text-sm font-medium mb-2 block">수집 개수</label>
-              <select
-                className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
-                value={filters.maxResults}
-                onChange={(e) => setFilters({...filters, maxResults: Number(e.target.value)})}
-              >
-                <option value="10">10개</option>
-                <option value="20">20개</option>
-                <option value="30">30개</option>
-                <option value="50">50개</option>
-                <option value="100">100개</option>
-              </select>
-            </div>
-          </div>
-
-          {/* YouTube API 정렬 및 옵션 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">YouTube API 정렬</label>
-              <select
-                className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
-                value={filters.order}
-                onChange={(e) => setFilters({...filters, order: e.target.value as any})}
-              >
-                <option value="relevance">관련성순</option>
-                <option value="date">최신순</option>
-                <option value="viewCount">조회수순</option>
-                <option value="rating">평점순</option>
-                <option value="title">제목순</option>
-              </select>
+            <div className="flex flex-col gap-1.5 min-w-[80px] flex-1 sm:flex-none">
+              <Label className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">개수</Label>
+              <Select value={String(filters.maxResults)} onValueChange={(v) => setFilters({...filters, maxResults: Number(v)})}>
+                <SelectTrigger className="h-9 w-full sm:w-[90px]">
+                  <SelectValue placeholder="수집 개수" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10개</SelectItem>
+                  <SelectItem value="20">20개</SelectItem>
+                  <SelectItem value="30">30개</SelectItem>
+                  <SelectItem value="50">50개</SelectItem>
+                  <SelectItem value="100">100개</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="flex items-end gap-4">
-              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer h-10">
+            <div className="flex flex-col gap-1.5 min-w-[110px] flex-1 sm:flex-none">
+              <Label className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">정렬</Label>
+              <Select value={filters.order} onValueChange={(v) => setFilters({...filters, order: v as any})}>
+                <SelectTrigger className="h-9 w-full sm:w-[120px]">
+                  <SelectValue placeholder="YouTube 정렬" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="relevance">관련성순</SelectItem>
+                  <SelectItem value="date">최신순</SelectItem>
+                  <SelectItem value="viewCount">조회수순</SelectItem>
+                  <SelectItem value="rating">평점순</SelectItem>
+                  <SelectItem value="title">제목순</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-4 h-9 ml-auto pr-2">
+              <label className="flex items-center gap-2 text-[12px] text-slate-600 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="w-4 h-4"
+                  className="w-3.5 h-3.5 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
                   checked={filters.creativeCommons || false}
                   onChange={(e) => setFilters({...filters, creativeCommons: e.target.checked})}
                 />
-                크리에이티브 커먼즈
+                CC 라이선스
               </label>
-              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer h-10">
+              <label className="flex items-center gap-2 text-[12px] text-slate-600 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="w-4 h-4"
+                  className="w-3.5 h-3.5 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
                   checked={filters.fetchSubtitles !== false}
                   onChange={(e) => setFilters({...filters, fetchSubtitles: e.target.checked})}
                 />
-                자막 수집
+                자막 포함
               </label>
             </div>
-          </div>
-
-          {/* 검색 버튼 및 결과 */}
-          <div className="flex justify-between items-center pt-2">
-            <div className="text-sm text-slate-500">
-              {videos.length > 0 && (
-                <span>
-                  총 {videos.length}개 영상
-                </span>
-              )}
-            </div>
-            <Button onClick={handleSearch} disabled={loading} size="lg">
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <Search className="mr-2 h-4 w-4" />
-              영상 검색
-            </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* 결과 정렬 버튼 */}
       {allVideos.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">결과 정렬</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
+        <Card className="bg-slate-50/50 dark:bg-slate-900/50 border-dashed">
+          <CardContent className="p-3">
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mr-2 ml-1">심화 정렬</span>
               <Button
-                variant={sortBy === 'none' ? 'default' : 'outline'}
+                variant={sortBy === 'none' ? 'default' : 'ghost'}
                 size="sm"
+                className="h-7 text-xs px-2.5"
                 onClick={() => setSortBy('none')}
               >
-                정렬 안함
+                기본
               </Button>
               <Button
-                variant={sortBy === 'views' ? 'default' : 'outline'}
+                variant={sortBy === 'views' ? 'default' : 'ghost'}
                 size="sm"
+                className="h-7 text-xs px-2.5"
                 onClick={() => setSortBy('views')}
               >
-                조회수 높은순
+                조회수
               </Button>
               <Button
-                variant={sortBy === 'subscribers' ? 'default' : 'outline'}
+                variant={sortBy === 'subscribers' ? 'default' : 'ghost'}
                 size="sm"
+                className="h-7 text-xs px-2.5"
                 onClick={() => setSortBy('subscribers')}
               >
-                구독자수 높은순
+                구독자
               </Button>
               <Button
-                variant={sortBy === 'performance' ? 'default' : 'outline'}
+                variant={sortBy === 'performance' ? 'default' : 'ghost'}
                 size="sm"
+                className="h-7 text-xs px-2.5"
                 onClick={() => setSortBy('performance')}
               >
-                성과도 높은순
+                성과도
               </Button>
               <Button
-                variant={sortBy === 'engagement' ? 'default' : 'outline'}
+                variant={sortBy === 'engagement' ? 'default' : 'ghost'}
                 size="sm"
+                className="h-7 text-xs px-2.5"
                 onClick={() => setSortBy('engagement')}
               >
-                참여율 높은순
+                참여율
               </Button>
               <Button
-                variant={sortBy === 'likes' ? 'default' : 'outline'}
+                variant={sortBy === 'likes' ? 'default' : 'ghost'}
                 size="sm"
+                className="h-7 text-xs px-2.5"
                 onClick={() => setSortBy('likes')}
               >
-                좋아요 많은순
+                좋아요
               </Button>
               <Button
-                variant={sortBy === 'comments' ? 'default' : 'outline'}
+                variant={sortBy === 'comments' ? 'default' : 'ghost'}
                 size="sm"
+                className="h-7 text-xs px-2.5"
                 onClick={() => setSortBy('comments')}
               >
-                댓글 많은순
+                댓글
               </Button>
+              
+              <div className="ml-auto text-[11px] text-slate-400 font-medium pr-1">
+                총 {videos.length}개 영상
+              </div>
             </div>
           </CardContent>
         </Card>
