@@ -68,7 +68,7 @@ export function AnalysisDialog({
           {loading ? (
             <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-500">
               <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
-              <p>Gemini 2.0 Flash가 영상을 분석 중입니다...</p>
+              <p>Gemini 3.0 Flash가 영상을 분석 중입니다...</p>
             </div>
           ) : analysis ? (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 mb-8">
