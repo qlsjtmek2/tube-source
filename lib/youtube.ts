@@ -19,6 +19,7 @@ export interface VideoSearchFilters {
   minSubscribers?: number; // 최소 구독자 수
   maxSubscribers?: number; // 최대 구독자 수
   minPerformanceRatio?: number; // 최소 성과도 (%)
+  channelId?: string; // 특정 채널 ID로 필터링
 }
 
 export interface EnrichedVideo {
@@ -86,6 +87,7 @@ export async function searchVideos(filters: VideoSearchFilters): Promise<Enriche
         part: ['snippet'],
         q: filters.q,
         type: ['video'],
+        channelId: filters.channelId, // Add channelId filter
         publishedAfter: filters.publishedAfter,
         publishedBefore: filters.publishedBefore,
         regionCode: filters.regionCode,
@@ -241,5 +243,129 @@ export async function getTopComments(videoId: string, maxResults: number = 20): 
   } catch (error) {
     console.error(`[YouTube API] Error fetching comments for ${videoId}:`, error);
     return [];
+  }
+}
+
+export interface ChannelDetails {
+  id: string;
+  title: string;
+  description: string;
+  thumbnail: string;
+  banner?: string;
+  customUrl?: string;
+  country?: string;
+  publishedAt: string;
+  
+  subscriberCount: number;
+  videoCount: number;
+  viewCount: number;
+  
+  lastUploadAt: string;
+  averageLikes: number; // Estimated from sample
+  
+  keywords: string[];
+  
+  topVideos: EnrichedVideo[];
+}
+
+export async function getChannelDetails(channelId: string): Promise<ChannelDetails> {
+  try {
+    // 1. Get Channel Basic Info
+    const channelRes = await youtube.channels.list({
+      part: ['snippet', 'statistics', 'brandingSettings', 'contentDetails'],
+      id: [channelId],
+    });
+
+    const channel = channelRes.data.items?.[0];
+    if (!channel) throw new Error('Channel not found');
+
+    // 2. Get Top 3 Popular Videos
+    const popularSearch = await youtube.search.list({
+      part: ['id'],
+      channelId: channelId,
+      order: 'viewCount',
+      type: ['video'],
+      maxResults: 3,
+    });
+    
+    // 3. Get Latest Video (for last upload date)
+    const latestSearch = await youtube.search.list({
+      part: ['id', 'snippet'],
+      channelId: channelId,
+      order: 'date',
+      type: ['video'],
+      maxResults: 1,
+    });
+
+    const popularIds = popularSearch.data.items?.map(i => i.id?.videoId).filter(Boolean) as string[] || [];
+    const latestId = latestSearch.data.items?.[0]?.id?.videoId;
+    
+    const allVideoIds = [...new Set([...popularIds, latestId].filter(Boolean) as string[])];
+
+    // 4. Get Video Details
+    let videoItems: youtube_v3.Schema$Video[] = [];
+    if (allVideoIds.length > 0) {
+      const videoRes = await youtube.videos.list({
+        part: ['snippet', 'statistics', 'contentDetails'],
+        id: allVideoIds,
+      });
+      videoItems = videoRes.data.items || [];
+    }
+
+    // Map to EnrichedVideo for Top 3
+    const topVideos = videoItems
+      .filter(v => popularIds.includes(v.id!))
+      .map(v => ({
+        id: v.id!,
+        title: v.snippet?.title || '',
+        description: v.snippet?.description || '',
+        thumbnail: v.snippet?.thumbnails?.medium?.url || '',
+        publishedAt: v.snippet?.publishedAt || '',
+        channelId: channel.id!,
+        channelTitle: channel.snippet?.title || '',
+        channelThumbnail: channel.snippet?.thumbnails?.default?.url || '',
+        viewCount: Number(v.statistics?.viewCount) || 0,
+        likeCount: Number(v.statistics?.likeCount) || 0,
+        commentCount: Number(v.statistics?.commentCount) || 0,
+        duration: v.contentDetails?.duration || '',
+        caption: v.contentDetails?.caption === 'true',
+        subscriberCount: Number(channel.statistics?.subscriberCount) || 0,
+        channelVideoCount: Number(channel.statistics?.videoCount) || 0,
+        channelViewCount: Number(channel.statistics?.viewCount) || 0,
+        engagementRate: 0, // calc later
+        performanceRatio: 0, // calc later
+      }));
+      
+    // Calculate simple avg likes from the sample
+    const totalLikes = videoItems.reduce((sum, v) => sum + (Number(v.statistics?.likeCount) || 0), 0);
+    const averageLikes = videoItems.length > 0 ? Math.floor(totalLikes / videoItems.length) : 0;
+
+    const lastUploadAt = latestSearch.data.items?.[0]?.snippet?.publishedAt || '';
+
+    return {
+      id: channel.id!,
+      title: channel.snippet?.title || '',
+      description: channel.snippet?.description || '',
+      thumbnail: channel.snippet?.thumbnails?.medium?.url || '',
+      banner: channel.brandingSettings?.image?.bannerExternalUrl || undefined,
+      customUrl: channel.snippet?.customUrl || '',
+      country: channel.snippet?.country || undefined,
+      publishedAt: channel.snippet?.publishedAt || '',
+      
+      subscriberCount: Number(channel.statistics?.subscriberCount) || 0,
+      videoCount: Number(channel.statistics?.videoCount) || 0,
+      viewCount: Number(channel.statistics?.viewCount) || 0,
+      
+      lastUploadAt,
+      averageLikes,
+      
+      keywords: channel.brandingSettings?.channel?.keywords?.split(' ') || [],
+      
+      topVideos,
+    };
+
+  } catch (error) {
+    console.error('Error fetching channel details:', error);
+    throw error;
   }
 }

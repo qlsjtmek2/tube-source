@@ -18,6 +18,7 @@ interface VideoCardProps {
   selectionMode?: boolean;
   isSelected?: boolean;
   onSelect?: () => void;
+  onChannelClick?: (channelId: string) => void;
 }
 
 export function VideoCard({ 
@@ -32,7 +33,8 @@ export function VideoCard({
   onRemove,
   selectionMode = false,
   isSelected = false,
-  onSelect
+  onSelect,
+  onChannelClick
 }: VideoCardProps) {
   // Format numbers
   const formatNumber = (num: number) => {
@@ -143,7 +145,13 @@ export function VideoCard({
           </a>
           <div className="flex items-center justify-between text-[11px] text-slate-500">
             <div className="flex items-center gap-1 min-w-0">
-              <span className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer truncate">
+              <span 
+                className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer truncate hover:underline underline-offset-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onChannelClick?.(video.channelId);
+                }}
+              >
                 <User className="w-3 h-3" /> {video.channelTitle}
               </span>
               <button

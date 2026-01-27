@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Youtube, Download, BarChart2, List, Settings, Loader2, Trash2, ExternalLink, TrendingUp, Sparkles, Layers } from 'lucide-react';
+import { Search, Youtube, Download, BarChart2, List, Settings, Loader2, Trash2, ExternalLink, TrendingUp, Sparkles, Layers, User } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { VideoList } from '@/components/video-list';
 import { DownloadDialog } from '@/components/download-dialog';
@@ -17,6 +17,7 @@ import { EnrichedVideo, VideoSearchFilters, YouTubeComment } from '@/lib/youtube
 import { SavedChannel } from '@/lib/storage';
 import { AnalyzedVideo } from '@/lib/ai';
 import { useSearch } from '@/store/search-context';
+import { ChannelDetailDialog } from '@/components/channel-detail-dialog';
 import {
   Select,
   SelectContent,
@@ -44,6 +45,12 @@ export default function Home() {
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [comments, setComments] = useState<YouTubeComment[]>([]);
   const [isCommentsLoading, setIsCommentsLoading] = useState(false);
+
+  // Channel Details & Search State
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+  const [isChannelDetailOpen, setIsChannelDetailOpen] = useState(false);
+  const [channelSearchId, setChannelSearchId] = useState<string | null>(null);
+  const [channelSearchTitle, setChannelSearchTitle] = useState<string>('');
 
   // Batch Analysis State
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -81,6 +88,18 @@ export default function Home() {
       const data = await res.json();
       if (data.channels) setSavedChannels(data.channels);
     } catch (e) { console.error(e); }
+  };
+
+  const handleChannelClick = (channelId: string) => {
+    setSelectedChannelId(channelId);
+    setIsChannelDetailOpen(true);
+  };
+
+  const handleLoadChannelToSearch = (channelId: string, channelTitle: string) => {
+    setChannelSearchId(channelId);
+    setChannelSearchTitle(channelTitle);
+    setActiveTab('channel_search');
+    setIsChannelDetailOpen(false);
   };
 
   const handleAnalyze = async (video: EnrichedVideo, forceRefresh = false) => {
@@ -354,6 +373,14 @@ export default function Home() {
               영상 검색
             </Button>
             <Button 
+              variant={activeTab === 'channel_search' ? 'secondary' : 'ghost'} 
+              className="w-full justify-start" 
+              onClick={() => setActiveTab('channel_search')}
+            >
+              <User className="mr-2 h-4 w-4" />
+              채널 검색
+            </Button>
+            <Button 
               variant={activeTab === 'channels' ? 'secondary' : 'ghost'} 
               className="w-full justify-start"
               onClick={() => setActiveTab('channels')}
@@ -399,7 +426,7 @@ export default function Home() {
       <main className="flex-1 min-w-0 flex flex-col relative bg-slate-50 dark:bg-slate-900">
         <header className="h-16 border-b bg-white dark:bg-slate-950 flex items-center justify-between px-6 shrink-0 z-20">
           <h2 className="text-lg font-semibold capitalize">
-            {activeTab === 'search' ? '영상 검색' : activeTab === 'channels' ? '관심 채널' : activeTab === 'trends' ? '트렌드 & 인사이트' : activeTab === 'analyzed' ? '분석 결과' : activeTab}
+            {activeTab === 'search' ? '영상 검색' : activeTab === 'channel_search' ? '채널 검색' : activeTab === 'channels' ? '관심 채널' : activeTab === 'trends' ? '트렌드 & 인사이트' : activeTab === 'analyzed' ? '분석 결과' : activeTab}
           </h2>
           <div className="flex items-center gap-4">
             <div className="text-sm text-slate-500">
@@ -417,7 +444,39 @@ export default function Home() {
               onAnalyze={handleAnalyze}
               onViewSubtitle={handleViewSubtitle}
               onViewComments={handleViewComments}
+              onChannelClick={handleChannelClick}
               // Batch Analysis Props
+              isSelectionMode={isSelectionMode}
+              selectedVideoIds={selectedVideoIds}
+              onToggleSelectionMode={toggleSelectionMode}
+              onToggleVideoSelection={toggleVideoSelection}
+              onBulkSelect={handleBulkSelect}
+              onBatchAnalyze={handleBatchAnalyze}
+              onContextAnalyze={handleContextAnalyze}
+              batchProps={{
+                isOpen: isBatchDialogOpen,
+                isAnalyzing: isBatchAnalyzing,
+                status: batchStatus,
+                onClose: () => setIsBatchDialogOpen(false),
+                onCancel: cancelBatchAnalysis
+              }}
+            />
+          )}
+          {activeTab === 'channel_search' && (
+            <ChannelSearchSection
+              initialChannelId={channelSearchId}
+              initialChannelTitle={channelSearchTitle}
+              savedChannelIds={savedChannels.map(c => c.channelId)}
+              onToggleSave={handleToggleSave}
+              onDownload={(v) => setSelectedVideoForDownload(v)}
+              onAnalyze={handleAnalyze}
+              onViewSubtitle={handleViewSubtitle}
+              onViewComments={handleViewComments}
+              onChannelClick={handleChannelClick}
+              // Reuse batch props if we want batch analysis here too (User said "Batch analysis capability same as search tab")
+              // However, sharing state might be tricky if switching tabs.
+              // For simplicity, I'll allow batch analysis but it uses the same state as main tab.
+              // This means if you select videos in main tab, switch to channel tab, selection persists. This is actually good behavior.
               isSelectionMode={isSelectionMode}
               selectedVideoIds={selectedVideoIds}
               onToggleSelectionMode={toggleSelectionMode}
@@ -448,6 +507,7 @@ export default function Home() {
               onAnalyze={handleAnalyze}
               onViewSubtitle={handleViewSubtitle}
               onViewComments={handleViewComments}
+              onChannelClick={handleChannelClick}
             />
           )}
           {activeTab === 'analyzed' && (
@@ -457,6 +517,7 @@ export default function Home() {
               onDownload={(v) => setSelectedVideoForDownload(v)}
               onViewSubtitle={handleViewSubtitle}
               onViewComments={handleViewComments}
+              onChannelClick={handleChannelClick}
             />
           )}
           {activeTab === 'downloads' && (
@@ -469,6 +530,13 @@ export default function Home() {
         video={selectedVideoForDownload} 
         isOpen={!!selectedVideoForDownload} 
         onClose={() => setSelectedVideoForDownload(null)} 
+      />
+
+      <ChannelDetailDialog
+        channelId={selectedChannelId}
+        isOpen={isChannelDetailOpen}
+        onClose={() => setIsChannelDetailOpen(false)}
+        onLoadToSearch={handleLoadChannelToSearch}
       />
 
       <AnalysisDialog
@@ -526,7 +594,8 @@ function SearchSection({
   onBulkSelect,
   onBatchAnalyze,
   onContextAnalyze,
-  batchProps
+  batchProps,
+  onChannelClick
 }: {
   savedChannelIds: string[],
   onToggleSave: (c: any) => void,
@@ -541,7 +610,8 @@ function SearchSection({
   onBulkSelect?: (ids: string[], select: boolean) => void,
   onBatchAnalyze?: (videos: EnrichedVideo[]) => void,
   onContextAnalyze?: (videos: EnrichedVideo[]) => void,
-  batchProps?: BatchProps
+  batchProps?: BatchProps,
+  onChannelClick?: (channelId: string) => void
 }) {
   const {
     query, setQuery,
@@ -896,6 +966,7 @@ function SearchSection({
         selectionMode={isSelectionMode}
         selectedVideoIds={selectedVideoIds}
         onSelectVideo={onToggleVideoSelection}
+        onChannelClick={onChannelClick}
       />
     </div>
   );
@@ -935,13 +1006,14 @@ function ChannelsSection({ channels, onRemove }: { channels: SavedChannel[], onR
   );
 }
 
-function TrendsSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, onViewSubtitle, onViewComments }: {
+function TrendsSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, onViewSubtitle, onViewComments, onChannelClick }: {
   savedChannelIds: string[],
   onToggleSave: (c: any) => void,
   onDownload: (v: any) => void,
   onAnalyze: (v: EnrichedVideo) => void,
   onViewSubtitle: (v: EnrichedVideo) => void,
-  onViewComments: (v: EnrichedVideo) => void
+  onViewComments: (v: EnrichedVideo) => void,
+  onChannelClick?: (channelId: string) => void
 }) {
   const [regionCode, setRegionCode] = useState('KR');
   const [categoryId, setCategoryId] = useState('0');
@@ -1007,6 +1079,7 @@ function TrendsSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
         onAnalyze={onAnalyze}
         onViewSubtitle={onViewSubtitle}
         onViewComments={onViewComments}
+        onChannelClick={onChannelClick}
       />
     </div>
   );
@@ -1016,13 +1089,15 @@ function AnalyzedVideosSection({
   onViewExistingAnalysis,
   onDownload,
   onViewSubtitle,
-  onViewComments
+  onViewComments,
+  onChannelClick
 }: {
   onAnalyze: (v: EnrichedVideo) => void,
   onViewExistingAnalysis: (v: EnrichedVideo, analysis: any) => void,
   onDownload: (v: any) => void,
   onViewSubtitle: (v: EnrichedVideo) => void,
-  onViewComments: (v: EnrichedVideo) => void
+  onViewComments: (v: EnrichedVideo) => void,
+  onChannelClick?: (channelId: string) => void
 }) {
   const [analyzedVideos, setAnalyzedVideos] = useState<AnalyzedVideo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1119,6 +1194,344 @@ function AnalyzedVideosSection({
         onViewSubtitle={onViewSubtitle}
         onViewComments={onViewComments}
         onDeleteAnalysis={handleDeleteAnalysis}
+        onChannelClick={onChannelClick}
+      />
+    </div>
+  );
+}
+
+function ChannelSearchSection({ 
+  initialChannelId,
+  initialChannelTitle,
+  savedChannelIds, 
+  onToggleSave, 
+  onDownload, 
+  onAnalyze, 
+  onViewSubtitle, 
+  onViewComments,
+  onChannelClick,
+  isSelectionMode,
+  selectedVideoIds,
+  onToggleSelectionMode,
+  onToggleVideoSelection,
+  onBulkSelect,
+  onBatchAnalyze,
+  onContextAnalyze,
+  batchProps
+}: {
+  initialChannelId: string | null,
+  initialChannelTitle: string,
+  savedChannelIds: string[],
+  onToggleSave: (c: any) => void,
+  onDownload: (v: any) => void,
+  onAnalyze: (v: EnrichedVideo) => void,
+  onViewSubtitle: (v: EnrichedVideo) => void,
+  onViewComments: (v: EnrichedVideo) => void,
+  onChannelClick?: (channelId: string) => void,
+  isSelectionMode?: boolean,
+  selectedVideoIds?: Set<string>,
+  onToggleSelectionMode?: () => void,
+  onToggleVideoSelection?: (id: string) => void,
+  onBulkSelect?: (ids: string[], select: boolean) => void,
+  onBatchAnalyze?: (videos: EnrichedVideo[]) => void,
+  onContextAnalyze?: (videos: EnrichedVideo[]) => void,
+  batchProps?: BatchProps
+}) {
+  const [query, setQuery] = useState('');
+  const [filters, setFilters] = useState<Partial<VideoSearchFilters>>({
+    videoDuration: 'any',
+    order: 'date',
+    maxResults: 50,
+    regionCode: 'KR',
+    fetchSubtitles: true,
+  });
+  const [videos, setVideos] = useState<EnrichedVideo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [sortBy, setSortBy] = useState('none');
+  const [timePeriod, setTimePeriod] = useState('all');
+
+  // Trigger search when initialChannelId changes
+  useEffect(() => {
+    if (initialChannelId) {
+      handleSearch();
+    }
+  }, [initialChannelId]);
+
+  const getPublishedAfter = (period: string): string | undefined => {
+    if (period === 'all') return undefined;
+    const now = new Date();
+    const periods: Record<string, number> = {
+      '1d': 1, '1w': 7, '1m': 30, '3m': 90, '6m': 180, '1y': 365,
+    };
+    const daysAgo = periods[period];
+    if (!daysAgo) return undefined;
+    const date = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+    return date.toISOString();
+  };
+
+  const handleSearch = async () => {
+    if (!initialChannelId) return;
+    setLoading(true);
+    setVideos([]);
+
+    try {
+      const searchFilters = {
+        q: query, // Search within channel if query exists
+        channelId: initialChannelId,
+        ...filters,
+        publishedAfter: getPublishedAfter(timePeriod),
+      };
+
+      const res = await fetch('/api/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filters: searchFilters }),
+      });
+      const data = await res.json();
+
+      if (data.videos) {
+        let fetchedVideos = data.videos;
+        applySorting(fetchedVideos, sortBy);
+        setHasSearched(true);
+      }
+    } catch (e) { console.error(e); } finally { setLoading(false); }
+  };
+
+  const applySorting = (videoList: EnrichedVideo[], sortType: string) => {
+    const sorted = [...videoList];
+    switch (sortType) {
+      case 'views': sorted.sort((a, b) => b.viewCount - a.viewCount); break;
+      case 'subscribers': sorted.sort((a, b) => b.subscriberCount - a.subscriberCount); break;
+      case 'performance': sorted.sort((a, b) => b.performanceRatio - a.performanceRatio); break;
+      case 'engagement': sorted.sort((a, b) => b.engagementRate - a.engagementRate); break;
+      case 'likes': sorted.sort((a, b) => b.likeCount - a.likeCount); break;
+      case 'comments': sorted.sort((a, b) => b.commentCount - a.commentCount); break;
+      default: break;
+    }
+    setVideos(sorted);
+  };
+
+  useEffect(() => {
+    if (videos.length > 0) {
+      applySorting(videos, sortBy);
+    }
+  }, [sortBy]);
+  
+  // Batch Helpers (Reuse logic from parent if provided)
+  const handleSelectAll = () => {
+    if (!onBulkSelect || !selectedVideoIds) return;
+    const allSelected = videos.every(v => selectedVideoIds.has(v.id));
+    const allIds = videos.map(v => v.id);
+    
+    if (allSelected) onBulkSelect(allIds, false);
+    else onBulkSelect(allIds, true);
+  };
+
+  const startBatchAnalysis = () => {
+    if (!onBatchAnalyze || !selectedVideoIds) return;
+    const selectedVideos = videos.filter(v => selectedVideoIds.has(v.id));
+    onBatchAnalyze(selectedVideos);
+  };
+
+  const startContextAnalysis = () => {
+    if (!onContextAnalyze || !selectedVideoIds) return;
+    const selectedVideos = videos.filter(v => selectedVideoIds.has(v.id));
+    onContextAnalyze(selectedVideos);
+  };
+
+  if (!initialChannelId) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-20 text-slate-500 gap-4">
+        <Search className="w-12 h-12 opacity-20" />
+        <p>채널이 선택되지 않았습니다.</p>
+        <p className="text-sm">영상 검색 탭에서 채널 이름을 클릭하여 채널 정보를 확인하고,<br/> '채널 검색 탭으로 불러오기'를 눌러주세요.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 mb-2 p-2 bg-slate-100 dark:bg-slate-800 rounded-md">
+        <User className="w-5 h-5 text-slate-500" />
+        <span className="font-bold">{initialChannelTitle}</span>
+        <span className="text-sm text-slate-400">채널의 영상을 검색합니다.</span>
+      </div>
+
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="채널 내 검색 (비워두면 전체 영상)..."
+                className="pl-10 h-10"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              />
+            </div>
+            <Button onClick={handleSearch} disabled={loading} size="default" className="h-10 px-6">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              <span className="ml-2 hidden sm:inline">검색</span>
+            </Button>
+          </div>
+          
+           {/* Filters (Simplified for Channel Search) */}
+          <div className="flex flex-wrap items-end gap-3 sm:gap-4 border-t pt-4">
+            <div className="flex flex-col gap-1 min-w-[100px] flex-1 sm:flex-none">
+              <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">정렬</Label>
+              <Select value={filters.order} onValueChange={(v) => setFilters({...filters, order: v as any})}>
+                <SelectTrigger className="h-8 w-full sm:w-[110px]">
+                  <SelectValue placeholder="정렬" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date">최신순</SelectItem>
+                  <SelectItem value="viewCount">조회수순</SelectItem>
+                  <SelectItem value="rating">평점순</SelectItem>
+                  <SelectItem value="relevance">관련성순</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+             <div className="flex flex-col gap-1 min-w-[100px] flex-1 sm:flex-none">
+              <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">기간</Label>
+              <Select value={timePeriod} onValueChange={setTimePeriod}>
+                <SelectTrigger className="h-8 w-full sm:w-[110px]">
+                  <SelectValue placeholder="모든 기간" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">모든 기간</SelectItem>
+                  <SelectItem value="1d">1일 이내</SelectItem>
+                  <SelectItem value="1w">1주일 이내</SelectItem>
+                  <SelectItem value="1m">1개월 이내</SelectItem>
+                  <SelectItem value="3m">3개월 이내</SelectItem>
+                  <SelectItem value="6m">6개월 이내</SelectItem>
+                  <SelectItem value="1y">1년 이내</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+             <div className="flex flex-col gap-1 min-w-[70px] flex-1 sm:flex-none">
+              <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">개수</Label>
+              <Select value={String(filters.maxResults)} onValueChange={(v) => setFilters({...filters, maxResults: Number(v)})}>
+                <SelectTrigger className="h-8 w-full sm:w-[80px]">
+                  <SelectValue placeholder="개수" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10개</SelectItem>
+                  <SelectItem value="20">20개</SelectItem>
+                  <SelectItem value="30">30개</SelectItem>
+                  <SelectItem value="50">50개</SelectItem>
+                  <SelectItem value="100">100개</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+             <div className="flex items-center gap-3 h-8 ml-auto pr-1">
+              <label className="flex items-center gap-1.5 text-[11px] text-slate-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-3 h-3 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+                  checked={filters.fetchSubtitles !== false}
+                  onChange={(e) => setFilters({...filters, fetchSubtitles: e.target.checked})}
+                />
+                자막
+              </label>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Sort Buttons & Batch Actions */}
+      {videos.length > 0 && (
+        <Card className="bg-slate-50/50 dark:bg-slate-900/50 border-dashed">
+          <CardContent className="py-1.5 px-3">
+             <div className="flex flex-wrap gap-2 items-center">
+                <div className="flex flex-wrap gap-1 items-center">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2 ml-1 shrink-0">심화 정렬</span>
+                  <Button variant={sortBy === 'none' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('none')}>기본</Button>
+                  <Button variant={sortBy === 'views' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('views')}>조회수</Button>
+                  <Button variant={sortBy === 'performance' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('performance')}>성과도</Button>
+                  <Button variant={sortBy === 'engagement' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('engagement')}>참여율</Button>
+                  <Button variant={sortBy === 'likes' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('likes')}>좋아요</Button>
+                  <Button variant={sortBy === 'comments' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('comments')}>댓글</Button>
+                </div>
+                
+                 {/* Batch Actions Group */}
+                  {onToggleSelectionMode && (
+                    <div className="ml-auto flex items-center gap-2">
+                      <div className="text-[10px] text-slate-400 font-medium pr-1 shrink-0 hidden sm:block">총 {videos.length}개</div>
+                      {isSelectionMode ? (
+                        <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-right-4 duration-300">
+                          <Button variant="ghost" size="sm" className="h-7 text-xs px-2 text-slate-500" onClick={onToggleSelectionMode}>
+                            취소
+                          </Button>
+                          <Button variant="outline" size="sm" className="h-7 text-xs px-3 border-red-200 text-red-700 dark:border-red-900 dark:text-red-400" onClick={handleSelectAll}>
+                            {selectedVideoIds && selectedVideoIds.size === videos.length ? '전체 해제' : '전체 선택'}
+                          </Button>
+                          <Button 
+                            variant="default" 
+                            size="sm" 
+                            className="h-7 text-xs px-4 !bg-red-600 !hover:bg-red-700 !text-white font-bold shadow-sm disabled:!bg-red-200 disabled:!text-white/80 disabled:!opacity-100 transition-colors" 
+                            onClick={startBatchAnalysis}
+                            disabled={!selectedVideoIds || selectedVideoIds.size === 0}
+                          >
+                            <Sparkles className="w-3 h-3 mr-1.5 fill-white" />
+                            개별 분석 ({selectedVideoIds?.size || 0})
+                          </Button>
+                          <Button 
+                            variant="default" 
+                            size="sm" 
+                            className="h-7 text-xs px-4 !bg-purple-600 !hover:bg-purple-700 !text-white font-bold shadow-sm disabled:!bg-purple-200 disabled:!text-white/80 disabled:!opacity-100 transition-colors" 
+                            onClick={startContextAnalysis}
+                            disabled={!selectedVideoIds || selectedVideoIds.size === 0}
+                          >
+                            <Layers className="w-3 h-3 mr-1.5" />
+                            맥락 분석 ({selectedVideoIds?.size || 0})
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-7 text-xs px-3 border-red-200 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
+                          onClick={onToggleSelectionMode}
+                        >
+                          <List className="w-3 h-3 mr-1.5" />
+                          일괄 AI 분석
+                        </Button>
+                      )}
+                    </div>
+                  )}
+             </div>
+          </CardContent>
+        </Card>
+      )}
+      
+       {/* Batch Process Bar (Reused) */}
+      {batchProps?.isOpen && (
+        <BatchProcessBar
+          total={batchProps.status.total}
+          current={batchProps.status.current}
+          successCount={batchProps.status.success}
+          failCount={batchProps.status.fail}
+          isAnalyzing={batchProps.isAnalyzing}
+          onClose={batchProps.onClose}
+          onCancel={batchProps.onCancel}
+        />
+      )}
+
+      <VideoList
+        videos={videos}
+        loading={loading}
+        savedChannelIds={savedChannelIds}
+        onToggleSave={onToggleSave}
+        onDownload={onDownload}
+        onAnalyze={onAnalyze}
+        onViewSubtitle={onViewSubtitle}
+        onViewComments={onViewComments}
+        onChannelClick={onChannelClick}
+        selectionMode={isSelectionMode}
+        selectedVideoIds={selectedVideoIds}
+        onSelectVideo={onToggleVideoSelection}
       />
     </div>
   );

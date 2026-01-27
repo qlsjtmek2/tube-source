@@ -18,6 +18,7 @@ interface VideoListProps {
   selectionMode?: boolean;
   selectedVideoIds?: Set<string>;
   onSelectVideo?: (videoId: string) => void;
+  onChannelClick?: (channelId: string) => void;
 }
 
 export function VideoList({ 
@@ -33,7 +34,8 @@ export function VideoList({
   onRemove,
   selectionMode = false,
   selectedVideoIds = new Set(),
-  onSelectVideo
+  onSelectVideo,
+  onChannelClick
 }: VideoListProps) {
   if (loading) {
     return (
@@ -80,6 +82,7 @@ export function VideoList({
                 selectionMode={selectionMode}
                 isSelected={selectedVideoIds.has(video.id)}
                 onSelect={() => onSelectVideo?.(video.id)}
+                onChannelClick={onChannelClick}
               />
             )}
           </div>
