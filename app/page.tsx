@@ -800,6 +800,8 @@ function SearchSection({
             </div>
           </CardContent>
         </Card>
+      )}
+
       {/* Batch Process Bar */}
       {batchProps?.isOpen && (
         <BatchProcessBar
