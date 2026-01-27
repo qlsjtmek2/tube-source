@@ -36,7 +36,16 @@ export function VideoCard({
 }: VideoCardProps) {
   // Format numbers
   const formatNumber = (num: number) => {
-    return new Intl.NumberFormat('en-US', { notation: "compact", maximumFractionDigits: 1 }).format(num);
+    if (num >= 100000000) {
+      return (num / 100000000).toFixed(1).replace(/\.0$/, '') + '억';
+    }
+    if (num >= 10000) {
+      return (num / 10000).toFixed(1).replace(/\.0$/, '') + '만';
+    }
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1).replace(/\.0$/, '') + '천';
+    }
+    return num.toLocaleString();
   };
   
   // Format Date
