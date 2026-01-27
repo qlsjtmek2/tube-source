@@ -32,7 +32,7 @@ export function BatchProcessBar({
         {/* Status Icon & Text */}
         <div className="flex items-center gap-3 shrink-0 min-w-[140px]">
           {isAnalyzing ? (
-            <div className="flex items-center gap-2 text-purple-600 font-medium">
+            <div className="flex items-center gap-2 text-red-600 font-medium">
               <Loader2 className="w-5 h-5 animate-spin" />
               <span>분석 진행 중...</span>
             </div>

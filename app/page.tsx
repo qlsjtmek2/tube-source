@@ -770,17 +770,17 @@ function SearchSection({
                       <Button variant="ghost" size="sm" className="h-7 text-xs px-2 text-slate-500" onClick={onToggleSelectionMode}>
                         취소
                       </Button>
-                      <Button variant="outline" size="sm" className="h-7 text-xs px-3 border-purple-200 text-purple-700" onClick={handleSelectAll}>
+                      <Button variant="outline" size="sm" className="h-7 text-xs px-3 border-red-200 text-red-700 dark:border-red-900 dark:text-red-400" onClick={handleSelectAll}>
                         {selectedVideoIds && selectedVideoIds.size === videos.length ? '전체 해제' : '전체 선택'}
                       </Button>
                       <Button 
                         variant="default" 
                         size="sm" 
-                        className="h-7 text-xs px-4 bg-purple-600 hover:bg-purple-700 text-white font-bold shadow-sm disabled:opacity-50 disabled:bg-purple-400" 
+                        className="h-7 text-xs px-4 bg-red-600 hover:bg-red-700 text-white font-bold shadow-sm disabled:opacity-50 disabled:bg-red-400" 
                         onClick={startBatchAnalysis}
                         disabled={!selectedVideoIds || selectedVideoIds.size === 0}
                       >
-                        <Sparkles className="w-3 h-3 mr-1.5 fill-white" />
+                        <Sparkles className="w-3 h-3 mr-1.5 fill-white text-white" />
                         분석 ({selectedVideoIds?.size || 0})
                       </Button>
                     </div>
@@ -788,7 +788,7 @@ function SearchSection({
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="h-7 text-xs px-3 border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-900 dark:text-purple-400 dark:hover:bg-purple-950/30 transition-colors"
+                      className="h-7 text-xs px-3 border-red-200 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
                       onClick={onToggleSelectionMode}
                     >
                       <List className="w-3 h-3 mr-1.5" />

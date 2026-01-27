@@ -54,7 +54,7 @@ export function AnalysisDialog({
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0 pr-8">
               <DialogTitle className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-purple-500" />
+                <Sparkles className="w-5 h-5 text-red-500" />
                 AI 전략 분석 리포트
               </DialogTitle>
               <DialogDescription className="line-clamp-1 mt-1.5">
@@ -67,17 +67,17 @@ export function AnalysisDialog({
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 pt-2 min-h-0">
           {loading ? (
             <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-500">
-              <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+              <Loader2 className="w-8 h-8 animate-spin text-red-500" />
               <p>Gemini 3.0 Flash가 영상을 분석 중입니다...</p>
             </div>
           ) : analysis ? (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 mb-8">
               {/* Hook */}
               <section>
-                <div className="flex items-center gap-2 mb-3 text-purple-600 font-bold">
+                <div className="flex items-center gap-2 mb-3 text-red-600 font-bold">
                   <Zap className="w-4 h-4" /> 핵심 후킹 포인트
                 </div>
-                <div className="p-4 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-100 dark:border-purple-900/50 text-sm leading-relaxed whitespace-pre-wrap break-words">
+                <div className="p-4 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-100 dark:border-red-900/50 text-sm leading-relaxed whitespace-pre-wrap break-words">
                   {formatContent(analysis.hook)}
                 </div>
               </section>

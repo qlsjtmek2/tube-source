@@ -60,7 +60,7 @@ export function VideoCard({
       className={cn(
         "overflow-hidden hover:shadow-lg transition-all group flex flex-col h-full w-full max-w-sm mx-auto border-slate-200 dark:border-slate-800 relative",
         selectionMode && "cursor-pointer",
-        isSelected && "ring-2 ring-purple-500 border-purple-500 bg-purple-50/10"
+        isSelected && "ring-2 ring-red-500 border-red-500 bg-red-50/10"
       )}
       onClick={() => selectionMode && onSelect?.()}
     >
@@ -68,7 +68,7 @@ export function VideoCard({
       {selectionMode && (
         <div className="absolute top-2 right-2 z-20">
           {isSelected ? (
-            <CheckCircle2 className="w-6 h-6 text-purple-600 bg-white rounded-full fill-white" />
+            <CheckCircle2 className="w-6 h-6 text-red-600 bg-white rounded-full fill-white" />
           ) : (
             <Circle className="w-6 h-6 text-white drop-shadow-md" />
           )}
