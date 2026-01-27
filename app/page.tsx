@@ -13,7 +13,6 @@ import { DownloadDialog } from '@/components/download-dialog';
 import { AnalysisDialog } from '@/components/analysis-dialog';
 import { SubtitleDialog } from '@/components/subtitle-dialog';
 import { CommentsDialog } from '@/components/comments-dialog';
-import { BatchProcessBar } from '@/components/batch-process-bar';
 import { EnrichedVideo, VideoSearchFilters, YouTubeComment } from '@/lib/youtube';
 import { SavedChannel } from '@/lib/storage';
 import { AnalyzedVideo } from '@/lib/ai';
@@ -29,6 +28,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
+import { BatchProcessStack } from '@/components/batch-process-stack';
+
+// BatchJob 인터페이스 - 다중 분석 작업 관리
+export interface BatchJob {
+  id: string;
+  label: string;
+  status: 'running' | 'completed' | 'cancelled';
+  progress: {
+    total: number;
+    current: number;
+    success: number;
+    fail: number;
+  };
+  abortController: AbortController;
+  startedAt: Date;
+}
 
 export default function Home() {
   const { setSelectedChannel } = useChannelSearch();
@@ -114,13 +129,54 @@ export default function Home() {
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [isChannelDetailOpen, setIsChannelDetailOpen] = useState(false);
 
-  // Batch Analysis State
+  // Batch Analysis State - 다중 작업 지원
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedVideoIds, setSelectedVideoIds] = useState<Set<string>>(new Set());
-  const [isBatchAnalyzing, setIsBatchAnalyzing] = useState(false);
-  const [batchStatus, setBatchStatus] = useState({ total: 0, current: 0, success: 0, fail: 0 });
-  const [isBatchDialogOpen, setIsBatchDialogOpen] = useState(false);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const [batchJobs, setBatchJobs] = useState<BatchJob[]>([]);
+
+  // 배치 작업 관리 함수들
+  const addBatchJob = (videos: EnrichedVideo[], label?: string): BatchJob => {
+    const jobId = `batch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const newJob: BatchJob = {
+      id: jobId,
+      label: label || `분석 작업 (${videos.length}개)`,
+      status: 'running',
+      progress: { total: videos.length, current: 0, success: 0, fail: 0 },
+      abortController: new AbortController(),
+      startedAt: new Date(),
+    };
+    setBatchJobs(prev => [newJob, ...prev]);
+    return newJob;
+  };
+
+  const updateBatchProgress = (
+    jobId: string,
+    update: Partial<BatchJob['progress']> | ((prev: BatchJob['progress']) => Partial<BatchJob['progress']>)
+  ) => {
+    setBatchJobs(prev => prev.map(job => {
+      if (job.id !== jobId) return job;
+      const changes = typeof update === 'function' ? update(job.progress) : update;
+      return { ...job, progress: { ...job.progress, ...changes } };
+    }));
+  };
+
+  const updateBatchJobStatus = (jobId: string, status: BatchJob['status']) => {
+    setBatchJobs(prev => prev.map(job =>
+      job.id === jobId ? { ...job, status } : job
+    ));
+  };
+
+  const cancelBatchJob = (jobId: string) => {
+    setBatchJobs(prev => prev.map(job => {
+      if (job.id !== jobId) return job;
+      job.abortController.abort();
+      return { ...job, status: 'cancelled' };
+    }));
+  };
+
+  const removeBatchJob = (jobId: string) => {
+    setBatchJobs(prev => prev.filter(job => job.id !== jobId));
+  };
 
   const fetchSavedChannels = async () => {
     try {
@@ -245,90 +301,84 @@ export default function Home() {
     });
   };
 
-  const handleBatchAnalyze = async (videosToAnalyze: EnrichedVideo[]) => {
+  const handleBatchAnalyze = async (videosToAnalyze: EnrichedVideo[], sourceLabel?: string) => {
     if (videosToAnalyze.length === 0) return;
 
+    // 선택 모드 종료 및 선택 초기화
     setIsSelectionMode(false);
-    setIsBatchAnalyzing(true);
-    setIsBatchDialogOpen(true);
-    setBatchStatus({ total: videosToAnalyze.length, current: 0, success: 0, fail: 0 });
-    
-    // Setup AbortController
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
+    setSelectedVideoIds(new Set());
 
-    // Concurrency Limit (3 parallel requests)
-    const CONCURRENCY = 3;
-    
-    // Process in chunks for better control
+    // 새 배치 작업 생성
+    const newJob = addBatchJob(videosToAnalyze, sourceLabel);
+    const { abortController, id: jobId } = newJob;
+    const signal = abortController.signal;
+
+    // 다른 작업이 진행 중이면 동시성 줄임
+    const runningJobsCount = batchJobs.filter(j => j.status === 'running').length;
+    const CONCURRENCY = runningJobsCount > 0 ? 2 : 3;
+
+    // 청크 단위 처리
     for (let i = 0; i < videosToAnalyze.length; i += CONCURRENCY) {
-        if (signal.aborted) break;
+      if (signal.aborted) break;
 
-        const chunk = videosToAnalyze.slice(i, i + CONCURRENCY);
-        
-        await Promise.all(chunk.map(async (video) => {
-            if (signal.aborted) return;
+      const chunk = videosToAnalyze.slice(i, i + CONCURRENCY);
 
-            try {
-                // Check cache first
-                const checkRes = await fetch(`/api/analyzed-videos?videoId=${video.id}`, { signal });
-                const { analysis: cachedAnalysis } = await checkRes.json();
+      await Promise.all(chunk.map(async (video) => {
+        if (signal.aborted) return;
 
-                if (signal.aborted) return;
+        try {
+          // 캐시 확인
+          const checkRes = await fetch(`/api/analyzed-videos?videoId=${video.id}`, { signal });
+          const { analysis: cachedAnalysis } = await checkRes.json();
 
-                if (!cachedAnalysis) {
-                    // New analysis
-                    const res = await fetch('/api/analyze', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(video),
-                        signal
-                    });
-                    const data = await res.json();
-                    
-                    if (data.analysis) {
-                        // Save result (fire and forget)
-                        fetch('/api/analyzed-videos', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                action: 'save',
-                                videoId: video.id,
-                                video,
-                                analysisResult: data.analysis
-                            }),
-                        }).catch(e => console.error("Save failed:", e));
-                        
-                        setBatchStatus(prev => ({ ...prev, success: prev.success + 1 }));
-                    } else {
-                        setBatchStatus(prev => ({ ...prev, fail: prev.fail + 1 }));
-                    }
-                } else {
-                    // Already analyzed
-                    setBatchStatus(prev => ({ ...prev, success: prev.success + 1 }));
-                }
-            } catch (e: any) {
-                if (e.name !== 'AbortError') {
-                    console.error(`Failed to analyze video ${video.id}:`, e);
-                    setBatchStatus(prev => ({ ...prev, fail: prev.fail + 1 }));
-                }
-            } finally {
-                if (!signal.aborted) {
-                    setBatchStatus(prev => ({ ...prev, current: prev.current + 1 }));
-                }
+          if (signal.aborted) return;
+
+          if (!cachedAnalysis) {
+            // 새 분석 요청
+            const res = await fetch('/api/analyze', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(video),
+              signal
+            });
+            const data = await res.json();
+
+            if (data.analysis) {
+              // 결과 저장 (fire and forget)
+              fetch('/api/analyzed-videos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'save',
+                  videoId: video.id,
+                  video,
+                  analysisResult: data.analysis
+                }),
+              }).catch(e => console.error("Save failed:", e));
+
+              updateBatchProgress(jobId, prev => ({ success: prev.success + 1 }));
+            } else {
+              updateBatchProgress(jobId, prev => ({ fail: prev.fail + 1 }));
             }
-        }));
+          } else {
+            // 이미 분석됨
+            updateBatchProgress(jobId, prev => ({ success: prev.success + 1 }));
+          }
+        } catch (e: any) {
+          if (e.name !== 'AbortError') {
+            console.error(`Failed to analyze video ${video.id}:`, e);
+            updateBatchProgress(jobId, prev => ({ fail: prev.fail + 1 }));
+          }
+        } finally {
+          if (!signal.aborted) {
+            updateBatchProgress(jobId, prev => ({ current: prev.current + 1 }));
+          }
+        }
+      }));
     }
 
-    setIsBatchAnalyzing(false);
-    abortControllerRef.current = null;
-  };
-
-  const cancelBatchAnalysis = () => {
-    if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        setIsBatchAnalyzing(false);
-    }
+    // 완료 처리
+    updateBatchJobStatus(jobId, signal.aborted ? 'cancelled' : 'completed');
   };
 
   const handleContextAnalyze = async (videosToAnalyze: EnrichedVideo[]) => {
@@ -515,11 +565,9 @@ export default function Home() {
               onBatchAnalyze={handleBatchAnalyze}
               onContextAnalyze={handleContextAnalyze}
               batchProps={{
-                isOpen: isBatchDialogOpen,
-                isAnalyzing: isBatchAnalyzing,
-                status: batchStatus,
-                onClose: () => setIsBatchDialogOpen(false),
-                onCancel: cancelBatchAnalysis
+                jobs: batchJobs,
+                onClose: removeBatchJob,
+                onCancel: cancelBatchJob
               }}
             />
           )}
@@ -544,11 +592,9 @@ export default function Home() {
               onBatchAnalyze={handleBatchAnalyze}
               onContextAnalyze={handleContextAnalyze}
               batchProps={{
-                isOpen: isBatchDialogOpen,
-                isAnalyzing: isBatchAnalyzing,
-                status: batchStatus,
-                onClose: () => setIsBatchDialogOpen(false),
-                onCancel: cancelBatchAnalysis
+                jobs: batchJobs,
+                onClose: removeBatchJob,
+                onCancel: cancelBatchJob
               }}
             />
           )}
@@ -644,11 +690,9 @@ export default function Home() {
 }
 
 interface BatchProps {
-  isOpen: boolean;
-  isAnalyzing: boolean;
-  status: { total: number; current: number; success: number; fail: number };
-  onClose: () => void;
-  onCancel: () => void;
+  jobs: BatchJob[];
+  onClose: (jobId: string) => void;
+  onCancel: (jobId: string) => void;
 }
 
 function SearchSection({ 
@@ -1011,14 +1055,10 @@ function SearchSection({
         </Card>
       )}
 
-      {/* Batch Process Bar */}
-      {batchProps?.isOpen && (
-        <BatchProcessBar
-          total={batchProps.status.total}
-          current={batchProps.status.current}
-          successCount={batchProps.status.success}
-          failCount={batchProps.status.fail}
-          isAnalyzing={batchProps.isAnalyzing}
+      {/* Batch Process Stack - 다중 분석 작업 */}
+      {batchProps && batchProps.jobs.length > 0 && (
+        <BatchProcessStack
+          jobs={batchProps.jobs}
           onClose={batchProps.onClose}
           onCancel={batchProps.onCancel}
         />
@@ -1619,13 +1659,10 @@ function ChannelSearchSection({
             </Card>
           )}
 
-          {batchProps?.isOpen && (
-            <BatchProcessBar
-              total={batchProps.status.total}
-              current={batchProps.status.current}
-              successCount={batchProps.status.success}
-              failCount={batchProps.status.fail}
-              isAnalyzing={batchProps.isAnalyzing}
+          {/* Batch Process Stack - 다중 분석 작업 */}
+          {batchProps && batchProps.jobs.length > 0 && (
+            <BatchProcessStack
+              jobs={batchProps.jobs}
               onClose={batchProps.onClose}
               onCancel={batchProps.onCancel}
             />

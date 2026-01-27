@@ -47,6 +47,8 @@ components/
   download-dialog.tsx       # 다운로드 다이얼로그 (MP4/MP3 선택)
   analysis-dialog.tsx       # AI 분석 결과 다이얼로그
   subtitle-dialog.tsx       # 자막 표시 다이얼로그
+  batch-process-bar.tsx     # 단일 배치 작업 진행 표시 (BatchJob 기반)
+  batch-process-stack.tsx   # 다중 배치 작업 스택 컨테이너
   ui/                       # Shadcn/UI primitives (button, dialog, tabs 등)
 
 lib/
