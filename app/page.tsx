@@ -18,6 +18,7 @@ import { EnrichedVideo, VideoSearchFilters, YouTubeComment } from '@/lib/youtube
 import { SavedChannel } from '@/lib/storage';
 import { AnalyzedVideo } from '@/lib/ai';
 import { useSearch } from '@/store/search-context';
+import { useChannelSearch } from '@/store/channel-search-context';
 import { ChannelDetailDialog } from '@/components/channel-detail-dialog';
 import { cn } from '@/lib/utils';
 import {
@@ -30,6 +31,7 @@ import {
 import { Label } from '@/components/ui/label';
 
 export default function Home() {
+  const { setSelectedChannel } = useChannelSearch();
   const [activeTab, setActiveTab] = useState('search');
   const [savedChannels, setSavedChannels] = useState<SavedChannel[]>([]);
   const [selectedVideoForDownload, setSelectedVideoForDownload] = useState<{ id: string; title: string } | null>(null);
@@ -108,11 +110,9 @@ export default function Home() {
   const [comments, setComments] = useState<YouTubeComment[]>([]);
   const [isCommentsLoading, setIsCommentsLoading] = useState(false);
 
-  // Channel Details & Search State
+  // Channel Details State
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [isChannelDetailOpen, setIsChannelDetailOpen] = useState(false);
-  const [channelSearchId, setChannelSearchId] = useState<string | null>(null);
-  const [channelSearchTitle, setChannelSearchTitle] = useState<string>('');
 
   // Batch Analysis State
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -158,8 +158,7 @@ export default function Home() {
   };
 
   const handleLoadChannelToSearch = (channelId: string, channelTitle: string) => {
-    setChannelSearchId(channelId);
-    setChannelSearchTitle(channelTitle);
+    setSelectedChannel({ id: channelId, title: channelTitle });
     setActiveTab('channel_search');
     setIsChannelDetailOpen(false);
   };
@@ -526,8 +525,6 @@ export default function Home() {
           )}
           {activeTab === 'channel_search' && (
             <ChannelSearchSection
-              initialChannelId={channelSearchId}
-              initialChannelTitle={channelSearchTitle}
               savedChannelIds={savedChannels.map(c => c.channelId)}
               onToggleSave={handleToggleSave}
               onDownload={(v) => setSelectedVideoForDownload(v)}
@@ -1274,14 +1271,12 @@ function AnalyzedVideosSection({
   );
 }
 
-function ChannelSearchSection({ 
-  initialChannelId,
-  initialChannelTitle,
-  savedChannelIds, 
-  onToggleSave, 
-  onDownload, 
-  onAnalyze, 
-  onViewSubtitle, 
+function ChannelSearchSection({
+  savedChannelIds,
+  onToggleSave,
+  onDownload,
+  onAnalyze,
+  onViewSubtitle,
   onViewComments,
   onChannelClick,
   isSelectionMode,
@@ -1293,8 +1288,6 @@ function ChannelSearchSection({
   onContextAnalyze,
   batchProps
 }: {
-  initialChannelId: string | null,
-  initialChannelTitle: string,
   savedChannelIds: string[],
   onToggleSave: (c: any) => void,
   onDownload: (v: any) => void,
@@ -1311,42 +1304,50 @@ function ChannelSearchSection({
   onContextAnalyze?: (videos: EnrichedVideo[]) => void,
   batchProps?: BatchProps
 }) {
-  const [channelQuery, setChannelQuery] = useState('');
-  const [foundChannels, setFoundChannels] = useState<SavedChannel[]>([]);
-  const [isSearchingChannels, setIsSearchingChannels] = useState(false);
-  
-  const [selectedChannel, setSelectedChannel] = useState<{id: string, title: string, thumbnail?: string} | null>(
-    initialChannelId ? { id: initialChannelId, title: initialChannelTitle } : null
-  );
+  const {
+    channelQuery, setChannelQuery,
+    foundChannels, setFoundChannels,
+    isSearchingChannels, setIsSearchingChannels,
+    selectedChannel, setSelectedChannel,
+    videoQuery, setVideoQuery,
+    filters, setFilters,
+    videos, setVideos,
+    allVideos, setAllVideos,
+    sortBy, setSortBy,
+    timePeriod, setTimePeriod,
+    loading, setLoading,
+    hasSearched, setHasSearched,
+    isHydrated,
+    applySorting,
+  } = useChannelSearch();
 
-  const [videoQuery, setVideoQuery] = useState('');
-  const [filters, setFilters] = useState<Partial<VideoSearchFilters>>({
-    videoDuration: 'any',
-    order: 'date',
-    maxResults: 50,
-    regionCode: 'KR',
-    fetchSubtitles: true,
-  });
-  const [videos, setVideos] = useState<EnrichedVideo[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [sortBy, setSortBy] = useState('none');
-  const [timePeriod, setTimePeriod] = useState('all');
+  // Track previous selectedChannel to detect actual changes
+  const prevSelectedChannelRef = useRef<string | null>(null);
+  const isInitialMount = useRef(true);
 
-  // Update selection if initial props change
+  // Auto-search videos when channel is selected (only on actual changes, not on hydration restore)
   useEffect(() => {
-    if (initialChannelId) {
-      setSelectedChannel({ id: initialChannelId, title: initialChannelTitle });
-    }
-  }, [initialChannelId, initialChannelTitle]);
+    if (!isHydrated) return;
 
-  // Auto-search videos when channel is selected
-  useEffect(() => {
-    if (selectedChannel) {
-      handleVideoSearch();
-    } else {
-      setVideos([]);
+    const currentChannelId = selectedChannel?.id || null;
+    const prevChannelId = prevSelectedChannelRef.current;
+
+    // On initial mount with restored state, don't re-fetch if we already have videos
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      prevSelectedChannelRef.current = currentChannelId;
+      // If we have videos from restored state, don't fetch
+      if (allVideos.length > 0) return;
     }
-  }, [selectedChannel]);
+
+    // Only fetch if channel actually changed
+    if (currentChannelId !== prevChannelId) {
+      prevSelectedChannelRef.current = currentChannelId;
+      if (selectedChannel) {
+        handleVideoSearch();
+      }
+    }
+  }, [selectedChannel, isHydrated]);
 
   const handleChannelSearch = async () => {
     if (!channelQuery.trim()) return;
@@ -1382,15 +1383,19 @@ function ChannelSearchSection({
       const data = await res.json();
 
       if (data.videos) {
+        setAllVideos(data.videos);
         applySorting(data.videos, sortBy);
+        setHasSearched(true);
       } else {
+        setAllVideos([]);
         setVideos([]);
       }
-    } catch (e) { 
-      console.error(e); 
+    } catch (e) {
+      console.error(e);
+      setAllVideos([]);
       setVideos([]);
-    } finally { 
-      setLoading(false); 
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1406,23 +1411,9 @@ function ChannelSearchSection({
     return date.toISOString();
   };
 
-  const applySorting = (videoList: EnrichedVideo[], sortType: string) => {
-    const sorted = [...videoList];
-    switch (sortType) {
-      case 'views': sorted.sort((a, b) => b.viewCount - a.viewCount); break;
-      case 'subscribers': sorted.sort((a, b) => b.subscriberCount - a.subscriberCount); break;
-      case 'performance': sorted.sort((a, b) => b.performanceRatio - a.performanceRatio); break;
-      case 'engagement': sorted.sort((a, b) => b.engagementRate - a.engagementRate); break;
-      case 'likes': sorted.sort((a, b) => b.likeCount - a.likeCount); break;
-      case 'comments': sorted.sort((a, b) => b.commentCount - a.commentCount); break;
-      default: break;
-    }
-    setVideos(sorted);
-  };
-
   useEffect(() => {
-    if (videos.length > 0) {
-      applySorting(videos, sortBy);
+    if (allVideos.length > 0) {
+      applySorting(allVideos, sortBy);
     }
   }, [sortBy]);
 

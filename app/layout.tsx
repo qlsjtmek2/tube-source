@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SearchProvider } from "@/store/search-context";
+import { ChannelSearchProvider } from "@/store/channel-search-context";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,7 +30,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <SearchProvider>
-          {children}
+          <ChannelSearchProvider>
+            {children}
+          </ChannelSearchProvider>
         </SearchProvider>
       </body>
     </html>
