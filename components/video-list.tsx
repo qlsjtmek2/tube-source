@@ -13,9 +13,25 @@ interface VideoListProps {
   onViewSubtitle?: (video: EnrichedVideo) => void;
   onViewComments?: (video: EnrichedVideo) => void;
   onDeleteAnalysis?: (videoId: string) => void;
+  selectionMode?: boolean;
+  selectedVideoIds?: Set<string>;
+  onSelectVideo?: (videoId: string) => void;
 }
 
-export function VideoList({ videos, loading, savedChannelIds = [], onToggleSave, onDownload, onAnalyze, onViewSubtitle, onViewComments, onDeleteAnalysis }: VideoListProps) {
+export function VideoList({ 
+  videos, 
+  loading, 
+  savedChannelIds = [], 
+  onToggleSave, 
+  onDownload, 
+  onAnalyze, 
+  onViewSubtitle, 
+  onViewComments, 
+  onDeleteAnalysis,
+  selectionMode = false,
+  selectedVideoIds = new Set(),
+  onSelectVideo
+}: VideoListProps) {
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse">
@@ -47,6 +63,9 @@ export function VideoList({ videos, loading, savedChannelIds = [], onToggleSave,
             onViewSubtitle={onViewSubtitle}
             onViewComments={onViewComments}
             onDeleteAnalysis={onDeleteAnalysis}
+            selectionMode={selectionMode}
+            isSelected={selectedVideoIds.has(video.id)}
+            onSelect={() => onSelectVideo?.(video.id)}
           />
         </div>
       ))}

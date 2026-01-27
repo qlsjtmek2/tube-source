@@ -2,7 +2,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EnrichedVideo } from "@/lib/youtube";
-import { Calendar, Eye, Heart, MessageCircle, Play, Star, ThumbsUp, User, Users } from "lucide-react";
+import { Calendar, Eye, MessageCircle, Star, ThumbsUp, User, Users, CheckCircle2, Circle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface VideoCardProps {
   video: EnrichedVideo;
@@ -13,9 +14,24 @@ interface VideoCardProps {
   onViewSubtitle?: (video: EnrichedVideo) => void;
   onViewComments?: (video: EnrichedVideo) => void;
   onDeleteAnalysis?: (videoId: string) => void;
+  selectionMode?: boolean;
+  isSelected?: boolean;
+  onSelect?: () => void;
 }
 
-export function VideoCard({ video, isSaved, onToggleSave, onDownload, onAnalyze, onViewSubtitle, onViewComments, onDeleteAnalysis }: VideoCardProps) {
+export function VideoCard({ 
+  video, 
+  isSaved, 
+  onToggleSave, 
+  onDownload, 
+  onAnalyze, 
+  onViewSubtitle, 
+  onViewComments, 
+  onDeleteAnalysis,
+  selectionMode = false,
+  isSelected = false,
+  onSelect
+}: VideoCardProps) {
   // Format numbers
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat('en-US', { notation: "compact", maximumFractionDigits: 1 }).format(num);
@@ -40,38 +56,63 @@ export function VideoCard({ video, isSaved, onToggleSave, onDownload, onAnalyze,
   };
 
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-shadow group flex flex-col h-full w-full max-w-sm mx-auto border-slate-200 dark:border-slate-800">
-      {/* Thumbnail Link */}
-      <a 
-        href={`https://www.youtube.com/watch?v=${video.id}`} 
-        target="_blank" 
-        rel="noopener noreferrer"
-        className="aspect-video bg-slate-100 dark:bg-slate-800 relative overflow-hidden shrink-0 block cursor-pointer"
-      >
-        <img 
-          src={video.thumbnail} 
-          alt={video.title} 
-          className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
-          loading="lazy"
-        />
-        <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-mono z-10">
-          {formatDuration(video.duration)}
+    <Card 
+      className={cn(
+        "overflow-hidden hover:shadow-lg transition-all group flex flex-col h-full w-full max-w-sm mx-auto border-slate-200 dark:border-slate-800 relative",
+        selectionMode && "cursor-pointer",
+        isSelected && "ring-2 ring-purple-500 border-purple-500 bg-purple-50/10"
+      )}
+      onClick={() => selectionMode && onSelect?.()}
+    >
+      {/* Selection Overlay */}
+      {selectionMode && (
+        <div className="absolute top-2 right-2 z-20">
+          {isSelected ? (
+            <CheckCircle2 className="w-6 h-6 text-purple-600 bg-white rounded-full fill-white" />
+          ) : (
+            <Circle className="w-6 h-6 text-white drop-shadow-md" />
+          )}
         </div>
-        {video.caption && (
-           <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-1 rounded z-10">CC</div>
-        )}
-      </a>
+      )}
+
+      {/* Thumbnail Link */}
+      <div className="relative">
+        <a 
+          href={selectionMode ? undefined : `https://www.youtube.com/watch?v=${video.id}`} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className={cn(
+            "aspect-video bg-slate-100 dark:bg-slate-800 relative overflow-hidden shrink-0 block",
+            !selectionMode && "cursor-pointer"
+          )}
+          onClick={(e) => selectionMode && e.preventDefault()}
+        >
+          <img 
+            src={video.thumbnail} 
+            alt={video.title} 
+            className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
+            loading="lazy"
+          />
+          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-mono z-10">
+            {formatDuration(video.duration)}
+          </div>
+          {video.caption && (
+             <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-1 rounded z-10">CC</div>
+          )}
+        </a>
+      </div>
 
       <CardContent className="p-4 flex flex-col flex-1 gap-3">
         {/* Title & Channel */}
         <div className="space-y-1">
           <a 
-            href={`https://www.youtube.com/watch?v=${video.id}`} 
+            href={selectionMode ? undefined : `https://www.youtube.com/watch?v=${video.id}`} 
             target="_blank" 
             rel="noopener noreferrer"
             className="block group/title"
+            onClick={(e) => selectionMode && e.preventDefault()}
           >
-            <h3 className="font-bold text-sm leading-snug line-clamp-2 h-10 group-hover/title:text-red-600 transition-colors cursor-pointer">
+            <h3 className="font-bold text-sm leading-snug line-clamp-2 h-10 group-hover/title:text-red-600 transition-colors">
               {video.title}
             </h3>
           </a>
@@ -128,12 +169,20 @@ export function VideoCard({ video, isSaved, onToggleSave, onDownload, onAnalyze,
         
         {/* Detailed Stats (Small) */}
         <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
-             <div className="flex items-center gap-2">
-                <span className="flex items-center gap-1 px-1.5 py-0.5"><ThumbsUp className="w-3 h-3" /> {formatNumber(video.likeCount)}</span>
+             <div className="flex gap-3">
+                <span className="flex items-center gap-1"><ThumbsUp className="w-3 h-3" /> {formatNumber(video.likeCount)}</span>
                 <button 
-                  onClick={() => onViewComments?.(video)}
-                  className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-50 dark:bg-slate-900 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 transition-all border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800 cursor-pointer group/comment"
-                  title="베스트 댓글 보기"
+                  onClick={(e) => {
+                    if (selectionMode) return;
+                    e.stopPropagation();
+                    onViewComments?.(video);
+                  }}
+                  className={cn(
+                    "flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 group/comment transition-all",
+                    !selectionMode && "hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-200 dark:hover:border-blue-800 cursor-pointer"
+                  )}
+                  title={selectionMode ? undefined : "베스트 댓글 보기"}
+                  disabled={selectionMode}
                 >
                   <MessageCircle className="w-3 h-3 group-hover/comment:scale-110 transition-transform" /> 
                   <span className="font-medium">{formatNumber(video.commentCount)}</span>
@@ -141,9 +190,13 @@ export function VideoCard({ video, isSaved, onToggleSave, onDownload, onAnalyze,
              </div>
              {onDeleteAnalysis ? (
                <button
-                 onClick={() => onDeleteAnalysis(video.id)}
+                 onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteAnalysis(video.id);
+                 }}
                  className="text-red-400 hover:text-red-600 transition-colors"
                  title="분석 결과 삭제"
+                 disabled={selectionMode}
                >
                  삭제
                </button>
@@ -153,34 +206,36 @@ export function VideoCard({ video, isSaved, onToggleSave, onDownload, onAnalyze,
         </div>
         
         {/* Action Buttons */}
-        <div className="mt-auto pt-3 grid grid-cols-3 gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-[11px] px-1"
-              onClick={() => onAnalyze?.(video)}
-            >
-              AI 분석
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              className="h-8 text-[11px] px-1"
-              onClick={() => onDownload?.({ id: video.id, title: video.title })}
-            >
-              다운로드
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-[11px] px-1"
-              onClick={() => onViewSubtitle?.(video)}
-              disabled={!video.subtitleText}
-              title={!video.subtitleText ? "자막 없음" : "자막 보기"}
-            >
-              자막 보기
-            </Button>
-        </div>
+        {!selectionMode && (
+          <div className="mt-auto pt-3 grid grid-cols-3 gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-[11px] px-1"
+                onClick={(e) => { e.stopPropagation(); onAnalyze?.(video); }}
+              >
+                AI 분석
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-8 text-[11px] px-1"
+                onClick={(e) => { e.stopPropagation(); onDownload?.({ id: video.id, title: video.title }); }}
+              >
+                다운로드
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-[11px] px-1"
+                onClick={(e) => { e.stopPropagation(); onViewSubtitle?.(video); }}
+                disabled={!video.subtitleText}
+                title={!video.subtitleText ? "자막 없음" : "자막 보기"}
+              >
+                자막 보기
+              </Button>
+          </div>
+        )}
 
       </CardContent>
     </Card>

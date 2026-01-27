@@ -12,6 +12,7 @@ import { DownloadDialog } from '@/components/download-dialog';
 import { AnalysisDialog } from '@/components/analysis-dialog';
 import { SubtitleDialog } from '@/components/subtitle-dialog';
 import { CommentsDialog } from '@/components/comments-dialog';
+import { BatchAnalysisDialog } from '@/components/batch-analysis-dialog';
 import { EnrichedVideo, VideoSearchFilters, YouTubeComment } from '@/lib/youtube';
 import { SavedChannel } from '@/lib/storage';
 import { AnalyzedVideo } from '@/lib/ai';
@@ -43,6 +44,13 @@ export default function Home() {
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [comments, setComments] = useState<YouTubeComment[]>([]);
   const [isCommentsLoading, setIsCommentsLoading] = useState(false);
+
+  // Batch Analysis State
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedVideoIds, setSelectedVideoIds] = useState<Set<string>>(new Set());
+  const [isBatchAnalyzing, setIsBatchAnalyzing] = useState(false);
+  const [batchStatus, setBatchStatus] = useState({ total: 0, current: 0, success: 0, fail: 0 });
+  const [isBatchDialogOpen, setIsBatchDialogOpen] = useState(false);
 
   const fetchSavedChannels = async () => {
     try {
@@ -78,9 +86,6 @@ export default function Home() {
     setSelectedVideoForAnalysis(video);
     setIsAnalysisOpen(true);
     
-    // 강제 새로고침이 아닐 때만 초기화 (로딩 표시를 위해)
-    // 강제 새로고침일 때는 기존 내용을 유지하다가 완료되면 교체하는 것이 더 자연스러울 수 있으나,
-    // 명확한 로딩 피드백을 위해 null로 초기화하는 것이 나음
     if (!forceRefresh) {
         setAnalysisResult(null);
         setIsAnalyzed(false);
@@ -89,7 +94,6 @@ export default function Home() {
     setIsAnalyzing(true);
 
     try {
-      // 1. 강제 새로고침이 아니면 캐시 확인
       if (!forceRefresh) {
         const checkRes = await fetch(`/api/analyzed-videos?videoId=${video.id}`);
         const { analysis } = await checkRes.json();
@@ -102,7 +106,6 @@ export default function Home() {
         }
       }
 
-      // 2. 캐시 없거나 강제 새로고침 → 새로 분석
       const res = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -110,11 +113,9 @@ export default function Home() {
       });
       const data = await res.json();
 
-      // 분석 결과 즉시 반영
       setAnalysisResult(data.analysis);
       setIsAnalyzed(true);
 
-      // 3. 분석 결과 저장 (백그라운드 처리)
       fetch('/api/analyzed-videos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -132,6 +133,72 @@ export default function Home() {
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  // Batch Analysis Logic
+  const toggleSelectionMode = () => {
+    setIsSelectionMode(!isSelectionMode);
+    setSelectedVideoIds(new Set());
+  };
+
+  const toggleVideoSelection = (videoId: string) => {
+    const newSet = new Set(selectedVideoIds);
+    if (newSet.has(videoId)) {
+      newSet.delete(videoId);
+    } else {
+      newSet.add(videoId);
+    }
+    setSelectedVideoIds(newSet);
+  };
+
+  const handleBatchAnalyze = async (videosToAnalyze: EnrichedVideo[]) => {
+    if (videosToAnalyze.length === 0) return;
+
+    setIsBatchAnalyzing(true);
+    setIsBatchDialogOpen(true);
+    setBatchStatus({ total: videosToAnalyze.length, current: 0, success: 0, fail: 0 });
+
+    for (let i = 0; i < videosToAnalyze.length; i++) {
+      const video = videosToAnalyze[i];
+      try {
+        const checkRes = await fetch(`/api/analyzed-videos?videoId=${video.id}`);
+        const { analysis: cachedAnalysis } = await checkRes.json();
+
+        if (!cachedAnalysis) {
+            const res = await fetch('/api/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(video),
+            });
+            const data = await res.json();
+            
+            if (data.analysis) {
+                await fetch('/api/analyzed-videos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'save',
+                        videoId: video.id,
+                        video,
+                        analysisResult: data.analysis
+                    }),
+                });
+                setBatchStatus(prev => ({ ...prev, success: prev.success + 1 }));
+            } else {
+                setBatchStatus(prev => ({ ...prev, fail: prev.fail + 1 }));
+            }
+        } else {
+            setBatchStatus(prev => ({ ...prev, success: prev.success + 1 }));
+        }
+      } catch (e) {
+        console.error(`Failed to analyze video ${video.id}:`, e);
+        setBatchStatus(prev => ({ ...prev, fail: prev.fail + 1 }));
+      }
+      
+      setBatchStatus(prev => ({ ...prev, current: prev.current + 1 }));
+    }
+
+    setIsBatchAnalyzing(false);
   };
 
   const handleViewSubtitle = (video: EnrichedVideo) => {
@@ -254,6 +321,12 @@ export default function Home() {
               onAnalyze={handleAnalyze}
               onViewSubtitle={handleViewSubtitle}
               onViewComments={handleViewComments}
+              // Batch Analysis Props
+              isSelectionMode={isSelectionMode}
+              selectedVideoIds={selectedVideoIds}
+              onToggleSelectionMode={toggleSelectionMode}
+              onToggleVideoSelection={toggleVideoSelection}
+              onBatchAnalyze={handleBatchAnalyze}
             />
           )}
           {activeTab === 'channels' && (
@@ -322,17 +395,44 @@ export default function Home() {
         videoTitle={selectedVideoForComments?.title}
         isLoading={isCommentsLoading}
       />
+
+      <BatchAnalysisDialog
+        isOpen={isBatchDialogOpen}
+        total={batchStatus.total}
+        current={batchStatus.current}
+        successCount={batchStatus.success}
+        failCount={batchStatus.fail}
+        isAnalyzing={isBatchAnalyzing}
+        onClose={() => setIsBatchDialogOpen(false)}
+      />
     </div>
   );
 }
 
-function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, onViewSubtitle, onViewComments }: {
+function SearchSection({ 
+  savedChannelIds, 
+  onToggleSave, 
+  onDownload, 
+  onAnalyze, 
+  onViewSubtitle, 
+  onViewComments,
+  isSelectionMode,
+  selectedVideoIds,
+  onToggleSelectionMode,
+  onToggleVideoSelection,
+  onBatchAnalyze
+}: {
   savedChannelIds: string[],
   onToggleSave: (c: any) => void,
   onDownload: (v: any) => void,
   onAnalyze: (v: EnrichedVideo) => void,
   onViewSubtitle: (v: EnrichedVideo) => void,
-  onViewComments: (v: EnrichedVideo) => void
+  onViewComments: (v: EnrichedVideo) => void,
+  isSelectionMode?: boolean,
+  selectedVideoIds?: Set<string>,
+  onToggleSelectionMode?: () => void,
+  onToggleVideoSelection?: (id: string) => void,
+  onBatchAnalyze?: (videos: EnrichedVideo[]) => void
 }) {
   const {
     query, setQuery,
@@ -394,12 +494,31 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
-  // Re-apply sorting when sort option changes
   useEffect(() => {
     if (allVideos.length > 0) {
       applySorting(allVideos, sortBy);
     }
   }, [sortBy, allVideos, applySorting]);
+
+  // Batch Select Helper
+  const handleSelectAll = () => {
+    if (!onToggleVideoSelection || !selectedVideoIds) return;
+    const allSelected = videos.every(v => selectedVideoIds.has(v.id));
+    
+    videos.forEach(v => {
+        if (allSelected) {
+            if (selectedVideoIds.has(v.id)) onToggleVideoSelection(v.id);
+        } else {
+            if (!selectedVideoIds.has(v.id)) onToggleVideoSelection(v.id);
+        }
+    });
+  };
+
+  const startBatchAnalysis = () => {
+    if (!onBatchAnalyze || !selectedVideoIds) return;
+    const selectedVideos = videos.filter(v => selectedVideoIds.has(v.id));
+    onBatchAnalyze(selectedVideos);
+  };
 
   return (
     <div className="space-y-4">
@@ -567,72 +686,60 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
         </CardContent>
       </Card>
 
-      {/* 결과 정렬 버튼 */}
+      {/* 결과 정렬 버튼 & 일괄 분석 툴바 */}
       {allVideos.length > 0 && (
         <Card className="bg-slate-50/50 dark:bg-slate-900/50 border-dashed">
           <CardContent className="py-1.5 px-3">
-            <div className="flex flex-wrap gap-1 items-center">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2 ml-1">심화 정렬</span>
-              <Button
-                variant={sortBy === 'none' ? 'default' : 'ghost'}
-                size="sm"
-                className="h-6 text-[11px] px-2"
-                onClick={() => setSortBy('none')}
-              >
-                기본
-              </Button>
-              <Button
-                variant={sortBy === 'views' ? 'default' : 'ghost'}
-                size="sm"
-                className="h-6 text-[11px] px-2"
-                onClick={() => setSortBy('views')}
-              >
-                조회수
-              </Button>
-              <Button
-                variant={sortBy === 'subscribers' ? 'default' : 'ghost'}
-                size="sm"
-                className="h-6 text-[11px] px-2"
-                onClick={() => setSortBy('subscribers')}
-              >
-                구독자
-              </Button>
-              <Button
-                variant={sortBy === 'performance' ? 'default' : 'ghost'}
-                size="sm"
-                className="h-6 text-[11px] px-2"
-                onClick={() => setSortBy('performance')}
-              >
-                성과도
-              </Button>
-              <Button
-                variant={sortBy === 'engagement' ? 'default' : 'ghost'}
-                size="sm"
-                className="h-6 text-[11px] px-2"
-                onClick={() => setSortBy('engagement')}
-              >
-                참여율
-              </Button>
-              <Button
-                variant={sortBy === 'likes' ? 'default' : 'ghost'}
-                size="sm"
-                className="h-6 text-[11px] px-2"
-                onClick={() => setSortBy('likes')}
-              >
-                좋아요
-              </Button>
-              <Button
-                variant={sortBy === 'comments' ? 'default' : 'ghost'}
-                size="sm"
-                className="h-6 text-[11px] px-2"
-                onClick={() => setSortBy('comments')}
-              >
-                댓글
-              </Button>
+            <div className="flex flex-wrap gap-1.5 items-center justify-between">
               
-              <div className="ml-auto text-[10px] text-slate-400 font-medium pr-1">
-                {videos.length} items
+              {/* Left: Sort Buttons */}
+              <div className="flex flex-wrap gap-1.5 items-center">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mr-2 ml-1">심화 정렬</span>
+                <Button variant={sortBy === 'none' ? 'default' : 'ghost'} size="sm" className="h-7 text-xs px-2.5" onClick={() => setSortBy('none')}>기본</Button>
+                <Button variant={sortBy === 'views' ? 'default' : 'ghost'} size="sm" className="h-7 text-xs px-2.5" onClick={() => setSortBy('views')}>조회수</Button>
+                <Button variant={sortBy === 'subscribers' ? 'default' : 'ghost'} size="sm" className="h-7 text-xs px-2.5" onClick={() => setSortBy('subscribers')}>구독자</Button>
+                <Button variant={sortBy === 'performance' ? 'default' : 'ghost'} size="sm" className="h-7 text-xs px-2.5" onClick={() => setSortBy('performance')}>성과도</Button>
+                <Button variant={sortBy === 'engagement' ? 'default' : 'ghost'} size="sm" className="h-7 text-xs px-2.5" onClick={() => setSortBy('engagement')}>참여율</Button>
+                <Button variant={sortBy === 'likes' ? 'default' : 'ghost'} size="sm" className="h-7 text-xs px-2.5" onClick={() => setSortBy('likes')}>좋아요</Button>
+                <Button variant={sortBy === 'comments' ? 'default' : 'ghost'} size="sm" className="h-7 text-xs px-2.5" onClick={() => setSortBy('comments')}>댓글</Button>
               </div>
+
+              {/* Right: Batch Action Button */}
+              {onToggleSelectionMode && (
+                <div className="flex items-center gap-2">
+                  <div className="text-[11px] text-slate-400 font-medium pr-1">총 {videos.length}개</div>
+                  {isSelectionMode ? (
+                    <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4 duration-300">
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleSelectAll}>
+                        {selectedVideoIds && selectedVideoIds.size === videos.length ? '전체 해제' : '전체 선택'}
+                      </Button>
+                      <Button 
+                        variant="default" 
+                        size="sm" 
+                        className="h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white" 
+                        onClick={startBatchAnalysis}
+                        disabled={!selectedVideoIds || selectedVideoIds.size === 0}
+                      >
+                        <Sparkles className="w-3 h-3 mr-1" />
+                        분석 ({selectedVideoIds?.size || 0})
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onToggleSelectionMode}>
+                        취소
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-7 text-xs border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-900 dark:text-purple-400 dark:hover:bg-purple-950/30"
+                      onClick={onToggleSelectionMode}
+                    >
+                      <List className="w-3 h-3 mr-1" />
+                      일괄 AI 분석
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -647,6 +754,9 @@ function SearchSection({ savedChannelIds, onToggleSave, onDownload, onAnalyze, o
         onAnalyze={onAnalyze}
         onViewSubtitle={onViewSubtitle}
         onViewComments={onViewComments}
+        selectionMode={isSelectionMode}
+        selectedVideoIds={selectedVideoIds}
+        onSelectVideo={onToggleVideoSelection}
       />
     </div>
   );
