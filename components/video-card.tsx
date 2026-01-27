@@ -128,14 +128,15 @@ export function VideoCard({ video, isSaved, onToggleSave, onDownload, onAnalyze,
         
         {/* Detailed Stats (Small) */}
         <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
-             <div className="flex gap-3">
-                <span className="flex items-center gap-1"><ThumbsUp className="w-3 h-3" /> {formatNumber(video.likeCount)}</span>
+             <div className="flex items-center gap-2">
+                <span className="flex items-center gap-1 px-1.5 py-0.5"><ThumbsUp className="w-3 h-3" /> {formatNumber(video.likeCount)}</span>
                 <button 
                   onClick={() => onViewComments?.(video)}
-                  className="flex items-center gap-1 hover:text-blue-500 transition-colors"
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-50 dark:bg-slate-900 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 transition-all border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800 cursor-pointer group/comment"
                   title="베스트 댓글 보기"
                 >
-                  <MessageCircle className="w-3 h-3" /> {formatNumber(video.commentCount)}
+                  <MessageCircle className="w-3 h-3 group-hover/comment:scale-110 transition-transform" /> 
+                  <span className="font-medium">{formatNumber(video.commentCount)}</span>
                 </button>
              </div>
              {onDeleteAnalysis ? (
