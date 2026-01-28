@@ -171,6 +171,7 @@ export async function saveAnalyzedVideo(
       performanceRatio: video.performanceRatio,
       duration: video.duration,
       transcript: video.subtitleText,
+      caption: video.caption,
       analysisResult,
       analyzedAt: new Date().toISOString(),
     };

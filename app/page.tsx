@@ -1515,7 +1515,7 @@ function AnalyzedVideosSection({
           publishedAt: v.analyzedAt,
           description: '',
           duration: v.duration || '',
-          caption: !!v.transcript,
+          caption: v.caption ?? (!!v.transcript),
           subtitleText: v.transcript,
           channelVideoCount: 0,
           channelViewCount: 0,

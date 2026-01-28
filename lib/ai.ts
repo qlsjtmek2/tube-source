@@ -47,6 +47,7 @@ export interface AnalyzedVideo {
   performanceRatio: number;
   duration?: string;
   transcript?: string;
+  caption?: boolean;
   analysisResult: AnalysisResult | ContextAnalysisResult;
   analyzedAt: string; // ISO timestamp
 }

@@ -121,7 +121,7 @@ export function VideoCard({
             {formatDuration(video.duration)}
           </div>
           {video.caption && (
-             <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-1 rounded z-10">CC</div>
+             <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold shadow-md z-10">CC</div>
           )}
         </a>
       </div>
