@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles, Target, Layout, Lightbulb, Zap, RefreshCw, MessageCircle, Layers, Rocket, TrendingUp, ThumbsUp, AlertTriangle, Search, Scissors } from "lucide-react";
+import { Loader2, Sparkles, Target, Layout, Lightbulb, Zap, RefreshCw, MessageCircle, Layers, Rocket, TrendingUp, ThumbsUp, AlertTriangle, Search, Scissors, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AnalysisDialogProps {
@@ -21,6 +21,17 @@ interface AnalysisDialogProps {
   isAnalyzing?: boolean;
   isAnalyzed?: boolean;
   onRefresh?: () => void;
+
+  // 별표 기능 추가
+  isSaved?: boolean;
+  onToggleSave?: (channel: {
+    channelId: string;
+    channelTitle: string;
+    thumbnail: string;
+  }) => void;
+  channelId?: string;
+  channelTitle?: string;
+  channelThumbnail?: string;
 }
 
 export function AnalysisDialog({
@@ -30,7 +41,12 @@ export function AnalysisDialog({
   videoTitle,
   isAnalyzing = false,
   isAnalyzed = false,
-  onRefresh
+  onRefresh,
+  isSaved = false,
+  onToggleSave,
+  channelId,
+  channelTitle,
+  channelThumbnail
 }: AnalysisDialogProps) {
   const loading = isAnalyzing;
 
@@ -60,6 +76,31 @@ export function AnalysisDialog({
               <DialogDescription className="line-clamp-1 mt-1.5">
                 {videoTitle}
               </DialogDescription>
+
+              {/* 채널 정보 및 별표 버튼 */}
+              {channelTitle && (
+                <div className="flex items-center gap-1.5 mt-1.5 text-xs text-slate-500">
+                  <span>{channelTitle}</span>
+                  {onToggleSave && channelId && channelThumbnail && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleSave({
+                          channelId,
+                          channelTitle,
+                          thumbnail: channelThumbnail
+                        });
+                      }}
+                      className={`p-1 rounded-full shrink-0 transition-colors ${
+                        isSaved ? 'text-yellow-500' : 'text-slate-300 hover:text-yellow-400'
+                      }`}
+                      title={isSaved ? '채널 저장 취소' : '채널 저장'}
+                    >
+                      <Star className={`w-3.5 h-3.5 ${isSaved ? 'fill-current' : ''}`} />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </DialogHeader>

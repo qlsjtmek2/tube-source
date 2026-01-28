@@ -623,6 +623,8 @@ export default function Home() {
               onViewSubtitle={handleViewSubtitle}
               onViewComments={handleViewComments}
               onChannelClick={handleChannelClick}
+              savedChannelIds={savedChannels.map(c => c.channelId)}
+              onToggleSave={handleToggleSave}
             />
           )}
           {activeTab === 'downloads' && (
@@ -664,6 +666,11 @@ export default function Home() {
         isAnalyzing={isAnalyzing}
         isAnalyzed={isAnalyzed}
         onRefresh={handleRefreshAnalysis}
+        isSaved={selectedVideoForAnalysis ? savedChannels.some(c => c.channelId === selectedVideoForAnalysis.channelId) : false}
+        onToggleSave={handleToggleSave}
+        channelId={selectedVideoForAnalysis?.channelId}
+        channelTitle={selectedVideoForAnalysis?.channelTitle}
+        channelThumbnail={selectedVideoForAnalysis?.channelThumbnail}
       />
 
       <SubtitleDialog
@@ -1201,14 +1208,18 @@ function AnalyzedVideosSection({
   onDownload,
   onViewSubtitle,
   onViewComments,
-  onChannelClick
+  onChannelClick,
+  savedChannelIds,
+  onToggleSave
 }: {
   onAnalyze: (v: EnrichedVideo) => void,
   onViewExistingAnalysis: (v: EnrichedVideo, analysis: any) => void,
   onDownload: (v: any) => void,
   onViewSubtitle: (v: EnrichedVideo) => void,
   onViewComments: (v: EnrichedVideo) => void,
-  onChannelClick?: (channelId: string) => void
+  onChannelClick?: (channelId: string) => void,
+  savedChannelIds: string[],
+  onToggleSave: (c: any) => void
 }) {
   const [analyzedVideos, setAnalyzedVideos] = useState<AnalyzedVideo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1298,8 +1309,8 @@ function AnalyzedVideosSection({
           channelViewCount: 0,
         }))}
         loading={loading}
-        savedChannelIds={[]}
-        onToggleSave={() => {}}
+        savedChannelIds={savedChannelIds}
+        onToggleSave={onToggleSave}
         onDownload={onDownload}
         onAnalyze={handleViewAnalysis}
         onViewSubtitle={onViewSubtitle}
