@@ -1259,15 +1259,15 @@ function CategorySelector({ currentCategory, allCategories, onSelect }: { curren
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => { setIsOpen(false); setIsAdding(false); }} />
-          <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-slate-900 border shadow-lg rounded-md z-50 p-1 flex flex-col gap-1 min-w-[140px]">
-            <div className="text-[10px] font-semibold text-slate-500 px-2 py-1">카테고리 선택</div>
+          <div className="absolute top-full left-0 mt-1 w-[160px] bg-white dark:bg-slate-900 border shadow-lg rounded-md z-50 p-1 flex flex-col gap-0.5">
+            <div className="text-[10px] font-semibold text-slate-500 px-2 py-1 border-b mb-1">카테고리 선택</div>
             
-            <div className="max-h-48 overflow-y-auto custom-scrollbar">
+            <div className="max-h-48 overflow-y-auto custom-scrollbar flex flex-col gap-0.5">
               {allCategories.map(cat => (
                  <button
                    key={cat}
                    className={cn(
-                     "w-full text-xs text-left px-2 py-1.5 rounded-sm hover:bg-slate-100 dark:hover:bg-slate-800",
+                     "w-full text-xs text-left px-2 py-1.5 rounded-sm hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap overflow-hidden text-ellipsis",
                      currentCategory === cat && "text-red-600 font-medium bg-red-50 dark:bg-red-900/10"
                    )}
                    onClick={() => { onSelect(cat); setIsOpen(false); }}
@@ -1279,7 +1279,7 @@ function CategorySelector({ currentCategory, allCategories, onSelect }: { curren
             
             {currentCategory && (
                <button
-                 className="w-full text-xs text-left px-2 py-1.5 rounded-sm hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 border-t mt-1 pt-2"
+                 className="w-full text-xs text-left px-2 py-1.5 rounded-sm hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 border-t mt-1 pt-1.5 whitespace-nowrap"
                  onClick={() => { onSelect(''); setIsOpen(false); }}
                >
                  선택 해제
@@ -1295,15 +1295,15 @@ function CategorySelector({ currentCategory, allCategories, onSelect }: { curren
                   value={newCat}
                   onChange={e => setNewCat(e.target.value)}
                   className="w-full text-xs border rounded px-1.5 py-1 bg-slate-50 dark:bg-slate-950"
-                  placeholder="새 카테고리"
+                  placeholder="새 분류명..."
                   onKeyDown={e => e.key === 'Enter' && handleAdd()}
                   autoFocus
                 />
-                <button onClick={handleAdd} className="p-1 hover:text-green-600 text-green-500"><Check className="w-3 h-3" /></button>
+                <button onClick={handleAdd} className="p-1 hover:text-green-600 text-green-500 shrink-0"><Check className="w-3 h-3" /></button>
               </div>
             ) : (
               <button
-                className="w-full text-xs text-left px-2 py-1.5 rounded-sm hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5 text-blue-600"
+                className="w-full text-xs text-left px-2 py-1.5 rounded-sm hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5 text-blue-600 whitespace-nowrap"
                 onClick={() => setIsAdding(true)}
               >
                 <Plus className="w-3 h-3" /> 새 카테고리 추가
