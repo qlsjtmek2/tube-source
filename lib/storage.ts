@@ -53,6 +53,7 @@ export interface SavedChannel {
   channelTitle: string;
   thumbnail: string;
   addedAt: string;
+  category?: string;
 }
 
 export async function getSavedChannels(): Promise<SavedChannel[]> {
@@ -68,11 +69,19 @@ export async function saveChannel(channel: SavedChannel) {
     const data = await fs.readFile(CHANNELS_FILE, 'utf-8');
     const channels: SavedChannel[] = JSON.parse(data);
     
-    if (channels.find(c => c.channelId === channel.channelId)) {
-      return channels; 
+    const existingIndex = channels.findIndex(c => c.channelId === channel.channelId);
+    let updated: SavedChannel[];
+
+    if (existingIndex >= 0) {
+      // Update existing channel
+      const existing = channels[existingIndex];
+      channels[existingIndex] = { ...existing, ...channel };
+      updated = channels;
+    } else {
+      // Add new channel
+      updated = [...channels, channel];
     }
     
-    const updated = [...channels, channel];
     await fs.writeFile(CHANNELS_FILE, JSON.stringify(updated, null, 2));
     return updated;
   } finally {
