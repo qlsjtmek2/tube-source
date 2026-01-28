@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles, Target, Layout, Lightbulb, Zap, RefreshCw, MessageCircle, Layers, Compass, Rocket, TrendingUp } from "lucide-react";
+import { Loader2, Sparkles, Target, Layout, Lightbulb, Zap, RefreshCw, MessageCircle, Layers, Rocket, TrendingUp, ThumbsUp, AlertTriangle, Search, Scissors } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AnalysisDialogProps {
@@ -143,20 +143,89 @@ export function AnalysisDialog({
                 </section>
               )}
 
+              {/* Strengths - 강점 분석 */}
+              {analysis.strengths && analysis.strengths.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3 text-emerald-600 font-bold">
+                    <ThumbsUp className="w-4 h-4" /> 강점 분석
+                  </div>
+                  <div className="grid gap-3">
+                    {analysis.strengths.map((strength: string, i: number) => (
+                      <div key={i} className="flex gap-3 p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50 rounded-lg text-sm">
+                        <Badge className="h-5 shrink-0 bg-emerald-500">+</Badge>
+                        <span className="break-words">{strength}</span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Weaknesses - 약점 및 개선점 */}
+              {analysis.weaknesses && analysis.weaknesses.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3 text-amber-600 font-bold">
+                    <AlertTriangle className="w-4 h-4" /> 약점 및 개선점
+                  </div>
+                  <div className="grid gap-3">
+                    {analysis.weaknesses.map((weakness: string, i: number) => (
+                      <div key={i} className="flex gap-3 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/50 rounded-lg text-sm">
+                        <Badge className="h-5 shrink-0 bg-amber-500">!</Badge>
+                        <span className="break-words">{weakness}</span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {/* Insights */}
-              <section>
-                <div className="flex items-center gap-2 mb-3 text-orange-600 font-bold">
-                  <Lightbulb className="w-4 h-4" /> {analysis.commonalities ? "핵심 인사이트" : "벤치마킹 인사이트"}
-                </div>
-                <div className="grid gap-3">
-                  {analysis.insights?.map((insight: string, i: number) => (
-                    <div key={i} className="flex gap-3 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm">
-                      <Badge variant="secondary" className="h-5 shrink-0">{i + 1}</Badge>
-                      <span className="break-words">{insight}</span>
-                    </div>
-                  ))}
-                </div>
-              </section>
+              {analysis.insights && analysis.insights.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3 text-orange-600 font-bold">
+                    <Lightbulb className="w-4 h-4" /> {analysis.commonalities ? "핵심 인사이트" : "벤치마킹 인사이트"}
+                  </div>
+                  <div className="grid gap-3">
+                    {analysis.insights.map((insight: string, i: number) => (
+                      <div key={i} className="flex gap-3 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm">
+                        <Badge variant="secondary" className="h-5 shrink-0">{i + 1}</Badge>
+                        <span className="break-words">{insight}</span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Search Keywords - 유사 소스 검색 키워드 */}
+              {analysis.search_keywords && analysis.search_keywords.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3 text-violet-600 font-bold">
+                    <Search className="w-4 h-4" /> 유사 소스 검색 키워드
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {analysis.search_keywords.map((keyword: string, i: number) => (
+                      <Badge key={i} variant="outline" className="px-3 py-1.5 text-sm bg-violet-50 dark:bg-violet-950/30 border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-300">
+                        {keyword}
+                      </Badge>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Editing Tips - 편집 방식 추천 */}
+              {analysis.editing_tips && analysis.editing_tips.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3 text-cyan-600 font-bold">
+                    <Scissors className="w-4 h-4" /> 편집 방식 추천
+                  </div>
+                  <div className="grid gap-3">
+                    {analysis.editing_tips.map((tip: string, i: number) => (
+                      <div key={i} className="flex gap-3 p-3 bg-cyan-50 dark:bg-cyan-950/30 border border-cyan-100 dark:border-cyan-900/50 rounded-lg text-sm">
+                        <Badge className="h-5 shrink-0 bg-cyan-500">{i + 1}</Badge>
+                        <span className="break-words">{tip}</span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
 
               {/* Action Plan (Context Analysis) */}
               {analysis.action_plan && (
