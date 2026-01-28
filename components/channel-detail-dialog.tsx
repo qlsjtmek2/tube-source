@@ -96,17 +96,17 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
                     <img 
                       src={details.thumbnail} 
                       alt={details.title} 
-                      className="w-24 h-24 rounded-full border-4 border-white dark:border-slate-800 shadow-md bg-white dark:bg-slate-800 object-cover" 
+                      className="w-20 h-20 rounded-full border-4 border-white dark:border-slate-800 shadow-md bg-white dark:bg-slate-800 object-cover" 
                     />
                     {details.country && (
-                      <Badge variant="secondary" className="absolute -bottom-2 -right-2 px-1.5 py-0.5 text-[10px] shadow-sm border-white dark:border-slate-800 border-2">
+                      <Badge variant="secondary" className="absolute -bottom-1 -right-1 px-1.5 py-0.5 text-[10px] shadow-sm border-white dark:border-slate-800 border-2">
                         {details.country}
                       </Badge>
                     )}
                   </div>
                   
                   <div>
-                    <DialogTitle className="text-2xl font-bold mb-1 tracking-tight">{details.title}</DialogTitle>
+                    <DialogTitle className="text-xl font-bold mb-1 tracking-tight">{details.title}</DialogTitle>
                     <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
                       {details.customUrl && <span>{details.customUrl}</span>}
                       <span>•</span>
@@ -114,18 +114,18 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
                     </div>
                   </div>
 
-                  {/* Quick Stats Row */}
-                  <div className="flex justify-center gap-8 w-full max-w-lg mt-2 pt-4 border-t border-slate-200/50 dark:border-slate-800/50">
+                  {/* Quick Stats Row - Grid Layout for stability */}
+                  <div className="grid grid-cols-3 gap-4 w-full max-w-sm mt-2 pt-4 border-t border-slate-200/50 dark:border-slate-800/50">
                     <div className="text-center">
-                      <p className="text-xl font-bold text-slate-900 dark:text-white">{formatNumber(details.subscriberCount)}</p>
+                      <p className="text-lg font-bold text-slate-900 dark:text-white">{formatNumber(details.subscriberCount)}</p>
                       <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider">구독자</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-xl font-bold text-slate-900 dark:text-white">{formatNumber(details.viewCount)}</p>
+                      <p className="text-lg font-bold text-slate-900 dark:text-white">{formatNumber(details.viewCount)}</p>
                       <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider">총 조회수</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-xl font-bold text-slate-900 dark:text-white">{formatNumber(details.videoCount)}</p>
+                      <p className="text-lg font-bold text-slate-900 dark:text-white">{formatNumber(details.videoCount)}</p>
                       <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider">영상 수</p>
                     </div>
                   </div>
@@ -142,41 +142,49 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
                      <TrendingUp className="w-4 h-4 text-red-500" />
                      최근 영상 조회수 추이 (10개)
                    </h3>
-                   <div className="h-48 w-full bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm">
-                     <ResponsiveContainer width="100%" height="100%">
-                       <BarChart data={[...details.recentVideos].reverse()}>
-                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
-                         <XAxis 
-                           dataKey="title" 
-                           hide 
-                         />
-                         <YAxis 
-                           hide 
-                           domain={[0, 'auto']} 
-                         />
-                         <Tooltip 
-                           cursor={{ fill: 'transparent' }}
-                           content={({ active, payload, label }) => {
-                             if (active && payload && payload.length) {
-                               return (
-                                 <div className="bg-slate-900 text-white text-xs rounded-lg py-2 px-3 shadow-xl max-w-[200px] z-50">
-                                   <p className="font-semibold mb-1 line-clamp-2">{payload[0].payload.title}</p>
-                                   <p className="text-slate-300">조회수: <span className="text-white font-bold">{formatFullNumber(payload[0].value as number)}</span></p>
-                                   <p className="text-[10px] text-slate-400 mt-1">{formatDate(payload[0].payload.publishedAt)}</p>
-                                 </div>
-                               );
-                             }
-                             return null;
-                           }}
-                         />
-                         <Bar dataKey="viewCount" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                           {details.recentVideos.map((entry, index) => (
-                             <Cell key={`cell-${index}`} fill={index === 0 ? '#ef4444' : '#94a3b8'} className="hover:fill-red-400 transition-all duration-300" />
-                           ))}
-                         </Bar>
-                       </BarChart>
-                     </ResponsiveContainer>
-                     <p className="text-center text-[10px] text-slate-400 mt-2">← 과거  |  최신 →</p>
+                   <div className="h-52 w-full bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm relative">
+                     {details.recentVideos.length > 0 ? (
+                       <ResponsiveContainer width="100%" height="100%">
+                         <BarChart data={[...details.recentVideos].reverse()} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
+                           <XAxis 
+                             dataKey="title" 
+                             hide 
+                           />
+                           <YAxis 
+                             tick={{ fontSize: 10, fill: '#94a3b8' }}
+                             tickFormatter={(value) => new Intl.NumberFormat('ko-KR', { notation: "compact", maximumFractionDigits: 0 }).format(value)}
+                             axisLine={false}
+                             tickLine={false}
+                           />
+                           <Tooltip 
+                             cursor={{ fill: 'transparent' }}
+                             content={({ active, payload }) => {
+                               if (active && payload && payload.length) {
+                                 return (
+                                   <div className="bg-slate-900 text-white text-xs rounded-lg py-2 px-3 shadow-xl max-w-[200px] z-50 border border-slate-800">
+                                     <p className="font-semibold mb-1 line-clamp-2 leading-snug">{payload[0].payload.title}</p>
+                                     <p className="text-slate-300">조회수: <span className="text-white font-bold">{formatFullNumber(payload[0].value as number)}</span></p>
+                                     <p className="text-[10px] text-slate-400 mt-1">{formatDate(payload[0].payload.publishedAt)}</p>
+                                   </div>
+                                 );
+                               }
+                               return null;
+                             }}
+                           />
+                           <Bar dataKey="viewCount" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                             {details.recentVideos.map((entry, index) => (
+                               <Cell key={`cell-${index}`} fill={index === details.recentVideos.length - 1 ? '#ef4444' : '#cbd5e1'} className="hover:fill-red-400 transition-all duration-300" />
+                             ))}
+                           </Bar>
+                         </BarChart>
+                       </ResponsiveContainer>
+                     ) : (
+                        <div className="flex items-center justify-center h-full text-xs text-slate-400">
+                          데이터가 충분하지 않습니다.
+                        </div>
+                     )}
+                     <p className="text-center text-[10px] text-slate-400 mt-2 absolute bottom-2 w-full left-0 pointer-events-none">← 과거  |  최신 →</p>
                    </div>
                  </div>
 
