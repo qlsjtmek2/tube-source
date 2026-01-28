@@ -1495,71 +1495,91 @@ function AnalyzedVideosSection({
     // Dynamically import to avoid SSR issues
     const html2pdf = (await import('html2pdf.js')).default;
 
-    const element = document.createElement('div');
-    element.innerHTML = `
-      <style>
-        .pdf-container { 
-          font-family: sans-serif; 
-          padding: 40px; 
-          color: #1e293b;
-          line-height: 1.6;
-          background: white;
-        }
-        .header { 
-          border-bottom: 3px solid #ef4444; 
-          padding-bottom: 20px; 
-          margin-bottom: 40px; 
-        }
-        .header h1 { margin: 0; color: #ef4444; font-size: 28px; }
-        .header p { margin: 0; color: #64748b; font-size: 14px; }
-        
-        .video-report { 
-          margin-bottom: 60px; 
-          page-break-inside: avoid;
-          border: 1px solid #e2e8f0;
-          border-radius: 12px;
-          padding: 30px;
-          background: #fff;
-        }
-        .video-title { 
-          font-size: 20px; 
-          font-weight: bold; 
-          margin-bottom: 15px; 
-          color: #0f172a;
-          line-height: 1.4;
-        }
-        .video-meta { 
-          display: grid; 
-          grid-template-columns: repeat(4, 1fr); 
-          gap: 15px;
-          margin-bottom: 25px; 
-          padding: 15px;
-          background: #f8fafc;
-          border-radius: 8px;
-          font-size: 12px;
-        }
-        .meta-item b { display: block; color: #64748b; margin-bottom: 4px; font-size: 10px; text-transform: uppercase; }
-        
-        .section { margin-bottom: 20px; }
-        .section-title { 
-          font-size: 14px; 
-          font-weight: bold; 
-          color: #ef4444; 
-          margin-bottom: 8px;
-        }
-        .section-content { 
-          font-size: 13px; 
-          white-space: pre-wrap;
-        }
-        
-        .list-section { display: flex; gap: 20px; margin-top: 20px; }
-        .list-column { flex: 1; }
-        .list-item { font-size: 13px; margin-bottom: 8px; padding-left: 15px; position: relative; }
-        .list-item::before { content: "•"; position: absolute; left: 0; color: #ef4444; font-weight: bold; }
-      </style>
-      <div class="pdf-container">
+    // Create a hidden iframe for isolation
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '800px';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.style.visibility = 'hidden';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
+    const content = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { 
+            font-family: sans-serif; 
+            padding: 40px; 
+            color: #1e293b;
+            line-height: 1.6;
+            background: white;
+            margin: 0;
+          }
+          .header { 
+            border-bottom: 3px solid #ef4444; 
+            padding-bottom: 20px; 
+            margin-bottom: 40px; 
+          }
+          .header h1 { margin: 0; color: #ef4444; font-size: 28px; }
+          .header p { margin: 0; color: #64748b; font-size: 14px; }
+          
+          .video-report { 
+            margin-bottom: 60px; 
+            page-break-inside: avoid;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 30px;
+            background: #fff;
+          }
+          .video-title { 
+            font-size: 20px; 
+            font-weight: bold; 
+            margin-bottom: 15px; 
+            color: #0f172a;
+            line-height: 1.4;
+          }
+          .video-meta { 
+            display: table;
+            width: 100%;
+            margin-bottom: 25px; 
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 8px;
+            font-size: 12px;
+          }
+          .meta-item { display: table-cell; width: 25%; }
+          .meta-item b { display: block; color: #64748b; margin-bottom: 4px; font-size: 10px; text-transform: uppercase; }
+          
+          .section { margin-bottom: 20px; }
+          .section-title { 
+            font-size: 14px; 
+            font-weight: bold; 
+            color: #ef4444; 
+            margin-bottom: 8px;
+          }
+          .section-content { 
+            font-size: 13px; 
+            white-space: pre-wrap;
+          }
+          
+          .list-section { display: table; width: 100%; margin-top: 20px; border-spacing: 20px 0; }
+          .list-column { display: table-cell; width: 50%; vertical-align: top; }
+          .list-item { font-size: 13px; margin-bottom: 8px; padding-left: 15px; position: relative; }
+          .list-item::before { content: "•"; position: absolute; left: 0; color: #ef4444; font-weight: bold; }
+          
+          .tag { background: #f1f5f9; padding: 4px 10px; border-radius: 4px; font-size: 11px; margin-right: 5px; display: inline-block; margin-bottom: 5px; }
+        </style>
+      </head>
+      <body>
         <div class="header">
-          <h1>TubeSource AI Analysis</h1>
+          <h1>TubeSource AI Analysis Report</h1>
           <p>Total ${analyzedVideos.length} reports generated on ${new Date().toLocaleString()}</p>
         </div>
         
@@ -1600,27 +1620,44 @@ function AnalyzedVideosSection({
 
             <div style="margin-top: 20px;">
               <div class="section-title">유사 소스 키워드</div>
-              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <div>
                 ${Array.isArray(v.analysisResult.search_keywords) 
-                  ? v.analysisResult.search_keywords.map(k => `<span style="background: #f1f5f9; padding: 4px 10px; border-radius: 4px; font-size: 11px; margin-right: 5px;">#${k}</span>`).join('') 
+                  ? v.analysisResult.search_keywords.map(k => `<span class="tag">#${k}</span>`).join('') 
                   : '-'}
               </div>
             </div>
           </div>
         `).join('')}
-      </div>
+      </body>
+      </html>
     `;
 
-    const opt = {
-      margin: 0,
-      filename: `tube-source-report-${new Date().toISOString().split('T')[0]}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
+    doc.open();
+    doc.write(content);
+    doc.close();
 
-    // Trigger direct download
-    html2pdf().set(opt).from(element).save();
+    // Wait for iframe to load resources (if any)
+    setTimeout(async () => {
+      const opt = {
+        margin: 10,
+        filename: `tube-source-report-${new Date().toISOString().split('T')[0]}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2, 
+          useCORS: true,
+          logging: false
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      try {
+        await html2pdf().set(opt).from(doc.body).save();
+      } catch (err) {
+        console.error('PDF generation error:', err);
+      } finally {
+        document.body.removeChild(iframe);
+      }
+    }, 500);
   };
 
   if (loading) {
