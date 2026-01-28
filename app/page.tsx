@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Youtube, Download, BarChart2, List, Settings, Loader2, Trash2, ExternalLink, TrendingUp, Sparkles, Layers, User, FileVideo, Music, Tag, Plus, FolderOpen, MoreVertical, LayoutGrid, Check } from 'lucide-react';
+import { Search, Youtube, Download, BarChart2, List, Settings, Loader2, Trash2, ExternalLink, TrendingUp, Sparkles, Layers, User, FileVideo, Music, Tag, Plus, FolderOpen, MoreVertical, LayoutGrid, Check, X } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { VideoList } from '@/components/video-list';
@@ -1264,7 +1264,7 @@ function CategorySelector({ currentCategory, allCategories, onSelect }: { curren
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => { setIsOpen(false); setIsAdding(false); }} />
-          <div className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-xl rounded-lg z-50 p-2.5 flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-100">
+          <div className="absolute top-full left-0 mt-2 w-80 min-w-[320px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-xl rounded-lg z-50 p-2.5 flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-100">
             <div className="text-[10px] font-bold text-slate-400 px-2 py-1 uppercase tracking-widest flex items-center justify-between">
               카테고리 설정
               <Tag className="w-3 h-3 opacity-50" />
@@ -1333,9 +1333,6 @@ function CategorySelector({ currentCategory, allCategories, onSelect }: { curren
           </div>
         </>
       )}
-    </div>
-  );
-}
     </div>
   );
 }
