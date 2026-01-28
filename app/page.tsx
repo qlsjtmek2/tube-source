@@ -1475,6 +1475,22 @@ function AnalyzedVideosSection({
     }
   };
 
+  const handleExport = () => {
+    if (analyzedVideos.length === 0) return;
+    
+    const dataStr = JSON.stringify(analyzedVideos, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `analyzed-videos-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -1497,6 +1513,15 @@ function AnalyzedVideosSection({
         <p className="text-sm text-muted-foreground">
           총 {analyzedVideos.length}개의 분석된 영상
         </p>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleExport}
+          className="gap-2 h-8 text-xs border-purple-200 hover:bg-purple-50 dark:border-purple-900 dark:hover:bg-purple-900/20"
+        >
+          <Download className="w-3.5 h-3.5" />
+          JSON 내보내기
+        </Button>
       </div>
       <VideoList
         videos={analyzedVideos.map(v => ({
