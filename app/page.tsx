@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Youtube, Download, BarChart2, List, Settings, Loader2, Trash2, ExternalLink, TrendingUp, Sparkles, Layers, User, FileVideo, Music, Tag, Plus, FolderOpen, MoreVertical, LayoutGrid, Check, X } from 'lucide-react';
+import { Search, Youtube, Download, BarChart2, List, Settings, Loader2, Trash2, ExternalLink, TrendingUp, Sparkles, Layers, User, FileVideo, Music, Tag, Plus, FolderOpen, MoreVertical, LayoutGrid, Check, X, FileText, Printer } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { VideoList } from '@/components/video-list';
@@ -1262,7 +1262,7 @@ function CategorySelector({ currentCategory, allCategories, onSelect }: { curren
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => { setIsOpen(false); setIsAdding(false); }} />
-          <div className="absolute top-full left-0 mt-2 w-80 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-xl rounded-lg z-50 p-2.5 flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-100">
+          <div className="absolute top-full left-0 mt-2 bg-white dark:bg-slate-950 border border-border shadow-xl rounded-lg z-50 p-2.5 flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-100" style={{ width: '320px' }}>
             <div className="text-[10px] font-bold text-slate-400 px-2 py-1 uppercase tracking-widest flex items-center justify-between">
               카테고리 설정
               <Tag className="w-3 h-3 opacity-50" />
@@ -1465,30 +1465,155 @@ function AnalyzedVideosSection({
     }
   };
 
-  const handleViewAnalysis = (video: EnrichedVideo) => {
-    // 원본 analyzedVideos 배열에서 실제 분석 결과 찾기
-    const analyzedVideo = analyzedVideos.find(v => v.videoId === video.id);
-
-    if (analyzedVideo?.analysisResult) {
-      // 이미 분석된 결과가 있으므로 API 호출 없이 바로 표시
-      onViewExistingAnalysis(video, analyzedVideo.analysisResult);
-    }
-  };
-
-  const handleExport = () => {
+  const handleExportPDF = () => {
     if (analyzedVideos.length === 0) return;
     
-    const dataStr = JSON.stringify(analyzedVideos, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `analyzed-videos-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const content = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>TubeSource AI 분석 리포트 - ${new Date().toLocaleDateString()}</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
+          body { 
+            font-family: 'Noto Sans KR', sans-serif; 
+            padding: 40px; 
+            color: #1e293b;
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+          }
+          .header { 
+            border-bottom: 3px solid #ef4444; 
+            padding-bottom: 20px; 
+            margin-bottom: 40px; 
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+          }
+          .header h1 { margin: 0; color: #ef4444; font-size: 28px; }
+          .header p { margin: 0; color: #64748b; font-size: 14px; }
+          
+          .video-report { 
+            margin-bottom: 60px; 
+            page-break-inside: avoid;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 30px;
+            background: #fff;
+          }
+          .video-title { 
+            font-size: 20px; 
+            font-weight: bold; 
+            margin-bottom: 15px; 
+            color: #0f172a;
+            line-height: 1.4;
+          }
+          .video-meta { 
+            display: grid; 
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 15px;
+            margin-bottom: 25px; 
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 8px;
+            font-size: 12px;
+          }
+          .meta-item b { display: block; color: #64748b; margin-bottom: 4px; font-size: 10px; text-transform: uppercase; }
+          
+          .section { margin-bottom: 20px; }
+          .section-title { 
+            font-size: 14px; 
+            font-weight: bold; 
+            color: #ef4444; 
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+          .section-content { 
+            font-size: 13px; 
+            background: #fff;
+            padding: 0;
+            white-space: pre-wrap;
+          }
+          
+          .list-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+          .list-item { font-size: 13px; margin-bottom: 8px; padding-left: 15px; position: relative; }
+          .list-item::before { content: "•"; position: absolute; left: 0; color: #ef4444; font-weight: bold; }
+
+          @media print {
+            body { padding: 20px; }
+            .video-report { border: none; padding: 0; margin-bottom: 80px; }
+            .video-meta { border: 1px solid #eee; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <h1>TubeSource AI Analysis</h1>
+            <p>Total ${analyzedVideos.length} reports generated on ${new Date().toLocaleString()}</p>
+          </div>
+          <button class="no-print" onclick="window.print()" style="padding: 10px 20px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">PDF 저장 / 인쇄</button>
+        </div>
+        
+        ${analyzedVideos.map(v => `
+          <div class="video-report">
+            <div class="video-title">${v.title}</div>
+            <div class="video-meta">
+              <div class="meta-item"><b>채널</b>${v.channelTitle}</div>
+              <div class="meta-item"><b>조회수</b>${v.viewCount.toLocaleString()}회</div>
+              <div class="meta-item"><b>성과도</b>${v.performanceRatio}%</div>
+              <div class="meta-item"><b>분석일</b>${new Date(v.analyzedAt).toLocaleDateString()}</div>
+            </div>
+
+            <div class="section">
+              <div class="section-title">핵심 후킹 포인트</div>
+              <div class="section-content">${v.analysisResult.hook || v.analysisResult.commonalities}</div>
+            </div>
+
+            <div class="section">
+              <div class="section-title">콘텐츠 구성 및 전략</div>
+              <div class="section-content">${v.analysisResult.structure || v.analysisResult.strategies}</div>
+            </div>
+
+            <div class="list-section">
+              <div>
+                <div class="section-title">강점 분석</div>
+                ${v.analysisResult.strengths.map(s => `<div class="list-item">${s}</div>`).join('')}
+              </div>
+              <div>
+                <div class="section-title">핵심 인사이트</div>
+                ${v.analysisResult.insights.map(i => `<div class="list-item">${i}</div>`).join('')}
+              </div>
+            </div>
+
+            <div style="margin-top: 20px;">
+              <div class="section-title">유사 소스 키워드</div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                ${v.analysisResult.search_keywords.map(k => `<span style="background: #f1f5f9; padding: 4px 10px; border-radius: 4px; font-size: 11px;">#${k}</span>`).join('')}
+              </div>
+            </div>
+          </div>
+        `).join('')}
+        
+        <script>
+          // Auto trigger print
+          window.onload = () => {
+            // setTimeout(() => window.print(), 500);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(content);
+    printWindow.document.close();
   };
 
   if (loading) {
@@ -1516,11 +1641,11 @@ function AnalyzedVideosSection({
         <Button 
           variant="outline" 
           size="sm" 
-          onClick={handleExport}
-          className="gap-2 h-8 text-xs border-purple-200 hover:bg-purple-50 dark:border-purple-900 dark:hover:bg-purple-900/20"
+          onClick={handleExportPDF}
+          className="gap-2 h-8 text-xs border-red-200 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-900/20 text-red-600"
         >
-          <Download className="w-3.5 h-3.5" />
-          JSON 내보내기
+          <FileText className="w-3.5 h-3.5" />
+          PDF 리포트 내보내기
         </Button>
       </div>
       <VideoList
