@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles, Target, Layout, Lightbulb, Zap, RefreshCw, MessageCircle, Layers, Rocket, TrendingUp, ThumbsUp, AlertTriangle, Search, Scissors, Star, Clock, FileText, type LucideIcon } from "lucide-react";
+import { Loader2, Sparkles, Target, Layout, Lightbulb, Zap, RefreshCw, MessageCircle, Layers, Rocket, TrendingUp, ThumbsUp, AlertTriangle, Search, Scissors, Star, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AnalysisDialogProps {
@@ -30,8 +30,6 @@ interface AnalysisDialogProps {
   channelId?: string;
   channelTitle?: string;
   channelThumbnail?: string;
-  duration?: string;
-  transcript?: string;
 }
 
 // Reusable Section Component
@@ -117,22 +115,9 @@ export function AnalysisDialog({
   onToggleSave,
   channelId,
   channelTitle,
-  channelThumbnail,
-  duration,
-  transcript
+  channelThumbnail
 }: AnalysisDialogProps) {
   const loading = isAnalyzing;
-  
-  // Format duration function
-  const formatDuration = (isoDuration: string) => {
-    if (!isoDuration) return '';
-    return isoDuration
-      .replace('PT', '')
-      .replace('H', '시간 ')
-      .replace('M', '분 ')
-      .replace('S', '초')
-      .trim();
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -147,14 +132,6 @@ export function AnalysisDialog({
               <DialogDescription className="line-clamp-1 mt-1.5 text-muted-foreground">
                 {videoTitle}
               </DialogDescription>
-              
-              {duration && (
-                <div className="mt-2">
-                   <Badge variant="outline" className="text-[10px] h-5 px-1.5 gap-1 font-normal text-muted-foreground border-slate-300 dark:border-slate-700">
-                     <Clock className="w-3 h-3" /> {formatDuration(duration)}
-                   </Badge>
-                </div>
-              )}
 
               {channelTitle && (
                 <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground">
@@ -293,18 +270,6 @@ export function AnalysisDialog({
                 bgColorClass="bg-teal-50 dark:bg-teal-950/20"
                 borderColorClass="border-teal-100 dark:border-teal-900/50"
               />
-
-              {/* Transcript Section */}
-              {transcript && (
-                <section className="pt-4 border-t border-dashed border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center gap-2 mb-3 text-slate-600 dark:text-slate-400 font-bold">
-                    <FileText className="w-4 h-4" /> 영상 자막
-                  </div>
-                  <div className="p-4 rounded-lg border text-sm leading-relaxed whitespace-pre-wrap break-words bg-slate-50 dark:bg-slate-900/30 border-slate-200 dark:border-slate-800 max-h-60 overflow-y-auto custom-scrollbar">
-                    {transcript}
-                  </div>
-                </section>
-              )}
             </div>
           ) : null}
         </div>

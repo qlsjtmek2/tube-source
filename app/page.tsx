@@ -688,8 +688,6 @@ export default function Home() {
         channelId={selectedVideoForAnalysis?.channelId}
         channelTitle={selectedVideoForAnalysis?.channelTitle}
         channelThumbnail={selectedVideoForAnalysis?.channelThumbnail}
-        duration={selectedVideoForAnalysis?.duration}
-        transcript={selectedVideoForAnalysis?.subtitleText}
       />
 
       <SubtitleDialog
