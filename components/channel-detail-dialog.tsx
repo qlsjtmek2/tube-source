@@ -114,8 +114,8 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
                     </div>
                   </div>
 
-                  {/* Quick Stats Row - Grid Layout for stability */}
-                  <div className="grid grid-cols-3 gap-4 w-full max-w-sm mt-2 pt-4 border-t border-slate-200/50 dark:border-slate-800/50">
+                  {/* Quick Stats Row - Grid Layout (4 columns) */}
+                  <div className="grid grid-cols-4 gap-2 w-full max-w-lg mt-4 pt-4 border-t border-slate-200/50 dark:border-slate-800/50">
                     <div className="text-center">
                       <p className="text-lg font-bold text-slate-900 dark:text-white">{formatNumber(details.subscriberCount)}</p>
                       <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider">구독자</p>
@@ -128,21 +128,25 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
                       <p className="text-lg font-bold text-slate-900 dark:text-white">{formatNumber(details.videoCount)}</p>
                       <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider">영상 수</p>
                     </div>
+                    <div className="text-center border-l border-slate-100 dark:border-slate-800 pl-2">
+                      <p className="text-lg font-bold text-slate-900 dark:text-white">{details.lastUploadAt ? formatDate(details.lastUploadAt) : '-'}</p>
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider">마지막 업로드</p>
+                    </div>
                   </div>
                </div>
             </div>
 
             {/* Scrollable Content */}
             <ScrollArea className="flex-1">
-              <div className="p-6 space-y-8">
+              <div className="p-6 space-y-6">
                  
                  {/* Recent Videos Chart */}
                  <div>
-                   <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-100 mb-4">
+                   <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-100 mb-3">
                      <TrendingUp className="w-4 h-4 text-red-500" />
                      최근 영상 조회수 추이 (10개)
                    </h3>
-                   <div className="h-52 w-full bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm relative">
+                   <div className="h-64 w-full bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm relative">
                      {details.recentVideos.length > 0 ? (
                        <ResponsiveContainer width="100%" height="100%">
                          <BarChart data={[...details.recentVideos].reverse()} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -186,22 +190,6 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
                      )}
                      <p className="text-center text-[10px] text-slate-400 mt-2 absolute bottom-2 w-full left-0 pointer-events-none">← 과거  |  최신 →</p>
                    </div>
-                 </div>
-
-                 {/* Additional Stats */}
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
-                      <div className="flex items-center gap-2 mb-1 text-slate-500 text-xs font-medium">
-                        <Calendar className="w-3.5 h-3.5" /> 마지막 업로드
-                      </div>
-                      <p className="text-sm font-semibold">{details.lastUploadAt ? formatDate(details.lastUploadAt) : '-'}</p>
-                    </div>
-                    <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
-                      <div className="flex items-center gap-2 mb-1 text-slate-500 text-xs font-medium">
-                        <Heart className="w-3.5 h-3.5" /> 평균 좋아요
-                      </div>
-                      <p className="text-sm font-semibold">{formatNumber(details.averageLikes)}</p>
-                    </div>
                  </div>
 
                  {/* Description */}
