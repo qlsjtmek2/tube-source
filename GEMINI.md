@@ -55,6 +55,8 @@ components/
   subtitle-dialog.tsx       # 자막 표시 다이얼로그
   comments-dialog.tsx       # 베스트 댓글 표시 다이얼로그
   batch-process-bar.tsx     # 일괄 분석 진행 상황 표시 바 (Inline)
+  batch-process-stack.tsx   # 다중 일괄 작업 스택 관리자
+  batch-analysis-dialog.tsx # 일괄 분석 플로팅 다이얼로그 (Bottom-Right)
   ui/                       # Shadcn/UI primitives (button, dialog, skeleton 등)
 
 lib/
@@ -67,6 +69,7 @@ lib/
 
 store/
   search-context.tsx        # Global state (검색어, 필터, 영상 결과 - 영상 검색 전용)
+  channel-search-context.tsx # Channel search state management
 
 data/
   channels.json             # 저장된 채널 목록 (런타임에 자동 생성)
