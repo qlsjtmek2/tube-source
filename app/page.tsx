@@ -1235,7 +1235,7 @@ function CategorySelector({ currentCategory, allCategories, onSelect }: { curren
       e.stopPropagation();
       e.preventDefault();
     }
-    
+
     if (newCat.trim()) {
       onSelect(newCat.trim());
       setNewCat('');
@@ -1246,88 +1246,102 @@ function CategorySelector({ currentCategory, allCategories, onSelect }: { curren
 
   return (
     <div className="relative">
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "text-[10px] px-2 py-1 rounded-md flex items-center gap-1.5 transition-colors border",
-          currentCategory 
-            ? "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800 hover:bg-slate-200" 
-            : "text-slate-400 hover:text-slate-600 hover:bg-slate-50 border-dashed border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:text-slate-300"
+          "text-[11px] px-2.5 py-1 rounded-md flex items-center gap-1.5 transition-colors border",
+          currentCategory
+            ? "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80"
+            : "text-muted-foreground hover:text-foreground hover:bg-muted border-dashed border-border"
         )}
       >
         <Tag className="w-3 h-3" />
         {currentCategory || '분류 추가'}
       </button>
-      
+
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => { setIsOpen(false); setIsAdding(false); }} />
-          <div className="absolute top-full left-0 mt-2 bg-white dark:bg-slate-950 border border-border shadow-xl rounded-lg z-50 p-2.5 flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-100" style={{ width: '320px' }}>
-            <div className="text-[10px] font-bold text-slate-400 px-2 py-1 uppercase tracking-widest flex items-center justify-between">
-              카테고리 설정
-              <Tag className="w-3 h-3 opacity-50" />
-            </div>
-            
-            <div className="max-h-56 overflow-y-auto custom-scrollbar flex flex-col gap-1">
-              {allCategories.length === 0 && !isAdding && (
-                <div className="text-[11px] text-slate-400 px-2 py-4 text-center border border-dashed rounded-md my-1">
-                  생성된 카테고리가 없습니다
-                </div>
-              )}
-              {allCategories.map(cat => (
-                 <button
-                   key={cat}
-                   className={cn(
-                     "w-full text-xs text-left px-3 py-2.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-between group/item transition-all",
-                     currentCategory === cat ? "text-red-600 font-semibold bg-red-50 dark:bg-red-900/20" : "text-slate-600 dark:text-slate-400"
-                   )}
-                   onClick={() => { onSelect(cat); setIsOpen(false); }}
-                 >
-                   <span className="truncate flex-1">{cat}</span>
-                   {currentCategory === cat && <Check className="w-3.5 h-3.5 shrink-0 animate-in zoom-in duration-200" />}
-                 </button>
-              ))}
-            </div>
-            
-            {currentCategory && (
-               <button
-                 className="w-full text-xs text-left px-3 py-2.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 border-t mt-1 pt-2 flex items-center gap-2"
-                 onClick={() => { onSelect(''); setIsOpen(false); }}
-               >
-                 <X className="w-3.5 h-3.5" />
-                 분류 선택 해제
-               </button>
-            )}
-
-            {!isAdding && <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />}
-            
-            {isAdding ? (
-              <div className="px-1 flex items-center gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
-                <input 
-                  ref={inputRef}
-                  value={newCat}
-                  onChange={e => setNewCat(e.target.value)}
-                  className="flex-1 text-xs border rounded-lg px-3 py-2 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:focus:ring-red-500/40 border-slate-200 dark:border-slate-800 dark:text-white"
-                  placeholder="새 분류명을 입력하세요..."
-                  onKeyDown={e => e.key === 'Enter' && handleAdd(e)}
-                  autoFocus
-                />
-                <button 
-                  type="button"
-                  onClick={handleAdd} 
-                  className="p-2 hover:text-green-600 text-green-500 shrink-0 bg-green-50 dark:bg-green-900/30 rounded-lg transition-colors"
-                >
-                  <Check className="w-4 h-4" />
-                </button>
+          <div
+            className="absolute top-full left-0 mt-2 bg-card border border-border shadow-xl rounded-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+            style={{ width: '280px' }}
+          >
+            {/* Header */}
+            <div className="px-4 py-3 border-b border-border bg-muted/50">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-foreground">카테고리 설정</span>
+                <Tag className="w-4 h-4 text-muted-foreground" />
               </div>
-            ) : (
-              <button
-                className="w-full text-xs text-left px-3 py-2.5 rounded-md hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2 text-red-600 font-semibold transition-colors mt-0.5"
-                onClick={(e) => { e.stopPropagation(); setIsAdding(true); }}
-              >
-                <Plus className="w-4 h-4" /> 새 카테고리 추가
-              </button>
-            )}
+            </div>
+
+            {/* Category List */}
+            <div className="p-2">
+              <div className="max-h-64 overflow-y-auto custom-scrollbar space-y-1">
+                {allCategories.length === 0 && !isAdding && (
+                  <div className="text-sm text-muted-foreground px-3 py-6 text-center border border-dashed border-border rounded-lg">
+                    생성된 카테고리가 없습니다
+                  </div>
+                )}
+                {allCategories.map(cat => (
+                  <button
+                    key={cat}
+                    className={cn(
+                      "w-full text-sm text-left px-3 py-2.5 rounded-lg flex items-center justify-between transition-colors",
+                      currentCategory === cat
+                        ? "bg-danger/10 text-danger font-medium"
+                        : "text-foreground hover:bg-muted"
+                    )}
+                    onClick={() => { onSelect(cat); setIsOpen(false); }}
+                  >
+                    <span className="truncate">{cat}</span>
+                    {currentCategory === cat && <Check className="w-4 h-4 shrink-0" />}
+                  </button>
+                ))}
+              </div>
+
+              {currentCategory && (
+                <button
+                  className="w-full text-sm text-left px-3 py-2.5 rounded-lg hover:bg-muted text-muted-foreground flex items-center gap-2 mt-1"
+                  onClick={() => { onSelect(''); setIsOpen(false); }}
+                >
+                  <X className="w-4 h-4" />
+                  분류 해제
+                </button>
+              )}
+            </div>
+
+            {/* Add New Category */}
+            <div className="p-2 pt-0 border-t border-border mt-1">
+              {isAdding ? (
+                <div className="flex items-center gap-2 p-2" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    ref={inputRef}
+                    value={newCat}
+                    onChange={e => setNewCat(e.target.value)}
+                    className="flex-1 text-sm border border-border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                    placeholder="새 분류명 입력..."
+                    onKeyDown={e => e.key === 'Enter' && handleAdd(e)}
+                    autoFocus
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleAdd}
+                    variant="default"
+                    className="shrink-0"
+                  >
+                    <Check className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  className="w-full text-sm text-left px-3 py-2.5 rounded-lg hover:bg-muted flex items-center gap-2 text-danger font-medium transition-colors mt-2"
+                  onClick={(e) => { e.stopPropagation(); setIsAdding(true); }}
+                >
+                  <Plus className="w-4 h-4" /> 새 카테고리 추가
+                </button>
+              )}
+            </div>
           </div>
         </>
       )}
@@ -1462,6 +1476,16 @@ function AnalyzedVideosSection({
       loadAnalyzedVideos();
     } catch (error) {
       console.error('Failed to delete analysis:', error);
+    }
+  };
+
+  const handleViewAnalysis = (video: EnrichedVideo) => {
+    // 원본 analyzedVideos 배열에서 실제 분석 결과 찾기
+    const analyzedVideo = analyzedVideos.find(v => v.videoId === video.id);
+
+    if (analyzedVideo?.analysisResult) {
+      // 이미 분석된 결과가 있으므로 API 호출 없이 바로 표시
+      onViewExistingAnalysis(video, analyzedVideo.analysisResult);
     }
   };
 
