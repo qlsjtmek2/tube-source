@@ -1489,101 +1489,78 @@ function AnalyzedVideosSection({
     }
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (analyzedVideos.length === 0) return;
     
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+    // Dynamically import to avoid SSR issues
+    const html2pdf = (await import('html2pdf.js')).default;
 
-    const content = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>TubeSource AI 분석 리포트 - ${new Date().toLocaleDateString()}</title>
-        <style>
-          @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
-          body { 
-            font-family: 'Noto Sans KR', sans-serif; 
-            padding: 40px; 
-            color: #1e293b;
-            line-height: 1.6;
-            max-width: 900px;
-            margin: 0 auto;
-          }
-          .header { 
-            border-bottom: 3px solid #ef4444; 
-            padding-bottom: 20px; 
-            margin-bottom: 40px; 
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-          }
-          .header h1 { margin: 0; color: #ef4444; font-size: 28px; }
-          .header p { margin: 0; color: #64748b; font-size: 14px; }
-          
-          .video-report { 
-            margin-bottom: 60px; 
-            page-break-inside: avoid;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 30px;
-            background: #fff;
-          }
-          .video-title { 
-            font-size: 20px; 
-            font-weight: bold; 
-            margin-bottom: 15px; 
-            color: #0f172a;
-            line-height: 1.4;
-          }
-          .video-meta { 
-            display: grid; 
-            grid-template-columns: repeat(4, 1fr); 
-            gap: 15px;
-            margin-bottom: 25px; 
-            padding: 15px;
-            background: #f8fafc;
-            border-radius: 8px;
-            font-size: 12px;
-          }
-          .meta-item b { display: block; color: #64748b; margin-bottom: 4px; font-size: 10px; text-transform: uppercase; }
-          
-          .section { margin-bottom: 20px; }
-          .section-title { 
-            font-size: 14px; 
-            font-weight: bold; 
-            color: #ef4444; 
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-          }
-          .section-content { 
-            font-size: 13px; 
-            background: #fff;
-            padding: 0;
-            white-space: pre-wrap;
-          }
-          
-          .list-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
-          .list-item { font-size: 13px; margin-bottom: 8px; padding-left: 15px; position: relative; }
-          .list-item::before { content: "•"; position: absolute; left: 0; color: #ef4444; font-weight: bold; }
-
-          @media print {
-            body { padding: 20px; }
-            .video-report { border: none; padding: 0; margin-bottom: 80px; }
-            .video-meta { border: 1px solid #eee; }
-            .no-print { display: none; }
-          }
-        </style>
-      </head>
-      <body>
+    const element = document.createElement('div');
+    element.innerHTML = `
+      <style>
+        .pdf-container { 
+          font-family: sans-serif; 
+          padding: 40px; 
+          color: #1e293b;
+          line-height: 1.6;
+          background: white;
+        }
+        .header { 
+          border-bottom: 3px solid #ef4444; 
+          padding-bottom: 20px; 
+          margin-bottom: 40px; 
+        }
+        .header h1 { margin: 0; color: #ef4444; font-size: 28px; }
+        .header p { margin: 0; color: #64748b; font-size: 14px; }
+        
+        .video-report { 
+          margin-bottom: 60px; 
+          page-break-inside: avoid;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 30px;
+          background: #fff;
+        }
+        .video-title { 
+          font-size: 20px; 
+          font-weight: bold; 
+          margin-bottom: 15px; 
+          color: #0f172a;
+          line-height: 1.4;
+        }
+        .video-meta { 
+          display: grid; 
+          grid-template-columns: repeat(4, 1fr); 
+          gap: 15px;
+          margin-bottom: 25px; 
+          padding: 15px;
+          background: #f8fafc;
+          border-radius: 8px;
+          font-size: 12px;
+        }
+        .meta-item b { display: block; color: #64748b; margin-bottom: 4px; font-size: 10px; text-transform: uppercase; }
+        
+        .section { margin-bottom: 20px; }
+        .section-title { 
+          font-size: 14px; 
+          font-weight: bold; 
+          color: #ef4444; 
+          margin-bottom: 8px;
+        }
+        .section-content { 
+          font-size: 13px; 
+          white-space: pre-wrap;
+        }
+        
+        .list-section { display: flex; gap: 20px; margin-top: 20px; }
+        .list-column { flex: 1; }
+        .list-item { font-size: 13px; margin-bottom: 8px; padding-left: 15px; position: relative; }
+        .list-item::before { content: "•"; position: absolute; left: 0; color: #ef4444; font-weight: bold; }
+      </style>
+      <div class="pdf-container">
         <div class="header">
-          <div>
-            <h1>TubeSource AI Analysis</h1>
-            <p>Total ${analyzedVideos.length} reports generated on ${new Date().toLocaleString()}</p>
-          </div>
-          <button class="no-print" onclick="window.print()" style="padding: 10px 20px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">PDF 저장 / 인쇄</button>
+          <h1>TubeSource AI Analysis</h1>
+          <p>Total ${analyzedVideos.length} reports generated on ${new Date().toLocaleString()}</p>
         </div>
         
         ${analyzedVideos.map(v => `
@@ -1598,26 +1575,26 @@ function AnalyzedVideosSection({
 
             <div class="section">
               <div class="section-title">핵심 후킹 포인트</div>
-              <div class="section-content">${v.analysisResult.hook || v.analysisResult.commonalities}</div>
+              <div class="section-content">${v.analysisResult.hook || v.analysisResult.commonalities || '-'}</div>
             </div>
 
             <div class="section">
               <div class="section-title">콘텐츠 구성 및 전략</div>
-              <div class="section-content">${v.analysisResult.structure || v.analysisResult.strategies}</div>
+              <div class="section-content">${v.analysisResult.structure || v.analysisResult.strategies || '-'}</div>
             </div>
 
             <div class="list-section">
-              <div>
+              <div class="list-column">
                 <div class="section-title">강점 분석</div>
                 ${Array.isArray(v.analysisResult.strengths) 
                   ? v.analysisResult.strengths.map(s => `<div class="list-item">${s}</div>`).join('') 
-                  : (v.analysisResult.strengths ? `<div class="list-item">${v.analysisResult.strengths}</div>` : '')}
+                  : (v.analysisResult.strengths ? `<div class="list-item">${v.analysisResult.strengths}</div>` : '-')}
               </div>
-              <div>
+              <div class="list-column">
                 <div class="section-title">핵심 인사이트</div>
                 ${Array.isArray(v.analysisResult.insights) 
                   ? v.analysisResult.insights.map(i => `<div class="list-item">${i}</div>`).join('') 
-                  : (v.analysisResult.insights ? `<div class="list-item">${v.analysisResult.insights}</div>` : '')}
+                  : (v.analysisResult.insights ? `<div class="list-item">${v.analysisResult.insights}</div>` : '-')}
               </div>
             </div>
 
@@ -1625,25 +1602,25 @@ function AnalyzedVideosSection({
               <div class="section-title">유사 소스 키워드</div>
               <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 ${Array.isArray(v.analysisResult.search_keywords) 
-                  ? v.analysisResult.search_keywords.map(k => `<span style="background: #f1f5f9; padding: 4px 10px; border-radius: 4px; font-size: 11px;">#${k}</span>`).join('') 
-                  : ''}
+                  ? v.analysisResult.search_keywords.map(k => `<span style="background: #f1f5f9; padding: 4px 10px; border-radius: 4px; font-size: 11px; margin-right: 5px;">#${k}</span>`).join('') 
+                  : '-'}
               </div>
             </div>
           </div>
         `).join('')}
-        
-        <script>
-          // Auto trigger print
-          window.onload = () => {
-            // setTimeout(() => window.print(), 500);
-          };
-        </script>
-      </body>
-      </html>
+      </div>
     `;
 
-    printWindow.document.write(content);
-    printWindow.document.close();
+    const opt = {
+      margin: 0,
+      filename: `tube-source-report-${new Date().toISOString().split('T')[0]}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    // Trigger direct download
+    html2pdf().set(opt).from(element).save();
   };
 
   if (loading) {
