@@ -169,6 +169,8 @@ export async function saveAnalyzedVideo(
       subscriberCount: video.subscriberCount,
       engagementRate: video.engagementRate,
       performanceRatio: video.performanceRatio,
+      duration: video.duration,
+      transcript: video.subtitleText,
       analysisResult,
       analyzedAt: new Date().toISOString(),
     };

@@ -614,10 +614,11 @@ export default function Home() {
             />
           )}
           {activeTab === 'channels' && (
-            <ChannelsSection 
-              channels={savedChannels} 
+            <ChannelsSection
+              channels={savedChannels}
               onRemove={(id) => handleToggleSave({ channelId: id })}
               onUpdate={handleUpdateChannel}
+              onChannelClick={handleChannelClick}
             />
           )}
           {activeTab === 'trends' && (
@@ -687,6 +688,8 @@ export default function Home() {
         channelId={selectedVideoForAnalysis?.channelId}
         channelTitle={selectedVideoForAnalysis?.channelTitle}
         channelThumbnail={selectedVideoForAnalysis?.channelThumbnail}
+        duration={selectedVideoForAnalysis?.duration}
+        transcript={selectedVideoForAnalysis?.subtitleText}
       />
 
       <SubtitleDialog
@@ -1106,10 +1109,11 @@ function SearchSection({
   );
 }
 
-function ChannelsSection({ channels, onRemove, onUpdate }: { 
-  channels: SavedChannel[], 
+function ChannelsSection({ channels, onRemove, onUpdate, onChannelClick }: {
+  channels: SavedChannel[],
   onRemove: (id: string) => void,
-  onUpdate: (channel: SavedChannel) => void
+  onUpdate: (channel: SavedChannel) => void,
+  onChannelClick: (channelId: string) => void
 }) {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   
@@ -1171,11 +1175,9 @@ function ChannelsSection({ channels, onRemove, onUpdate }: {
               key={channel.channelId} 
               className="group relative flex items-center p-3 gap-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl hover:shadow-md transition-all hover:border-red-200 dark:hover:border-red-900/50"
             >
-              <a 
-                href={`https://youtube.com/channel/${channel.channelId}`} 
-                target="_blank" 
-                rel="noreferrer"
-                className="shrink-0"
+              <button
+                onClick={() => onChannelClick(channel.channelId)}
+                className="shrink-0 cursor-pointer"
               >
                 <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-900 overflow-hidden ring-1 ring-slate-100 dark:ring-slate-800 group-hover:ring-red-500/30 transition-all">
                   {channel.thumbnail ? (
@@ -1184,17 +1186,15 @@ function ChannelsSection({ channels, onRemove, onUpdate }: {
                     <Youtube className="w-full h-full p-2 text-slate-400" />
                   )}
                 </div>
-              </a>
-              
+              </button>
+
               <div className="flex-1 min-w-0 flex flex-col justify-center">
-                <a 
-                  href={`https://youtube.com/channel/${channel.channelId}`} 
-                  target="_blank" 
-                  rel="noreferrer"
-                  className="font-medium text-sm truncate hover:text-red-600 dark:hover:text-red-400 transition-colors block leading-tight mb-1"
+                <button
+                  onClick={() => onChannelClick(channel.channelId)}
+                  className="font-medium text-sm truncate hover:text-red-600 dark:hover:text-red-400 transition-colors block leading-tight mb-1 text-left"
                 >
                   {channel.channelTitle}
-                </a>
+                </button>
                 
                 {/* Category Selector - Compact */}
                 <div className="flex items-center">
@@ -1516,8 +1516,9 @@ function AnalyzedVideosSection({
           performanceRatio: v.performanceRatio,
           publishedAt: v.analyzedAt,
           description: '',
-          duration: '',
-          caption: false,
+          duration: v.duration || '',
+          caption: !!v.transcript,
+          subtitleText: v.transcript,
           channelVideoCount: 0,
           channelViewCount: 0,
         }))}

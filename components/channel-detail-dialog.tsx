@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChannelDetails } from "@/lib/youtube";
-import { Calendar, Eye, FileVideo, Globe, Heart, Search, TrendingUp, User, Users } from "lucide-react";
+import { Calendar, ExternalLink, Eye, FileVideo, Globe, Heart, Search, TrendingUp, User, Users } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { cn } from "@/lib/utils";
 
@@ -153,39 +153,52 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
                    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm relative overflow-hidden" style={{ height: '260px' }}>
                      {details.recentVideos.length > 0 ? (
                        <ResponsiveContainer width="100%" height="100%">
-                         <BarChart data={[...details.recentVideos].reverse()} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                         <LineChart data={[...details.recentVideos].reverse()} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
-                           <XAxis 
-                             dataKey="title" 
-                             hide 
+                           <XAxis
+                             dataKey="title"
+                             hide
                            />
-                           <YAxis 
+                           <YAxis
                              tick={{ fontSize: 10, fill: '#94a3b8' }}
                              tickFormatter={(value) => new Intl.NumberFormat('ko-KR', { notation: "compact", maximumFractionDigits: 0 }).format(value)}
                              axisLine={false}
                              tickLine={false}
                            />
-                           <Tooltip 
-                             cursor={{ fill: 'transparent' }}
+                           <Tooltip
                              content={({ active, payload }) => {
                                if (active && payload && payload.length) {
                                  return (
-                                   <div className="bg-slate-900 text-white text-[11px] rounded-lg py-2 px-3 shadow-xl max-w-[180px] z-50 border border-slate-800">
-                                     <p className="font-semibold mb-1 line-clamp-2 leading-snug">{payload[0].payload.title}</p>
-                                     <p className="text-slate-300">조회수: <span className="text-white font-bold">{formatFullNumber(payload[0].value as number)}</span></p>
-                                     <p className="text-[10px] text-slate-400 mt-1">{formatDate(payload[0].payload.publishedAt)}</p>
+                                   <div
+                                     style={{
+                                       backgroundColor: '#0f172a',
+                                       color: '#ffffff',
+                                       fontSize: '11px',
+                                       borderRadius: '8px',
+                                       padding: '8px 12px',
+                                       maxWidth: '200px',
+                                       boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+                                       border: '1px solid #1e293b',
+                                     }}
+                                   >
+                                     <p style={{ fontWeight: 600, marginBottom: '4px', lineHeight: 1.4 }}>{payload[0].payload.title}</p>
+                                     <p style={{ color: '#cbd5e1' }}>조회수: <span style={{ color: '#ffffff', fontWeight: 700 }}>{formatFullNumber(payload[0].value as number)}</span></p>
+                                     <p style={{ fontSize: '10px', color: '#94a3b8', marginTop: '4px' }}>{formatDate(payload[0].payload.publishedAt)}</p>
                                    </div>
                                  );
                                }
                                return null;
                              }}
                            />
-                           <Bar dataKey="viewCount" radius={[4, 4, 0, 0]} maxBarSize={30}>
-                             {details.recentVideos.map((entry, index) => (
-                               <Cell key={`cell-${index}`} fill={index === details.recentVideos.length - 1 ? '#ef4444' : '#cbd5e1'} />
-                             ))}
-                           </Bar>
-                         </BarChart>
+                           <Line
+                             type="monotone"
+                             dataKey="viewCount"
+                             stroke="#ef4444"
+                             strokeWidth={2}
+                             dot={{ fill: '#ef4444', strokeWidth: 0, r: 4 }}
+                             activeDot={{ fill: '#ef4444', strokeWidth: 0, r: 6 }}
+                           />
+                         </LineChart>
                        </ResponsiveContainer>
                      ) : (
                         <div className="flex items-center justify-center h-full text-xs text-slate-400">데이터가 없습니다.</div>
@@ -209,11 +222,19 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
             </ScrollArea>
 
             {/* Footer Action */}
-            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 shrink-0">
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 shrink-0 flex gap-3">
+               <Button
+                 onClick={() => window.open(`https://youtube.com/channel/${details.id}`, '_blank')}
+                 variant="outline"
+                 className="h-11 text-sm font-semibold px-4"
+               >
+                 <ExternalLink className="w-4 h-4 mr-2" />
+                 채널 바로가기
+               </Button>
                <Button
                  onClick={() => onLoadToSearch(details.id, details.title)}
                  variant="danger"
-                 className="w-full h-11 text-sm font-semibold"
+                 className="flex-1 h-11 text-sm font-semibold"
                >
                  <Search className="w-4 h-4 mr-2" />
                  이 채널의 영상 검색하기
