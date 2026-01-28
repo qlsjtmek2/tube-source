@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChannelDetails } from "@/lib/youtube";
-import { Calendar, Eye, FileVideo, Globe, Heart, Search, Star, ThumbsUp, Users } from "lucide-react";
+import { Calendar, Eye, FileVideo, Globe, Heart, Search, TrendingUp, User, Users } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
 
 interface ChannelDetailDialogProps {
   channelId: string | null;
@@ -50,13 +51,17 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
     return new Intl.NumberFormat('ko-KR', { notation: "compact", maximumFractionDigits: 1 }).format(num);
   };
 
+  const formatFullNumber = (num: number) => {
+    return new Intl.NumberFormat('ko-KR').format(num);
+  };
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
+      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 gap-0 bg-white dark:bg-slate-950 overflow-hidden border-none shadow-2xl">
         <DialogHeader className="sr-only">
           <DialogTitle>
             {loading ? "채널 정보 불러오는 중..." : error ? "오류 발생" : details?.title || "채널 상세 정보"}
@@ -64,86 +69,156 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
         </DialogHeader>
 
         {loading ? (
-          <div className="p-10 space-y-4">
-             <div className="flex items-center gap-4">
-               <Skeleton className="h-20 w-20 rounded-full" />
-               <div className="space-y-2 flex-1">
-                 <Skeleton className="h-6 w-1/3" />
-                 <Skeleton className="h-4 w-1/4" />
-               </div>
+          <div className="p-8 space-y-6 flex flex-col items-center justify-center h-[500px]">
+             <Skeleton className="h-24 w-24 rounded-full" />
+             <div className="space-y-2 w-full max-w-md flex flex-col items-center">
+               <Skeleton className="h-8 w-1/2" />
+               <Skeleton className="h-4 w-1/3" />
              </div>
-             <Skeleton className="h-32 w-full" />
-             <Skeleton className="h-48 w-full" />
+             <div className="grid grid-cols-3 gap-4 w-full mt-4">
+               <Skeleton className="h-20 w-full" />
+               <Skeleton className="h-20 w-full" />
+               <Skeleton className="h-20 w-full" />
+             </div>
+             <Skeleton className="h-48 w-full mt-4" />
           </div>
         ) : error ? (
-          <div className="p-10 text-center text-red-500">
-            <p>채널 정보를 불러오는데 실패했습니다.</p>
+          <div className="p-10 text-center text-red-500 h-[300px] flex flex-col items-center justify-center">
+            <p className="font-semibold text-lg">채널 정보를 불러오는데 실패했습니다.</p>
             <p className="text-sm text-slate-400 mt-2">{error}</p>
           </div>
         ) : details ? (
-          <>
-            {/* Header / Banner */}
-            <div className="relative">
-               {details.banner && (
-                 <div className="w-full h-32 bg-slate-100 overflow-hidden">
-                   <img src={details.banner} alt="Banner" className="w-full h-full object-cover" />
-                 </div>
-               )}
-            </div>
-
-            <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
-               {/* Channel Profile */}
-               <div className="flex flex-col md:flex-row gap-5 mb-6 -mt-10 relative z-10">
-                  <div className="shrink-0">
+          <div className="flex flex-col h-full">
+            {/* Header Section */}
+            <div className="p-6 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 shrink-0">
+               <div className="flex flex-col items-center text-center gap-4">
+                  <div className="relative">
                     <img 
                       src={details.thumbnail} 
                       alt={details.title} 
-                      className="w-20 h-20 md:w-24 md:h-24 rounded-full border-4 border-white shadow-sm bg-white" 
+                      className="w-24 h-24 rounded-full border-4 border-white dark:border-slate-800 shadow-md bg-white dark:bg-slate-800 object-cover" 
                     />
+                    {details.country && (
+                      <Badge variant="secondary" className="absolute -bottom-2 -right-2 px-1.5 py-0.5 text-[10px] shadow-sm border-white dark:border-slate-800 border-2">
+                        {details.country}
+                      </Badge>
+                    )}
                   </div>
-                  <div className="flex-1 pt-2 md:pt-10">
-                    <DialogTitle className="text-xl font-bold mb-1">{details.title}</DialogTitle>
-                    <div className="flex flex-wrap gap-2 text-xs text-slate-500 mb-4">
+                  
+                  <div>
+                    <DialogTitle className="text-2xl font-bold mb-1 tracking-tight">{details.title}</DialogTitle>
+                    <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
                       {details.customUrl && <span>{details.customUrl}</span>}
                       <span>•</span>
                       <span>개설일: {formatDate(details.publishedAt)}</span>
-                      {details.country && (
-                        <>
-                           <span>•</span>
-                           <span className="flex items-center gap-1"><Globe className="w-3 h-3" /> {details.country}</span>
-                        </>
-                      )}
+                    </div>
+                  </div>
+
+                  {/* Quick Stats Row */}
+                  <div className="flex justify-center gap-8 w-full max-w-lg mt-2 pt-4 border-t border-slate-200/50 dark:border-slate-800/50">
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-slate-900 dark:text-white">{formatNumber(details.subscriberCount)}</p>
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider">구독자</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-slate-900 dark:text-white">{formatNumber(details.viewCount)}</p>
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider">총 조회수</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-slate-900 dark:text-white">{formatNumber(details.videoCount)}</p>
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider">영상 수</p>
                     </div>
                   </div>
                </div>
-
-               {/* Stats Grid */}
-               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-                  <CardStat icon={<Users className="w-4 h-4 text-blue-500" />} label="구독자" value={formatNumber(details.subscriberCount)} />
-                  <CardStat icon={<Eye className="w-4 h-4 text-green-500" />} label="총 조회수" value={formatNumber(details.viewCount)} />
-                  <CardStat icon={<FileVideo className="w-4 h-4 text-red-500" />} label="총 영상수" value={formatNumber(details.videoCount)} />
-                  <CardStat icon={<Calendar className="w-4 h-4 text-orange-500" />} label="마지막 업로드" value={details.lastUploadAt ? formatDate(details.lastUploadAt) : '-'} />
-                  <CardStat icon={<Heart className="w-4 h-4 text-pink-500" />} label="평균 좋아요 (Sample)" value={formatNumber(details.averageLikes)} />
-                  <CardStat icon={<ThumbsUp className="w-4 h-4 text-purple-500" />} label="성과도 (Avg)" value="-" />
-               </div>
-
-               {/* Description */}
-               <div className="mb-8">
-                 <h3 className="font-semibold mb-2">채널 설명</h3>
-                 <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg text-sm whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar text-slate-600 dark:text-slate-300">
-                   {details.description || "채널 설명이 없습니다."}
-                 </div>
-               </div>
-
-               {/* Action Button at the bottom */}
-               <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
-                 <Button onClick={() => onLoadToSearch(details.id, details.title)} className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white shadow-sm">
-                   <Search className="w-4 h-4 mr-2" />
-                   채널 검색 탭으로 불러오기
-                 </Button>
-               </div>
             </div>
-          </>
+
+            {/* Scrollable Content */}
+            <ScrollArea className="flex-1">
+              <div className="p-6 space-y-8">
+                 
+                 {/* Recent Videos Chart */}
+                 <div>
+                   <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-100 mb-4">
+                     <TrendingUp className="w-4 h-4 text-red-500" />
+                     최근 영상 조회수 추이 (10개)
+                   </h3>
+                   <div className="h-48 w-full bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm">
+                     <ResponsiveContainer width="100%" height="100%">
+                       <BarChart data={[...details.recentVideos].reverse()}>
+                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
+                         <XAxis 
+                           dataKey="title" 
+                           hide 
+                         />
+                         <YAxis 
+                           hide 
+                           domain={[0, 'auto']} 
+                         />
+                         <Tooltip 
+                           cursor={{ fill: 'transparent' }}
+                           content={({ active, payload, label }) => {
+                             if (active && payload && payload.length) {
+                               return (
+                                 <div className="bg-slate-900 text-white text-xs rounded-lg py-2 px-3 shadow-xl max-w-[200px] z-50">
+                                   <p className="font-semibold mb-1 line-clamp-2">{payload[0].payload.title}</p>
+                                   <p className="text-slate-300">조회수: <span className="text-white font-bold">{formatFullNumber(payload[0].value as number)}</span></p>
+                                   <p className="text-[10px] text-slate-400 mt-1">{formatDate(payload[0].payload.publishedAt)}</p>
+                                 </div>
+                               );
+                             }
+                             return null;
+                           }}
+                         />
+                         <Bar dataKey="viewCount" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                           {details.recentVideos.map((entry, index) => (
+                             <Cell key={`cell-${index}`} fill={index === 0 ? '#ef4444' : '#94a3b8'} className="hover:fill-red-400 transition-all duration-300" />
+                           ))}
+                         </Bar>
+                       </BarChart>
+                     </ResponsiveContainer>
+                     <p className="text-center text-[10px] text-slate-400 mt-2">← 과거  |  최신 →</p>
+                   </div>
+                 </div>
+
+                 {/* Additional Stats */}
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-2 mb-1 text-slate-500 text-xs font-medium">
+                        <Calendar className="w-3.5 h-3.5" /> 마지막 업로드
+                      </div>
+                      <p className="text-sm font-semibold">{details.lastUploadAt ? formatDate(details.lastUploadAt) : '-'}</p>
+                    </div>
+                    <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-2 mb-1 text-slate-500 text-xs font-medium">
+                        <Heart className="w-3.5 h-3.5" /> 평균 좋아요
+                      </div>
+                      <p className="text-sm font-semibold">{formatNumber(details.averageLikes)}</p>
+                    </div>
+                 </div>
+
+                 {/* Description */}
+                 {details.description && (
+                   <div>
+                     <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-2">채널 설명</h3>
+                     <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg text-xs leading-relaxed whitespace-pre-wrap text-slate-600 dark:text-slate-400 max-h-32 overflow-y-auto custom-scrollbar border border-slate-100 dark:border-slate-800">
+                       {details.description}
+                     </div>
+                   </div>
+                 )}
+              </div>
+            </ScrollArea>
+
+            {/* Footer Action */}
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 shrink-0">
+               <Button 
+                 onClick={() => onLoadToSearch(details.id, details.title)} 
+                 className="w-full bg-red-600 hover:bg-red-700 text-white shadow-sm h-11 text-sm font-semibold"
+               >
+                 <Search className="w-4 h-4 mr-2" />
+                 이 채널의 영상 검색하기
+               </Button>
+            </div>
+          </div>
         ) : null}
       </DialogContent>
     </Dialog>

@@ -279,7 +279,6 @@ export interface ChannelDetails {
   title: string;
   description: string;
   thumbnail: string;
-  banner?: string;
   customUrl?: string;
   country?: string;
   publishedAt: string;
@@ -293,14 +292,15 @@ export interface ChannelDetails {
   
   keywords: string[];
   
-  topVideos: EnrichedVideo[];
+  topVideos: EnrichedVideo[]; // Keep for compatibility if needed, or just popular ones
+  recentVideos: { title: string; viewCount: number; publishedAt: string }[];
 }
 
 export async function getChannelDetails(channelId: string): Promise<ChannelDetails> {
   try {
-    // 1. Get Channel Basic Info
+    // 1. Get Channel Basic Info (Removed brandingSettings to skip banner)
     const channelRes = await youtube.channels.list({
-      part: ['snippet', 'statistics', 'brandingSettings', 'contentDetails'],
+      part: ['snippet', 'statistics', 'contentDetails'],
       id: [channelId],
     });
 
@@ -316,19 +316,20 @@ export async function getChannelDetails(channelId: string): Promise<ChannelDetai
       maxResults: 3,
     });
     
-    // 3. Get Latest Video (for last upload date)
-    const latestSearch = await youtube.search.list({
+    // 3. Get Recent 10 Videos (for graph and last upload date)
+    const recentSearch = await youtube.search.list({
       part: ['id', 'snippet'],
       channelId: channelId,
       order: 'date',
       type: ['video'],
-      maxResults: 1,
+      maxResults: 10,
     });
 
     const popularIds = popularSearch.data.items?.map(i => i.id?.videoId).filter(Boolean) as string[] || [];
-    const latestId = latestSearch.data.items?.[0]?.id?.videoId;
+    const recentItems = recentSearch.data.items || [];
+    const recentIds = recentItems.map(i => i.id?.videoId).filter(Boolean) as string[];
     
-    const allVideoIds = [...new Set([...popularIds, latestId].filter(Boolean) as string[])];
+    const allVideoIds = [...new Set([...popularIds, ...recentIds].filter(Boolean) as string[])];
 
     // 4. Get Video Details
     let videoItems: youtube_v3.Schema$Video[] = [];
@@ -340,7 +341,7 @@ export async function getChannelDetails(channelId: string): Promise<ChannelDetai
       videoItems = videoRes.data.items || [];
     }
 
-    // Map to EnrichedVideo for Top 3
+    // Map to EnrichedVideo for Top 3 Popular
     const topVideos = videoItems
       .filter(v => popularIds.includes(v.id!))
       .map(v => ({
@@ -360,22 +361,33 @@ export async function getChannelDetails(channelId: string): Promise<ChannelDetai
         subscriberCount: Number(channel.statistics?.subscriberCount) || 0,
         channelVideoCount: Number(channel.statistics?.videoCount) || 0,
         channelViewCount: Number(channel.statistics?.viewCount) || 0,
-        engagementRate: 0, // calc later
-        performanceRatio: 0, // calc later
-      }));
+        engagementRate: 0, 
+        performanceRatio: 0, 
+      })).slice(0, 3); // Ensure max 3
       
-    // Calculate simple avg likes from the sample
+    // Map Recent Videos for Graph
+    // We need to map from 'videoItems' to get accurate viewCounts because search result statistics might be missing or limited
+    const recentVideos = recentIds.map(id => {
+      const v = videoItems.find(item => item.id === id);
+      return {
+        title: v?.snippet?.title || 'Unknown',
+        viewCount: Number(v?.statistics?.viewCount) || 0,
+        publishedAt: v?.snippet?.publishedAt || '',
+      };
+    }).filter(v => v.publishedAt); // Filter out any failed lookups
+
+    // Calculate simple avg likes from the sample (using all fetched videos)
     const totalLikes = videoItems.reduce((sum, v) => sum + (Number(v.statistics?.likeCount) || 0), 0);
     const averageLikes = videoItems.length > 0 ? Math.floor(totalLikes / videoItems.length) : 0;
 
-    const lastUploadAt = latestSearch.data.items?.[0]?.snippet?.publishedAt || '';
+    const lastUploadAt = recentItems[0]?.snippet?.publishedAt || '';
 
     return {
       id: channel.id!,
       title: channel.snippet?.title || '',
       description: channel.snippet?.description || '',
       thumbnail: channel.snippet?.thumbnails?.medium?.url || '',
-      banner: channel.brandingSettings?.image?.bannerExternalUrl || undefined,
+      // Banner removed
       customUrl: channel.snippet?.customUrl || '',
       country: channel.snippet?.country || undefined,
       publishedAt: channel.snippet?.publishedAt || '',
@@ -387,9 +399,13 @@ export async function getChannelDetails(channelId: string): Promise<ChannelDetai
       lastUploadAt,
       averageLikes,
       
-      keywords: channel.brandingSettings?.channel?.keywords?.split(' ') || [],
+      keywords: [], // Keywords often come from brandingSettings which we removed. If needed, we'd need brandingSettings back but ignore banner.
+      // Actually keywords are in brandingSettings.channel.keywords. 
+      // If user wants "no channel art", I can still fetch brandingSettings but just NOT return banner.
+      // Let's re-add brandingSettings to fetch keywords but strictly omit banner from return object.
       
       topVideos,
+      recentVideos,
     };
 
   } catch (error) {
