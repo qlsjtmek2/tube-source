@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles, Target, Layout, Lightbulb, Zap, RefreshCw, MessageCircle, Layers, Rocket, TrendingUp, ThumbsUp, AlertTriangle, Search, Scissors, Star } from "lucide-react";
+import { Loader2, Sparkles, Target, Layout, Lightbulb, Zap, RefreshCw, MessageCircle, Layers, Rocket, TrendingUp, ThumbsUp, AlertTriangle, Search, Scissors, Star, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AnalysisDialogProps {
@@ -21,8 +21,6 @@ interface AnalysisDialogProps {
   isAnalyzing?: boolean;
   isAnalyzed?: boolean;
   onRefresh?: () => void;
-
-  // 별표 기능 추가
   isSaved?: boolean;
   onToggleSave?: (channel: {
     channelId: string;
@@ -32,6 +30,77 @@ interface AnalysisDialogProps {
   channelId?: string;
   channelTitle?: string;
   channelThumbnail?: string;
+}
+
+// Reusable Section Component
+function AnalysisSection({
+  icon: Icon,
+  title,
+  content,
+  colorClass,
+  bgColorClass,
+  borderColorClass
+}: {
+  icon: LucideIcon;
+  title: string;
+  content: string;
+  colorClass: string;
+  bgColorClass: string;
+  borderColorClass: string;
+}) {
+  if (!content) return null;
+
+  return (
+    <section>
+      <div className={cn("flex items-center gap-2 mb-3 font-bold", colorClass)}>
+        <Icon className="w-4 h-4" /> {title}
+      </div>
+      <div className={cn("p-4 rounded-lg border text-sm leading-relaxed whitespace-pre-wrap break-words", bgColorClass, borderColorClass)}>
+        {typeof content === 'object' 
+          ? Object.entries(content).map(([k, v]) => `${k}: ${v}`).join('\n\n') 
+          : String(content)}
+      </div>
+    </section>
+  );
+}
+
+// Reusable List Section Component
+function AnalysisListSection({
+  icon: Icon,
+  title,
+  items,
+  colorClass,
+  badgeColorClass,
+  badgeVariant = "default",
+  badgePrefix
+}: {
+  icon: LucideIcon;
+  title: string;
+  items: string[];
+  colorClass: string;
+  badgeColorClass?: string;
+  badgeVariant?: "default" | "secondary" | "destructive" | "outline";
+  badgePrefix?: string;
+}) {
+  if (!items || items.length === 0) return null;
+
+  return (
+    <section>
+      <div className={cn("flex items-center gap-2 mb-3 font-bold", colorClass)}>
+        <Icon className="w-4 h-4" /> {title}
+      </div>
+      <div className="grid gap-3">
+        {items.map((item, i) => (
+          <div key={i} className={cn("flex gap-3 p-3 rounded-lg text-sm border bg-card dark:bg-card/50")}>
+            <Badge variant={badgeVariant} className={cn("h-5 shrink-0", badgeColorClass)}>
+              {badgePrefix || i + 1}
+            </Badge>
+            <span className="break-words">{item}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 export function AnalysisDialog({
@@ -50,53 +119,36 @@ export function AnalysisDialog({
 }: AnalysisDialogProps) {
   const loading = isAnalyzing;
 
-  // 객체인 경우 문자열로 변환
-  const formatContent = (content: any) => {
-    if (typeof content === 'string') {
-      return content;
-    }
-    if (typeof content === 'object' && content !== null) {
-      return Object.entries(content)
-        .map(([key, value]) => `${key}: ${value}`)
-        .join('\n\n');
-    }
-    return String(content);
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[95vw] max-w-[600px] h-[80vh] flex flex-col p-0 overflow-hidden">
         <DialogHeader className="p-6 pb-2 shrink-0">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0 pr-8">
-              <DialogTitle className="flex items-center gap-2">
+              <DialogTitle className="flex items-center gap-2 text-primary">
                 <Sparkles className="w-5 h-5 text-red-500" />
                 AI 전략 분석 리포트
               </DialogTitle>
-              <DialogDescription className="line-clamp-1 mt-1.5">
+              <DialogDescription className="line-clamp-1 mt-1.5 text-muted-foreground">
                 {videoTitle}
               </DialogDescription>
 
-              {/* 채널 정보 및 별표 버튼 */}
               {channelTitle && (
-                <div className="flex items-center gap-1.5 mt-1.5 text-xs text-slate-500">
+                <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground">
                   <span>{channelTitle}</span>
                   {onToggleSave && channelId && channelThumbnail && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onToggleSave({
-                          channelId,
-                          channelTitle,
-                          thumbnail: channelThumbnail
-                        });
+                        onToggleSave({ channelId, channelTitle, thumbnail: channelThumbnail });
                       }}
-                      className={`p-1 rounded-full shrink-0 transition-colors ${
-                        isSaved ? 'text-yellow-500' : 'text-slate-300 hover:text-yellow-400'
-                      }`}
+                      className={cn(
+                        "p-1 rounded-full shrink-0 transition-colors",
+                        isSaved ? "text-yellow-500" : "text-muted-foreground hover:text-yellow-400"
+                      )}
                       title={isSaved ? '채널 저장 취소' : '채널 저장'}
                     >
-                      <Star className={`w-3.5 h-3.5 ${isSaved ? 'fill-current' : ''}`} />
+                      <Star className={cn("w-3.5 h-3.5", isSaved && "fill-current")} />
                     </button>
                   )}
                 </div>
@@ -105,140 +157,91 @@ export function AnalysisDialog({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 pt-2 min-h-0">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 pt-2 min-h-0 bg-background">
           {loading ? (
-            <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-500">
-              <Loader2 className="w-8 h-8 animate-spin text-red-500" />
+            <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
               <p>Gemini 3.0 Flash가 영상을 분석 중입니다...</p>
             </div>
           ) : analysis ? (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 mb-8">
-              {/* Context Analysis Sections */}
-              {analysis.commonalities && (
-                <section>
-                  <div className="flex items-center gap-2 mb-3 text-purple-600 font-bold">
-                    <Layers className="w-4 h-4" /> 공통된 성공 요인
-                  </div>
-                  <div className="p-4 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-100 dark:border-purple-900/50 text-sm leading-relaxed whitespace-pre-wrap break-words">
-                    {formatContent(analysis.commonalities)}
-                  </div>
-                </section>
-              )}
+              <AnalysisSection
+                icon={Layers}
+                title="공통된 성공 요인"
+                content={analysis.commonalities}
+                colorClass="text-purple-600 dark:text-purple-400"
+                bgColorClass="bg-purple-50 dark:bg-purple-950/20"
+                borderColorClass="border-purple-100 dark:border-purple-900/50"
+              />
+              <AnalysisSection
+                icon={TrendingUp}
+                title="트렌드 및 전략 분석"
+                content={analysis.strategies}
+                colorClass="text-indigo-600 dark:text-indigo-400"
+                bgColorClass="bg-indigo-50 dark:bg-indigo-950/20"
+                borderColorClass="border-indigo-100 dark:border-indigo-900/50"
+              />
+              <AnalysisSection
+                icon={Zap}
+                title="핵심 후킹 포인트"
+                content={analysis.hook}
+                colorClass="text-red-600 dark:text-red-400"
+                bgColorClass="bg-red-50 dark:bg-red-950/20"
+                borderColorClass="border-red-100 dark:border-red-900/50"
+              />
+              <AnalysisSection
+                icon={Target}
+                title="타겟 오디언스"
+                content={analysis.target}
+                colorClass="text-blue-600 dark:text-blue-400"
+                bgColorClass="bg-blue-50 dark:bg-blue-950/20"
+                borderColorClass="border-blue-100 dark:border-blue-900/50"
+              />
+              <AnalysisSection
+                icon={MessageCircle}
+                title="커뮤니티 니즈 & 반응"
+                content={analysis.community_needs}
+                colorClass="text-pink-600 dark:text-pink-400"
+                bgColorClass="bg-pink-50 dark:bg-pink-950/20"
+                borderColorClass="border-pink-100 dark:border-pink-900/50"
+              />
+              <AnalysisSection
+                icon={Layout}
+                title="콘텐츠 구성 전략"
+                content={analysis.structure}
+                colorClass="text-green-600 dark:text-green-400"
+                bgColorClass="bg-green-50 dark:bg-green-950/20"
+                borderColorClass="border-green-100 dark:border-green-900/50"
+              />
 
-              {analysis.strategies && (
-                <section>
-                  <div className="flex items-center gap-2 mb-3 text-indigo-600 font-bold">
-                    <TrendingUp className="w-4 h-4" /> 트렌드 및 전략 분석
-                  </div>
-                  <div className="p-4 bg-indigo-50 dark:bg-indigo-950/30 rounded-lg border border-indigo-100 dark:border-indigo-900/50 text-sm leading-relaxed whitespace-pre-wrap break-words">
-                    {formatContent(analysis.strategies)}
-                  </div>
-                </section>
-              )}
+              <AnalysisListSection
+                icon={ThumbsUp}
+                title="강점 분석"
+                items={analysis.strengths}
+                colorClass="text-emerald-600 dark:text-emerald-400"
+                badgeColorClass="bg-emerald-500 text-white"
+                badgePrefix="+"
+              />
+              <AnalysisListSection
+                icon={AlertTriangle}
+                title="약점 및 개선점"
+                items={analysis.weaknesses}
+                colorClass="text-amber-600 dark:text-amber-400"
+                badgeColorClass="bg-amber-500 text-white"
+                badgePrefix="!"
+              />
+              <AnalysisListSection
+                icon={Lightbulb}
+                title={analysis.commonalities ? "핵심 인사이트" : "벤치마킹 인사이트"}
+                items={analysis.insights}
+                colorClass="text-orange-600 dark:text-orange-400"
+                badgeVariant="secondary"
+              />
 
-              {/* Single Video Analysis Sections */}
-              {analysis.hook && (
-                <section>
-                  <div className="flex items-center gap-2 mb-3 text-red-600 font-bold">
-                    <Zap className="w-4 h-4" /> 핵심 후킹 포인트
-                  </div>
-                  <div className="p-4 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-100 dark:border-red-900/50 text-sm leading-relaxed whitespace-pre-wrap break-words">
-                    {formatContent(analysis.hook)}
-                  </div>
-                </section>
-              )}
-
-              {/* Target */}
-              {analysis.target && (
-                <section>
-                  <div className="flex items-center gap-2 mb-3 text-blue-600 font-bold">
-                    <Target className="w-4 h-4" /> 타겟 오디언스
-                  </div>
-                  <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-100 dark:border-blue-900/50 text-sm leading-relaxed whitespace-pre-wrap break-words">
-                    {formatContent(analysis.target)}
-                  </div>
-                </section>
-              )}
-
-              {/* Community Needs */}
-              {analysis.community_needs && (
-                <section>
-                  <div className="flex items-center gap-2 mb-3 text-pink-600 font-bold">
-                    <MessageCircle className="w-4 h-4" /> 커뮤니티 니즈 & 반응
-                  </div>
-                  <div className="p-4 bg-pink-50 dark:bg-pink-950/30 rounded-lg border border-pink-100 dark:border-pink-900/50 text-sm leading-relaxed whitespace-pre-wrap break-words">
-                    {formatContent(analysis.community_needs)}
-                  </div>
-                </section>
-              )}
-
-              {/* Structure */}
-              {analysis.structure && (
-                <section>
-                  <div className="flex items-center gap-2 mb-3 text-green-600 font-bold">
-                    <Layout className="w-4 h-4" /> 콘텐츠 구성 전략
-                  </div>
-                  <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-100 dark:border-green-900/50 text-sm leading-relaxed whitespace-pre-wrap break-words">
-                    {formatContent(analysis.structure)}
-                  </div>
-                </section>
-              )}
-
-              {/* Strengths - 강점 분석 */}
-              {analysis.strengths && analysis.strengths.length > 0 && (
-                <section>
-                  <div className="flex items-center gap-2 mb-3 text-emerald-600 font-bold">
-                    <ThumbsUp className="w-4 h-4" /> 강점 분석
-                  </div>
-                  <div className="grid gap-3">
-                    {analysis.strengths.map((strength: string, i: number) => (
-                      <div key={i} className="flex gap-3 p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50 rounded-lg text-sm">
-                        <Badge className="h-5 shrink-0 bg-emerald-500">+</Badge>
-                        <span className="break-words">{strength}</span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* Weaknesses - 약점 및 개선점 */}
-              {analysis.weaknesses && analysis.weaknesses.length > 0 && (
-                <section>
-                  <div className="flex items-center gap-2 mb-3 text-amber-600 font-bold">
-                    <AlertTriangle className="w-4 h-4" /> 약점 및 개선점
-                  </div>
-                  <div className="grid gap-3">
-                    {analysis.weaknesses.map((weakness: string, i: number) => (
-                      <div key={i} className="flex gap-3 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/50 rounded-lg text-sm">
-                        <Badge className="h-5 shrink-0 bg-amber-500">!</Badge>
-                        <span className="break-words">{weakness}</span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* Insights */}
-              {analysis.insights && analysis.insights.length > 0 && (
-                <section>
-                  <div className="flex items-center gap-2 mb-3 text-orange-600 font-bold">
-                    <Lightbulb className="w-4 h-4" /> {analysis.commonalities ? "핵심 인사이트" : "벤치마킹 인사이트"}
-                  </div>
-                  <div className="grid gap-3">
-                    {analysis.insights.map((insight: string, i: number) => (
-                      <div key={i} className="flex gap-3 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm">
-                        <Badge variant="secondary" className="h-5 shrink-0">{i + 1}</Badge>
-                        <span className="break-words">{insight}</span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* Search Keywords - 유사 소스 검색 키워드 */}
+              {/* Keywords - Custom Render due to horizontal layout */}
               {analysis.search_keywords && analysis.search_keywords.length > 0 && (
                 <section>
-                  <div className="flex items-center gap-2 mb-3 text-violet-600 font-bold">
+                  <div className="flex items-center gap-2 mb-3 text-violet-600 dark:text-violet-400 font-bold">
                     <Search className="w-4 h-4" /> 유사 소스 검색 키워드
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -251,39 +254,27 @@ export function AnalysisDialog({
                 </section>
               )}
 
-              {/* Editing Tips - 편집 방식 추천 */}
-              {analysis.editing_tips && analysis.editing_tips.length > 0 && (
-                <section>
-                  <div className="flex items-center gap-2 mb-3 text-cyan-600 font-bold">
-                    <Scissors className="w-4 h-4" /> 편집 방식 추천
-                  </div>
-                  <div className="grid gap-3">
-                    {analysis.editing_tips.map((tip: string, i: number) => (
-                      <div key={i} className="flex gap-3 p-3 bg-cyan-50 dark:bg-cyan-950/30 border border-cyan-100 dark:border-cyan-900/50 rounded-lg text-sm">
-                        <Badge className="h-5 shrink-0 bg-cyan-500">{i + 1}</Badge>
-                        <span className="break-words">{tip}</span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
+              <AnalysisListSection
+                icon={Scissors}
+                title="편집 방식 추천"
+                items={analysis.editing_tips}
+                colorClass="text-cyan-600 dark:text-cyan-400"
+                badgeColorClass="bg-cyan-500 text-white"
+              />
 
-              {/* Action Plan (Context Analysis) */}
-              {analysis.action_plan && (
-                <section>
-                  <div className="flex items-center gap-2 mb-3 text-teal-600 font-bold">
-                    <Rocket className="w-4 h-4" /> 내 채널 적용 액션 플랜
-                  </div>
-                  <div className="p-4 bg-teal-50 dark:bg-teal-950/30 rounded-lg border border-teal-100 dark:border-teal-900/50 text-sm leading-relaxed whitespace-pre-wrap break-words">
-                    {formatContent(analysis.action_plan)}
-                  </div>
-                </section>
-              )}
+              <AnalysisSection
+                icon={Rocket}
+                title="내 채널 적용 액션 플랜"
+                content={analysis.action_plan}
+                colorClass="text-teal-600 dark:text-teal-400"
+                bgColorClass="bg-teal-50 dark:bg-teal-950/20"
+                borderColorClass="border-teal-100 dark:border-teal-900/50"
+              />
             </div>
           ) : null}
         </div>
 
-        <DialogFooter className="p-6 pt-4 border-t bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
+        <DialogFooter className="p-6 pt-4 border-t bg-muted/50 shrink-0">
           <div className="flex items-center justify-between w-full gap-4">
             {isAnalyzed && onRefresh ? (
               <Button
@@ -298,9 +289,7 @@ export function AnalysisDialog({
             ) : (
                <div /> /* Spacer */
             )}
-            <Button onClick={onClose}>
-              닫기
-            </Button>
+            <Button onClick={onClose}>닫기</Button>
           </div>
         </DialogFooter>
       </DialogContent>

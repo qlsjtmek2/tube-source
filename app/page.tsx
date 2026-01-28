@@ -1264,7 +1264,7 @@ function CategorySelector({ currentCategory, allCategories, onSelect }: { curren
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => { setIsOpen(false); setIsAdding(false); }} />
-          <div className="absolute top-full left-0 mt-2 w-80 min-w-[320px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-xl rounded-lg z-50 p-2.5 flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-100">
+          <div className="absolute top-full left-0 mt-2 w-80 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-xl rounded-lg z-50 p-2.5 flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-100">
             <div className="text-[10px] font-bold text-slate-400 px-2 py-1 uppercase tracking-widest flex items-center justify-between">
               카테고리 설정
               <Tag className="w-3 h-3 opacity-50" />

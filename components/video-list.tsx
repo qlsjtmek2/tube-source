@@ -41,7 +41,7 @@ export function VideoList({
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse">
         {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-          <div key={i} className="h-[340px] bg-slate-200 dark:bg-slate-800 rounded-lg" />
+          <div key={i} className="aspect-[3/4] bg-muted rounded-lg" />
         ))}
       </div>
     );
@@ -49,7 +49,7 @@ export function VideoList({
 
   if (videos.length === 0) {
     return (
-      <div className="text-center py-20 text-slate-500">
+      <div className="text-center py-20 text-muted-foreground">
         검색 결과가 없습니다. 필터를 조정해보세요.
       </div>
     );

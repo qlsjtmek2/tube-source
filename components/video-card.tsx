@@ -55,7 +55,7 @@ export function VideoCard({
     return new Date(dateStr).toLocaleDateString();
   };
   
-  // Parse Duration (ISO 8601 PT15M33S -> 15:33) - Simple parser
+  // Parse Duration (ISO 8601 PT15M33S -> 15:33)
   const formatDuration = (isoDuration: string) => {
     const match = isoDuration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
     if (!match) return isoDuration;
@@ -71,9 +71,9 @@ export function VideoCard({
   return (
     <Card 
       className={cn(
-        "overflow-hidden hover:shadow-lg transition-all group flex flex-col h-full w-full max-w-sm mx-auto border-slate-200 dark:border-slate-800 relative",
+        "overflow-hidden hover:shadow-lg transition-all group flex flex-col h-full w-full max-w-sm mx-auto border-border bg-card",
         selectionMode && "cursor-pointer",
-        isSelected && "ring-2 ring-red-500 border-red-500 bg-red-50/10"
+        isSelected && "ring-2 ring-danger border-danger bg-danger/5"
       )}
       onClick={() => selectionMode && onSelect?.()}
     >
@@ -81,7 +81,7 @@ export function VideoCard({
       {selectionMode && (
         <div className="absolute top-2 right-2 z-20">
           {isSelected ? (
-            <CheckCircle2 className="w-6 h-6 text-red-600 bg-white rounded-full fill-white" />
+            <CheckCircle2 className="w-6 h-6 text-danger bg-background rounded-full fill-background" />
           ) : (
             <Circle className="w-6 h-6 text-white drop-shadow-md" />
           )}
@@ -95,7 +95,7 @@ export function VideoCard({
             e.stopPropagation();
             onRemove(video.id);
           }}
-          className="absolute top-2 right-2 z-20 p-1.5 bg-black/60 hover:bg-red-600 text-white rounded-full transition-colors opacity-0 group-hover:opacity-100"
+          className="absolute top-2 right-2 z-20 p-1.5 bg-black/60 hover:bg-danger text-white rounded-full transition-colors opacity-0 group-hover:opacity-100"
           title="목록에서 제거"
         >
           <XCircle className="w-4 h-4" />
@@ -103,15 +103,12 @@ export function VideoCard({
       )}
 
       {/* Thumbnail Link */}
-      <div className="relative">
+      <div className="relative aspect-video bg-muted overflow-hidden shrink-0">
         <a 
           href={selectionMode ? undefined : `https://www.youtube.com/watch?v=${video.id}`} 
           target="_blank" 
           rel="noopener noreferrer"
-          className={cn(
-            "aspect-video bg-slate-100 dark:bg-slate-800 relative overflow-hidden shrink-0 block",
-            !selectionMode && "cursor-pointer"
-          )}
+          className={cn("block w-full h-full", !selectionMode && "cursor-pointer")}
           onClick={(e) => selectionMode && e.preventDefault()}
         >
           <img 
@@ -139,14 +136,14 @@ export function VideoCard({
             className="block group/title"
             onClick={(e) => selectionMode && e.preventDefault()}
           >
-            <h3 className="font-bold text-sm leading-snug line-clamp-2 h-10 group-hover/title:text-red-600 transition-colors">
+            <h3 className="font-bold text-sm leading-snug line-clamp-2 h-10 group-hover/title:text-danger transition-colors text-foreground">
               {video.title}
             </h3>
           </a>
-          <div className="flex items-center justify-between text-[11px] text-slate-500">
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
             <div className="flex items-center gap-1 min-w-0">
               <span 
-                className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer truncate hover:underline underline-offset-2"
+                className="flex items-center gap-1 hover:text-foreground cursor-pointer truncate hover:underline underline-offset-2"
                 onClick={(e) => {
                   e.stopPropagation();
                   onChannelClick?.(video.channelId);
@@ -163,9 +160,12 @@ export function VideoCard({
                     thumbnail: video.channelThumbnail
                   });
                 }}
-                className={`p-1 rounded-full shrink-0 transition-colors ${isSaved ? 'text-yellow-500' : 'text-slate-300 hover:text-yellow-400'}`}
+                className={cn(
+                  "p-1 rounded-full shrink-0 transition-colors",
+                  isSaved ? "text-yellow-500" : "text-muted-foreground hover:text-yellow-400"
+                )}
               >
-                <Star className={`w-3 h-3 ${isSaved ? 'fill-current' : ''}`} />
+                <Star className={cn("w-3 h-3", isSaved && "fill-current")} />
               </button>
             </div>
             <span className="flex items-center gap-1 shrink-0">
@@ -175,16 +175,16 @@ export function VideoCard({
         </div>
 
         {/* Key Metrics Grid */}
-        <div className="grid grid-cols-2 gap-2 mb-3 bg-slate-50 dark:bg-slate-900 p-2 rounded-md">
+        <div className="grid grid-cols-2 gap-2 mb-3 bg-muted/50 p-2 rounded-md">
           <div className="flex flex-col">
-            <span className="text-[10px] text-slate-400 uppercase font-bold">조회수</span>
-            <div className="flex items-center gap-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            <span className="text-[10px] text-muted-foreground uppercase font-bold">조회수</span>
+            <div className="flex items-center gap-1 text-sm font-semibold text-foreground">
               <Eye className="w-3 h-3" /> {formatNumber(video.viewCount)}
             </div>
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] text-slate-400 uppercase font-bold">구독자</span>
-            <div className="flex items-center gap-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            <span className="text-[10px] text-muted-foreground uppercase font-bold">구독자</span>
+            <div className="flex items-center gap-1 text-sm font-semibold text-foreground">
               <Users className="w-3 h-3" /> {formatNumber(video.subscriberCount)}
             </div>
           </div>
@@ -192,16 +192,16 @@ export function VideoCard({
 
         {/* Performance Badges */}
         <div className="flex flex-wrap gap-2 mb-3">
-            <Badge variant="outline" className={`text-[10px] h-5 ${video.performanceRatio > 100 ? 'bg-green-50 text-green-700 border-green-200' : 'text-slate-500'}`}>
+            <Badge variant="outline" className={cn("text-[10px] h-5", video.performanceRatio > 100 ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900" : "text-muted-foreground")}>
                성과도: {video.performanceRatio}%
             </Badge>
-            <Badge variant="outline" className={`text-[10px] h-5 ${video.engagementRate > 5 ? 'bg-blue-50 text-blue-700 border-blue-200' : 'text-slate-500'}`}>
+            <Badge variant="outline" className={cn("text-[10px] h-5", video.engagementRate > 5 ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900" : "text-muted-foreground")}>
                참여율: {video.engagementRate}%
             </Badge>
         </div>
         
         {/* Detailed Stats (Small) */}
-        <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
+        <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border">
              <div className="flex gap-3">
                 <span className="flex items-center gap-1"><ThumbsUp className="w-3 h-3" /> {formatNumber(video.likeCount)}</span>
                 <button 
@@ -211,8 +211,8 @@ export function VideoCard({
                     onViewComments?.(video);
                   }}
                   className={cn(
-                    "flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 group/comment transition-all",
-                    !selectionMode && "hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-200 dark:hover:border-blue-800 cursor-pointer"
+                    "flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/50 border border-border group/comment transition-all",
+                    !selectionMode && "hover:bg-info/10 hover:text-info hover:border-info/20 cursor-pointer"
                   )}
                   title={selectionMode ? undefined : "베스트 댓글 보기"}
                   disabled={selectionMode}
@@ -227,7 +227,7 @@ export function VideoCard({
                     e.stopPropagation();
                     onDeleteAnalysis(video.id);
                  }}
-                 className="text-red-400 hover:text-red-600 transition-colors"
+                 className="text-muted-foreground hover:text-danger transition-colors"
                  title="분석 결과 삭제"
                  disabled={selectionMode}
                >
