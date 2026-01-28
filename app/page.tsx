@@ -1609,18 +1609,24 @@ function AnalyzedVideosSection({
             <div class="list-section">
               <div>
                 <div class="section-title">강점 분석</div>
-                ${(v.analysisResult.strengths || []).map(s => `<div class="list-item">${s}</div>`).join('')}
+                ${Array.isArray(v.analysisResult.strengths) 
+                  ? v.analysisResult.strengths.map(s => `<div class="list-item">${s}</div>`).join('') 
+                  : (v.analysisResult.strengths ? `<div class="list-item">${v.analysisResult.strengths}</div>` : '')}
               </div>
               <div>
                 <div class="section-title">핵심 인사이트</div>
-                ${(v.analysisResult.insights || []).map(i => `<div class="list-item">${i}</div>`).join('')}
+                ${Array.isArray(v.analysisResult.insights) 
+                  ? v.analysisResult.insights.map(i => `<div class="list-item">${i}</div>`).join('') 
+                  : (v.analysisResult.insights ? `<div class="list-item">${v.analysisResult.insights}</div>` : '')}
               </div>
             </div>
 
             <div style="margin-top: 20px;">
               <div class="section-title">유사 소스 키워드</div>
               <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                ${(v.analysisResult.search_keywords || []).map(k => `<span style="background: #f1f5f9; padding: 4px 10px; border-radius: 4px; font-size: 11px;">#${k}</span>`).join('')}
+                ${Array.isArray(v.analysisResult.search_keywords) 
+                  ? v.analysisResult.search_keywords.map(k => `<span style="background: #f1f5f9; padding: 4px 10px; border-radius: 4px; font-size: 11px;">#${k}</span>`).join('') 
+                  : ''}
               </div>
             </div>
           </div>
