@@ -172,6 +172,7 @@ export async function saveAnalyzedVideo(
       duration: video.duration,
       transcript: video.subtitleText,
       caption: video.caption,
+      creativeCommons: video.creativeCommons,
       analysisResult,
       analyzedAt: new Date().toISOString(),
     };

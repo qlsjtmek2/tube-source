@@ -33,7 +33,7 @@ async function repair() {
   let videos = JSON.parse(raw);
   
   const missingMetadata = videos.filter(v => 
-    v.type !== 'context' && (!v.duration || v.caption === undefined)
+    v.type !== 'context' && (!v.duration || v.caption === undefined || v.creativeCommons === undefined)
   );
 
   console.log(`Found ${missingMetadata.length} videos missing metadata.`);
@@ -52,18 +52,19 @@ async function repair() {
 
     try {
       const res = await youtube.videos.list({
-        part: ['contentDetails'],
+        part: ['contentDetails', 'status'],
         id: ids,
       });
 
       const items = res.data.items || [];
-      const metadataMap = new Map(items.map(item => [item.id, item.contentDetails]));
+      const metadataMap = new Map(items.map(item => [item.id, item]));
 
       chunk.forEach(video => {
-        const details = metadataMap.get(video.videoId);
-        if (details) {
-          video.duration = video.duration || details.duration;
-          video.caption = video.caption ?? (details.caption === 'true');
+        const item = metadataMap.get(video.videoId);
+        if (item) {
+          video.duration = video.duration || item.contentDetails.duration;
+          video.caption = video.caption ?? (item.contentDetails.caption === 'true');
+          video.creativeCommons = video.creativeCommons ?? (item.status.license === 'creativeCommon');
         }
       });
     } catch (error) {

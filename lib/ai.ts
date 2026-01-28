@@ -48,6 +48,7 @@ export interface AnalyzedVideo {
   duration?: string;
   transcript?: string;
   caption?: boolean;
+  creativeCommons?: boolean;
   analysisResult: AnalysisResult | ContextAnalysisResult;
   analyzedAt: string; // ISO timestamp
 }

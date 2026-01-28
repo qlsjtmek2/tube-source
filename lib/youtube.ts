@@ -45,6 +45,7 @@ export interface EnrichedVideo {
   commentCount: number;
   duration: string;
   caption: boolean; // has caption?
+  creativeCommons: boolean; // Creative Commons license?
 
   // Channel Stats
   subscriberCount: number;
@@ -121,7 +122,7 @@ export async function searchVideos(filters: VideoSearchFilters): Promise<Enriche
       // Fetch Details (Videos & Channels) for filtering
       const [videoRes, channelRes] = await Promise.all([
         youtube.videos.list({
-          part: ['snippet', 'contentDetails', 'statistics'],
+          part: ['snippet', 'contentDetails', 'statistics', 'status'],
           id: videoIds,
         }),
         youtube.channels.list({
@@ -181,6 +182,7 @@ export async function searchVideos(filters: VideoSearchFilters): Promise<Enriche
           commentCount,
           duration: video.contentDetails?.duration || '',
           caption: video.contentDetails?.caption === 'true',
+          creativeCommons: video.status?.license === 'creativeCommon',
 
           subscriberCount,
           channelVideoCount: Number(channel?.statistics?.videoCount) || 0,
@@ -335,7 +337,7 @@ export async function getChannelDetails(channelId: string): Promise<ChannelDetai
     let videoItems: youtube_v3.Schema$Video[] = [];
     if (allVideoIds.length > 0) {
       const videoRes = await youtube.videos.list({
-        part: ['snippet', 'statistics', 'contentDetails'],
+        part: ['snippet', 'statistics', 'contentDetails', 'status'],
         id: allVideoIds,
       });
       videoItems = videoRes.data.items || [];
@@ -358,6 +360,7 @@ export async function getChannelDetails(channelId: string): Promise<ChannelDetai
         commentCount: Number(v.statistics?.commentCount) || 0,
         duration: v.contentDetails?.duration || '',
         caption: v.contentDetails?.caption === 'true',
+        creativeCommons: v.status?.license === 'creativeCommon',
         subscriberCount: Number(channel.statistics?.subscriberCount) || 0,
         channelVideoCount: Number(channel.statistics?.videoCount) || 0,
         channelViewCount: Number(channel.statistics?.viewCount) || 0,

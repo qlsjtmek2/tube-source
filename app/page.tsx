@@ -1516,6 +1516,7 @@ function AnalyzedVideosSection({
           description: '',
           duration: v.duration || '',
           caption: v.caption ?? false,
+          creativeCommons: v.creativeCommons ?? false,
           subtitleText: v.transcript || '',
           channelVideoCount: 0,
           channelViewCount: 0,
