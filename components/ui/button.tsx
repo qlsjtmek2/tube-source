@@ -19,10 +19,10 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        // Custom Variants (Mapped to Tailwind Semantic Colors)
-        danger: "bg-danger text-white shadow-sm hover:bg-danger/90",
-        info: "bg-info text-white shadow-sm hover:bg-info/90",
-        purple: "bg-purple text-white shadow-sm hover:bg-purple/90",
+        // Custom Variants (Semantic naming)
+        danger: "shadow-sm",
+        info: "shadow-sm",
+        purple: "shadow-sm",
       },
       size: {
         default: "h-9 px-4 py-2",
@@ -45,12 +45,27 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, style, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
+    
+    // Force CSS variables via inline styles to bypass Tailwind v4 theme resolution issues
+    const customStyles: React.CSSProperties = {}
+    if (variant === 'danger') {
+      customStyles.backgroundColor = 'var(--danger)'
+      customStyles.color = 'var(--danger-foreground)'
+    } else if (variant === 'info') {
+      customStyles.backgroundColor = 'var(--info)'
+      customStyles.color = 'var(--info-foreground)'
+    } else if (variant === 'purple') {
+      customStyles.backgroundColor = 'var(--purple)'
+      customStyles.color = 'var(--purple-foreground)'
+    }
+
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
+        style={{ ...customStyles, ...style }}
         {...props}
       />
     )

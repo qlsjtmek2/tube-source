@@ -8,7 +8,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChannelDetails } from "@/lib/youtube";
 import { Calendar, Eye, FileVideo, Globe, Heart, Search, TrendingUp, User, Users } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { cn } from "@/lib/utils";
 
 interface ChannelDetailDialogProps {
   channelId: string | null;
@@ -61,7 +62,7 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 gap-0 bg-white dark:bg-slate-950 overflow-hidden border-none shadow-2xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 gap-0 bg-white dark:bg-slate-950 overflow-hidden border-none shadow-2xl">
         <DialogHeader className="sr-only">
           <DialogTitle>
             {loading ? "채널 정보 불러오는 중..." : error ? "오류 발생" : details?.title || "채널 상세 정보"}
@@ -70,15 +71,16 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
 
         {loading ? (
           <div className="p-8 space-y-6 flex flex-col items-center justify-center h-[500px]">
-             <Skeleton className="h-24 w-24 rounded-full" />
+             <Skeleton className="h-20 w-20 rounded-full" />
              <div className="space-y-2 w-full max-w-md flex flex-col items-center">
                <Skeleton className="h-8 w-1/2" />
                <Skeleton className="h-4 w-1/3" />
              </div>
-             <div className="grid grid-cols-3 gap-4 w-full mt-4">
-               <Skeleton className="h-20 w-full" />
-               <Skeleton className="h-20 w-full" />
-               <Skeleton className="h-20 w-full" />
+             <div className="grid grid-cols-4 gap-2 w-full mt-4">
+               <Skeleton className="h-16 w-full" />
+               <Skeleton className="h-16 w-full" />
+               <Skeleton className="h-16 w-full" />
+               <Skeleton className="h-16 w-full" />
              </div>
              <Skeleton className="h-48 w-full mt-4" />
           </div>
@@ -88,11 +90,11 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
             <p className="text-sm text-slate-400 mt-2">{error}</p>
           </div>
         ) : details ? (
-          <div className="flex flex-col h-full">
+          <div className="flex flex-col h-full overflow-hidden">
             {/* Header Section */}
             <div className="p-6 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 shrink-0">
-               <div className="flex flex-col items-center text-center gap-4">
-                  <div className="relative">
+               <div className="flex flex-col items-center text-center">
+                  <div className="relative mb-4">
                     <img 
                       src={details.thumbnail} 
                       alt={details.title} 
@@ -105,51 +107,53 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
                     )}
                   </div>
                   
-                  <div>
+                  <div className="mb-4">
                     <DialogTitle className="text-xl font-bold mb-1 tracking-tight">{details.title}</DialogTitle>
-                    <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    <div className="flex flex-wrap justify-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
                       {details.customUrl && <span>{details.customUrl}</span>}
                       <span>•</span>
                       <span>개설일: {formatDate(details.publishedAt)}</span>
                     </div>
                   </div>
 
-                  {/* Quick Stats Row - Robust Layout */}
-                  <div className="flex justify-between items-start w-full mt-4 pt-4 border-t border-slate-200/50 dark:border-slate-800/50 gap-1">
-                    <div className="flex-1 text-center">
-                      <p className="text-base md:text-lg font-bold text-slate-900 dark:text-white leading-tight">{formatNumber(details.subscriberCount)}</p>
-                      <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-tighter">구독자</p>
+                  {/* Quick Stats Row - Forced 4 Columns */}
+                  <div className="flex flex-row w-full max-w-2xl mt-2 pt-4 border-t border-slate-200/50 dark:border-slate-800/50">
+                    <div className="flex-1 flex flex-col items-center justify-center border-r border-slate-100 dark:border-slate-800 px-1">
+                      <p className="text-sm md:text-base font-bold text-slate-900 dark:text-white truncate w-full">{formatNumber(details.subscriberCount)}</p>
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold">구독자</p>
                     </div>
-                    <div className="flex-1 text-center">
-                      <p className="text-base md:text-lg font-bold text-slate-900 dark:text-white leading-tight">{formatNumber(details.viewCount)}</p>
-                      <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-tighter">총 조회수</p>
+                    <div className="flex-1 flex flex-col items-center justify-center border-r border-slate-100 dark:border-slate-800 px-1">
+                      <p className="text-sm md:text-base font-bold text-slate-900 dark:text-white truncate w-full">{formatNumber(details.viewCount)}</p>
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold">총 조회수</p>
                     </div>
-                    <div className="flex-1 text-center">
-                      <p className="text-base md:text-lg font-bold text-slate-900 dark:text-white leading-tight">{formatNumber(details.videoCount)}</p>
-                      <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-tighter">영상 수</p>
+                    <div className="flex-1 flex flex-col items-center justify-center border-r border-slate-100 dark:border-slate-800 px-1">
+                      <p className="text-sm md:text-base font-bold text-slate-900 dark:text-white truncate w-full">{formatNumber(details.videoCount)}</p>
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold">영상 수</p>
                     </div>
-                    <div className="flex-1 text-center border-l border-slate-100 dark:border-slate-800 pl-1">
-                      <p className="text-sm md:text-base font-bold text-slate-900 dark:text-white leading-tight mt-0.5">{details.lastUploadAt ? formatDate(details.lastUploadAt).replace(/\. /g, '.').replace(/\.$/, '') : '-'}</p>
-                      <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-tighter">최근 업로드</p>
+                    <div className="flex-1 flex flex-col items-center justify-center px-1">
+                      <p className="text-[11px] md:text-sm font-bold text-slate-900 dark:text-white leading-tight">
+                        {details.lastUploadAt ? formatDate(details.lastUploadAt).replace(/\. /g, '.').replace(/\.$/, '') : '-'}
+                      </p>
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold">최근 업로드</p>
                     </div>
                   </div>
                </div>
             </div>
 
             {/* Scrollable Content */}
-            <ScrollArea className="flex-1">
-              <div className="p-6 space-y-6">
+            <ScrollArea className="flex-1 min-h-0">
+              <div className="p-6 space-y-8">
                  
                  {/* Recent Videos Chart */}
                  <div>
-                   <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-100 mb-3">
+                   <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-100 mb-4">
                      <TrendingUp className="w-4 h-4 text-red-500" />
                      최근 영상 조회수 추이
                    </h3>
-                   <div className="h-64 w-full bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm relative flex items-center justify-center">
+                   <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm relative overflow-hidden" style={{ height: '260px' }}>
                      {details.recentVideos.length > 0 ? (
-                       <ResponsiveContainer width="100%" height={220}>
-                         <BarChart data={[...details.recentVideos].reverse()} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                       <ResponsiveContainer width="100%" height="100%">
+                         <BarChart data={[...details.recentVideos].reverse()} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
                            <XAxis 
                              dataKey="title" 
@@ -184,17 +188,19 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
                          </BarChart>
                        </ResponsiveContainer>
                      ) : (
-                        <div className="text-xs text-slate-400 font-medium">데이터가 없습니다.</div>
+                        <div className="flex items-center justify-center h-full text-xs text-slate-400">데이터가 없습니다.</div>
                      )}
-                     <p className="text-center text-[9px] text-slate-400 mt-2 absolute bottom-2 w-full left-0 pointer-events-none font-medium opacity-70">← 과거  |  최신 →</p>
+                     <div className="absolute bottom-2 w-full text-center left-0 pointer-events-none">
+                        <p className="text-[10px] text-slate-400 font-medium opacity-70">← 과거  |  최신 →</p>
+                     </div>
                    </div>
                  </div>
 
                  {/* Description */}
                  {details.description && (
-                   <div>
+                   <div className="pb-4">
                      <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-2">채널 설명</h3>
-                     <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg text-xs leading-relaxed whitespace-pre-wrap text-slate-600 dark:text-slate-400 max-h-32 overflow-y-auto custom-scrollbar border border-slate-100 dark:border-slate-800">
+                     <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg text-xs leading-relaxed whitespace-pre-wrap text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800">
                        {details.description}
                      </div>
                    </div>
@@ -217,19 +223,5 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
         ) : null}
       </DialogContent>
     </Dialog>
-  );
-}
-
-function CardStat({ icon, label, value }: { icon: any, label: string, value: string }) {
-  return (
-    <div className="flex items-center gap-3 p-4 bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-lg shadow-sm">
-      <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded-full">
-        {icon}
-      </div>
-      <div>
-        <p className="text-[10px] text-slate-400 uppercase font-semibold">{label}</p>
-        <p className="text-lg font-bold text-slate-700 dark:text-slate-200">{value}</p>
-      </div>
-    </div>
   );
 }
