@@ -114,23 +114,23 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
                     </div>
                   </div>
 
-                  {/* Quick Stats Row - Grid Layout (4 columns) */}
-                  <div className="grid grid-cols-4 gap-2 w-full max-w-lg mt-4 pt-4 border-t border-slate-200/50 dark:border-slate-800/50">
-                    <div className="text-center">
-                      <p className="text-lg font-bold text-slate-900 dark:text-white">{formatNumber(details.subscriberCount)}</p>
-                      <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider">구독자</p>
+                  {/* Quick Stats Row - Robust Layout */}
+                  <div className="flex justify-between items-start w-full mt-4 pt-4 border-t border-slate-200/50 dark:border-slate-800/50 gap-1">
+                    <div className="flex-1 text-center">
+                      <p className="text-base md:text-lg font-bold text-slate-900 dark:text-white leading-tight">{formatNumber(details.subscriberCount)}</p>
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-tighter">구독자</p>
                     </div>
-                    <div className="text-center">
-                      <p className="text-lg font-bold text-slate-900 dark:text-white">{formatNumber(details.viewCount)}</p>
-                      <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider">총 조회수</p>
+                    <div className="flex-1 text-center">
+                      <p className="text-base md:text-lg font-bold text-slate-900 dark:text-white leading-tight">{formatNumber(details.viewCount)}</p>
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-tighter">총 조회수</p>
                     </div>
-                    <div className="text-center">
-                      <p className="text-lg font-bold text-slate-900 dark:text-white">{formatNumber(details.videoCount)}</p>
-                      <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider">영상 수</p>
+                    <div className="flex-1 text-center">
+                      <p className="text-base md:text-lg font-bold text-slate-900 dark:text-white leading-tight">{formatNumber(details.videoCount)}</p>
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-tighter">영상 수</p>
                     </div>
-                    <div className="text-center border-l border-slate-100 dark:border-slate-800 pl-2">
-                      <p className="text-lg font-bold text-slate-900 dark:text-white">{details.lastUploadAt ? formatDate(details.lastUploadAt) : '-'}</p>
-                      <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-wider">마지막 업로드</p>
+                    <div className="flex-1 text-center border-l border-slate-100 dark:border-slate-800 pl-1">
+                      <p className="text-sm md:text-base font-bold text-slate-900 dark:text-white leading-tight mt-0.5">{details.lastUploadAt ? formatDate(details.lastUploadAt).replace(/\. /g, '.').replace(/\.$/, '') : '-'}</p>
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold tracking-tighter">최근 업로드</p>
                     </div>
                   </div>
                </div>
@@ -144,11 +144,11 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
                  <div>
                    <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-100 mb-3">
                      <TrendingUp className="w-4 h-4 text-red-500" />
-                     최근 영상 조회수 추이 (10개)
+                     최근 영상 조회수 추이
                    </h3>
-                   <div className="h-64 w-full bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm relative">
+                   <div className="h-64 w-full bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm relative flex items-center justify-center">
                      {details.recentVideos.length > 0 ? (
-                       <ResponsiveContainer width="100%" height="100%">
+                       <ResponsiveContainer width="100%" height={220}>
                          <BarChart data={[...details.recentVideos].reverse()} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
                            <XAxis 
@@ -166,7 +166,7 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
                              content={({ active, payload }) => {
                                if (active && payload && payload.length) {
                                  return (
-                                   <div className="bg-slate-900 text-white text-xs rounded-lg py-2 px-3 shadow-xl max-w-[200px] z-50 border border-slate-800">
+                                   <div className="bg-slate-900 text-white text-[11px] rounded-lg py-2 px-3 shadow-xl max-w-[180px] z-50 border border-slate-800">
                                      <p className="font-semibold mb-1 line-clamp-2 leading-snug">{payload[0].payload.title}</p>
                                      <p className="text-slate-300">조회수: <span className="text-white font-bold">{formatFullNumber(payload[0].value as number)}</span></p>
                                      <p className="text-[10px] text-slate-400 mt-1">{formatDate(payload[0].payload.publishedAt)}</p>
@@ -176,19 +176,17 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
                                return null;
                              }}
                            />
-                           <Bar dataKey="viewCount" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                           <Bar dataKey="viewCount" radius={[4, 4, 0, 0]} maxBarSize={30}>
                              {details.recentVideos.map((entry, index) => (
-                               <Cell key={`cell-${index}`} fill={index === details.recentVideos.length - 1 ? '#ef4444' : '#cbd5e1'} className="hover:fill-red-400 transition-all duration-300" />
+                               <Cell key={`cell-${index}`} fill={index === details.recentVideos.length - 1 ? '#ef4444' : '#cbd5e1'} />
                              ))}
                            </Bar>
                          </BarChart>
                        </ResponsiveContainer>
                      ) : (
-                        <div className="flex items-center justify-center h-full text-xs text-slate-400">
-                          데이터가 충분하지 않습니다.
-                        </div>
+                        <div className="text-xs text-slate-400 font-medium">데이터가 없습니다.</div>
                      )}
-                     <p className="text-center text-[10px] text-slate-400 mt-2 absolute bottom-2 w-full left-0 pointer-events-none">← 과거  |  최신 →</p>
+                     <p className="text-center text-[9px] text-slate-400 mt-2 absolute bottom-2 w-full left-0 pointer-events-none font-medium opacity-70">← 과거  |  최신 →</p>
                    </div>
                  </div>
 
@@ -206,9 +204,10 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
 
             {/* Footer Action */}
             <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 shrink-0">
-               <Button 
-                 onClick={() => onLoadToSearch(details.id, details.title)} 
-                 className="w-full bg-red-600 hover:bg-red-700 text-white shadow-sm h-11 text-sm font-semibold"
+               <Button
+                 onClick={() => onLoadToSearch(details.id, details.title)}
+                 variant="danger"
+                 className="w-full h-11 text-sm font-semibold"
                >
                  <Search className="w-4 h-4 mr-2" />
                  이 채널의 영상 검색하기
