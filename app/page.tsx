@@ -1251,47 +1251,57 @@ function CategorySelector({ currentCategory, allCategories, onSelect }: { curren
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "text-[10px] px-1.5 py-0.5 rounded-md flex items-center gap-1 transition-colors border border-transparent",
+          "text-[10px] px-2 py-1 rounded-md flex items-center gap-1.5 transition-colors border",
           currentCategory 
-            ? "bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-400 hover:bg-slate-200" 
-            : "text-slate-300 hover:text-slate-500 hover:bg-slate-50 border-dashed border-slate-200 hover:border-slate-300"
+            ? "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800 hover:bg-slate-200" 
+            : "text-slate-400 hover:text-slate-600 hover:bg-slate-50 border-dashed border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:text-slate-300"
         )}
       >
         <Tag className="w-3 h-3" />
-        {currentCategory || '분류 없음'}
+        {currentCategory || '분류 추가'}
       </button>
       
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => { setIsOpen(false); setIsAdding(false); }} />
-          <div className="absolute top-full left-0 mt-1 w-[240px] bg-white dark:bg-slate-900 border shadow-lg rounded-md z-50 p-2 flex flex-col gap-1">
-            <div className="text-[10px] font-semibold text-slate-500 px-1 py-1 border-b mb-1 uppercase tracking-wider">카테고리 설정</div>
+          <div className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-xl rounded-lg z-50 p-2.5 flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-100">
+            <div className="text-[10px] font-bold text-slate-400 px-2 py-1 uppercase tracking-widest flex items-center justify-between">
+              카테고리 설정
+              <Tag className="w-3 h-3 opacity-50" />
+            </div>
             
-            <div className="max-h-48 overflow-y-auto custom-scrollbar flex flex-col gap-0.5">
+            <div className="max-h-56 overflow-y-auto custom-scrollbar flex flex-col gap-1">
+              {allCategories.length === 0 && !isAdding && (
+                <div className="text-[11px] text-slate-400 px-2 py-4 text-center border border-dashed rounded-md my-1">
+                  생성된 카테고리가 없습니다
+                </div>
+              )}
               {allCategories.map(cat => (
                  <button
                    key={cat}
                    className={cn(
-                     "w-full text-xs text-left px-2 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap overflow-hidden text-ellipsis transition-colors",
-                     currentCategory === cat && "text-red-600 font-medium bg-red-50 dark:bg-red-900/10"
+                     "w-full text-xs text-left px-3 py-2.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-between group/item transition-all",
+                     currentCategory === cat ? "text-red-600 font-semibold bg-red-50 dark:bg-red-900/20" : "text-slate-600 dark:text-slate-400"
                    )}
                    onClick={() => { onSelect(cat); setIsOpen(false); }}
                  >
-                   {cat}
+                   <span className="truncate flex-1">{cat}</span>
+                   {currentCategory === cat && <Check className="w-3.5 h-3.5 shrink-0 animate-in zoom-in duration-200" />}
                  </button>
               ))}
             </div>
             
             {currentCategory && (
                <button
-                 className="w-full text-xs text-left px-2 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 border-t mt-1 pt-1.5 whitespace-nowrap"
+                 className="w-full text-xs text-left px-3 py-2.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-400 border-t mt-1 pt-2 flex items-center gap-2"
                  onClick={() => { onSelect(''); setIsOpen(false); }}
                >
-                 선택 해제
+                 <X className="w-3.5 h-3.5" />
+                 분류 선택 해제
                </button>
             )}
 
-            {!currentCategory && allCategories.length > 0 && <div className="h-px bg-slate-100 dark:bg-slate-800 my-0.5" />}
+            {!isAdding && <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />}
             
             {isAdding ? (
               <div className="px-1 flex items-center gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
@@ -1299,7 +1309,7 @@ function CategorySelector({ currentCategory, allCategories, onSelect }: { curren
                   ref={inputRef}
                   value={newCat}
                   onChange={e => setNewCat(e.target.value)}
-                  className="flex-1 text-xs border rounded-md px-2 py-1.5 bg-slate-50 dark:bg-slate-950 focus:outline-none focus:ring-1 focus:ring-red-200 dark:focus:ring-red-900 border-slate-200 dark:border-slate-800"
+                  className="flex-1 text-xs border rounded-lg px-3 py-2 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:focus:ring-red-500/40 border-slate-200 dark:border-slate-800 dark:text-white"
                   placeholder="새 분류명을 입력하세요..."
                   onKeyDown={e => e.key === 'Enter' && handleAdd(e)}
                   autoFocus
@@ -1307,22 +1317,25 @@ function CategorySelector({ currentCategory, allCategories, onSelect }: { curren
                 <button 
                   type="button"
                   onClick={handleAdd} 
-                  className="p-1.5 hover:text-green-600 text-green-500 shrink-0 bg-green-50 dark:bg-green-900/20 rounded-md transition-colors"
+                  className="p-2 hover:text-green-600 text-green-500 shrink-0 bg-green-50 dark:bg-green-900/30 rounded-lg transition-colors"
                 >
-                  <Check className="w-3.5 h-3.5" />
+                  <Check className="w-4 h-4" />
                 </button>
               </div>
             ) : (
               <button
-                className="w-full text-xs text-left px-2 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 text-blue-600 font-medium transition-colors"
+                className="w-full text-xs text-left px-3 py-2.5 rounded-md hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2 text-red-600 font-semibold transition-colors mt-0.5"
                 onClick={(e) => { e.stopPropagation(); setIsAdding(true); }}
               >
-                <Plus className="w-3.5 h-3.5" /> 새 카테고리 추가
+                <Plus className="w-4 h-4" /> 새 카테고리 추가
               </button>
             )}
           </div>
         </>
       )}
+    </div>
+  );
+}
     </div>
   );
 }
