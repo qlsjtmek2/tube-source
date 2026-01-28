@@ -116,46 +116,24 @@ downloads/                  # yt-dlp 다운로드 경로 (런타임에 자동 �
    - Analysis results are automatically saved to `data/analyzed-videos.json`.
    - Viewed in "분석 결과" tab.
 
-### Key Features & UX
+## Code Conventions & Best Practices (2025)
 
-- **Advanced Filters**: Country, Duration, Date, Count, **Subscribers (Min/Max)**, **Performance (Min %)**.
-- **Channel Analysis**: View subscriber count, total views, video count, last upload date, and more.
-- **Context Analysis**: Analyze multiple videos to find overarching patterns and common success strategies.
-- **Video Removal**: Delete unwanted videos from search results instantly.
-- **Korean Localization**: Number formatting using Korean units (천, 만, 억) for better readability.
-- **Compact UI**: Optimized spacing for high information density.
-- **Batch Analysis**: Inline progress bar, parallel processing, cancellation support.
-- **Visual Feedback**: Red theme (branding), purple theme for reports, interactive buttons, hover effects.
-- **Smart Selection**: Selection mode automatically deactivates after starting analysis to streamline workflow.
+### Tailwind CSS v4 Architecture
+- **Semantic Colors**: Use `globals.css` `@theme` variables (e.g., `--danger`, `--info`, `--muted`) instead of hardcoded hex values or utility colors (`bg-red-500`).
+- **No JS-in-CSS**: Avoid inline styles (`style={{ ... }}`) and JS-driven hover states (`onMouseEnter`). Use `cva` and Tailwind utilities (`hover:bg-accent`).
+- **Layouts**: Prefer relative units and aspect ratios (`aspect-[3/4]`, `w-full`) over fixed pixels (`h-[340px]`, `w-[320px]`).
+- **DarkMode**: Use OKLCH color space for better gamut and perceived lightness consistency.
 
-### API Integration
+### Component Guidelines
+- **UI Purity**: `components/ui/*` should contain style logic only. No business logic or API calls.
+- **Composition**: Break down complex UIs (like dialogs) into smaller, reusable sub-components (e.g., `AnalysisSection`) to reduce duplication.
+- **Type Safety**: Use strict TypeScript interfaces for props, especially for data models like `EnrichedVideo` and `ChannelDetails`.
 
-- **YouTube API**: `search.list` (recursive, channelId supported), `videos.list`, `channels.list`, `commentThreads.list`.
-- **Gemini API**: `gemini-3-flash-preview` (System Prompt: Content Strategy Expert & Psychologist).
-- **yt-dlp**: Video download & Subtitle extraction.
+### Important Implementation Details
 
-## Important Implementation Details
-
-### Recursive Fetching Strategy
-Since YouTube API doesn't support filtering by subscriber count or performance ratio directly:
-1. Fetch a batch of 50 videos.
-2. Filter them in memory based on user criteria (subs, ratio).
-3. If not enough videos, fetch next page recursively.
-4. Repeat until `maxResults` reached or page limit (5) hit.
-5. Deduplicate results to prevent key errors.
-
-### Batch Analysis Concurrency
-- `handleBatchAnalyze` processes videos in chunks of 3.
-- Uses `Promise.all` for parallel requests.
-- `AbortController` allows immediate cancellation of pending requests.
-
-### UI Styling
-- **Primary Color**: `red-600` (matches YouTube branding).
-- **Button Styling**: `!important` modifiers used to override Shadcn defaults for consistent colors.
-- **Dialogs**: 
-  - `max-w` constrained based on screen size (e.g., `lg:max-w-6xl`).
-  - `max-h` used instead of fixed height for better response to content size.
-  - **Accessibility**: All `DialogContent` must contain a `DialogTitle` (use `sr-only` if not visually needed).
+- **Recursive Fetching Strategy**: Filter videos in memory after fetching batches to support advanced filters not native to YouTube API.
+- **Batch Analysis**: Use `Promise.all` with concurrency control (max 3) for efficient AI processing.
+- **UI Styling**: Primary color is `red-600` (YouTube brand). All dialogs must be accessible with titles.
 
 ## Future Expansion Points
 
