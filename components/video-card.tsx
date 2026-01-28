@@ -123,9 +123,6 @@ export function VideoCard({
           {video.creativeCommons && (
              <div className="absolute top-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-bold z-10">CC</div>
           )}
-          {video.caption && (
-             <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold shadow-md z-10">자막</div>
-          )}
         </a>
       </div>
 
