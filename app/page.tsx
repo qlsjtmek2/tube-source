@@ -2345,7 +2345,7 @@ function DownloadsSection({ onDownloadStart, activeDownloads }: {
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <Loader2 className={cn("w-3 h-3", activeDownloads.some(d => d.status === 'downloading') && "animate-spin")} />
+                <List className="w-3 h-3" />
                 다운로드 현황
               </h3>
               <span className="text-[10px] text-slate-400">
