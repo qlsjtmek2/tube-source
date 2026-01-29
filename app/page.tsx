@@ -1448,6 +1448,10 @@ function AnalyzedVideosSection({
 }) {
   const [analyzedVideos, setAnalyzedVideos] = useState<AnalyzedVideo[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Filters
+  const [selectedChannelFilter, setSelectedChannelFilter] = useState<string>('all');
+  const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('all'); // 'all', 'single', 'context'
 
   useEffect(() => {
     loadAnalyzedVideos();
@@ -1465,6 +1469,19 @@ function AnalyzedVideosSection({
       setLoading(false);
     }
   };
+
+  // Derived State
+  const uniqueChannels = Array.from(new Set(analyzedVideos.map(v => v.channelId).filter(Boolean))).map(id => {
+    const video = analyzedVideos.find(v => v.channelId === id);
+    return { id, title: video?.channelTitle || 'Unknown Channel' };
+  }).sort((a, b) => a.title.localeCompare(b.title));
+
+  const filteredVideos = analyzedVideos.filter(v => {
+    if (selectedChannelFilter !== 'all' && v.channelId !== selectedChannelFilter) return false;
+    if (selectedTypeFilter === 'single' && v.type === 'context') return false;
+    if (selectedTypeFilter === 'context' && v.type !== 'context') return false;
+    return true;
+  });
 
   const handleDeleteAnalysis = async (videoId: string) => {
     try {
@@ -1490,7 +1507,7 @@ function AnalyzedVideosSection({
   };
 
   const handleExportPDF = () => {
-    if (analyzedVideos.length === 0) return;
+    if (filteredVideos.length === 0) return;
 
     // Generate HTML content for print
     const htmlContent = `
@@ -1588,10 +1605,10 @@ function AnalyzedVideosSection({
 
         <div class="header">
           <h1>TubeSource AI Analysis Report</h1>
-          <p>총 ${analyzedVideos.length}개 리포트 | ${new Date().toLocaleString()}</p>
+          <p>총 ${filteredVideos.length}개 리포트 | ${new Date().toLocaleString()}</p>
         </div>
 
-        ${analyzedVideos.map(v => {
+        ${filteredVideos.map(v => {
           const result = v.analysisResult as any;
           const isContext = v.type === 'context';
           const videoUrl = !isContext && v.videoId ? `https://www.youtube.com/watch?v=${v.videoId}` : '';
@@ -1729,14 +1746,6 @@ function AnalyzedVideosSection({
     );
   }
 
-  if (analyzedVideos.length === 0) {
-    return (
-      <div className="text-center py-20 text-slate-500">
-        아직 분석된 영상이 없습니다
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -1747,46 +1756,107 @@ function AnalyzedVideosSection({
           variant="outline"
           size="sm"
           onClick={handleExportPDF}
-          disabled={analyzedVideos.length === 0}
+          disabled={filteredVideos.length === 0}
           className="gap-2 h-8 text-xs border-red-200 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-900/20 text-red-600 disabled:opacity-50"
         >
           <FileText className="w-3.5 h-3.5" />
           PDF 리포트 내보내기
         </Button>
       </div>
-      <VideoList
-        videos={analyzedVideos.map(v => ({
-          id: v.videoId,
-          title: v.title,
-          channelTitle: v.channelTitle,
-          channelId: v.channelId,
-          channelThumbnail: '',
-          thumbnail: v.thumbnail,
-          viewCount: v.viewCount,
-          likeCount: v.likeCount,
-          commentCount: v.commentCount || 0,
-          subscriberCount: v.subscriberCount,
-          engagementRate: v.engagementRate,
-          performanceRatio: v.performanceRatio,
-          publishedAt: v.analyzedAt,
-          description: '',
-          duration: v.duration || '',
-          caption: v.caption ?? false,
-          creativeCommons: v.creativeCommons ?? false,
-          subtitleText: v.transcript || '',
-          channelVideoCount: 0,
-          channelViewCount: 0,
-        }))}
-        loading={loading}
-        savedChannelIds={savedChannelIds}
-        onToggleSave={onToggleSave}
-        onDownload={onDownload}
-        onAnalyze={handleViewAnalysis}
-        onViewSubtitle={onViewSubtitle}
-        onViewComments={onViewComments}
-        onDeleteAnalysis={handleDeleteAnalysis}
-        onChannelClick={onChannelClick}
-      />
+
+      {analyzedVideos.length > 0 && (
+        <Card className="bg-slate-50/50 dark:bg-slate-900/50 border-dashed mb-4">
+          <CardContent className="p-3 flex flex-wrap gap-4 items-center">
+            {/* Type Filter */}
+            <div className="flex items-center gap-1 bg-white dark:bg-slate-950 p-1 rounded-lg border border-slate-200 dark:border-slate-800">
+              <Button 
+                variant={selectedTypeFilter === 'all' ? 'secondary' : 'ghost'} 
+                size="sm" 
+                className="h-7 text-xs" 
+                onClick={() => setSelectedTypeFilter('all')}
+              >
+                전체
+              </Button>
+              <Button 
+                variant={selectedTypeFilter === 'single' ? 'secondary' : 'ghost'} 
+                size="sm" 
+                className="h-7 text-xs" 
+                onClick={() => setSelectedTypeFilter('single')}
+              >
+                영상 분석
+              </Button>
+              <Button 
+                variant={selectedTypeFilter === 'context' ? 'secondary' : 'ghost'} 
+                size="sm" 
+                className="h-7 text-xs" 
+                onClick={() => setSelectedTypeFilter('context')}
+              >
+                맥락 분석
+              </Button>
+            </div>
+
+            {/* Channel Filter */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-slate-500">채널:</span>
+              <Select value={selectedChannelFilter} onValueChange={setSelectedChannelFilter}>
+                <SelectTrigger className="h-8 w-[180px] text-xs">
+                  <SelectValue placeholder="모든 채널" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">모든 채널</SelectItem>
+                  {uniqueChannels.map(ch => (
+                    <SelectItem key={ch.id} value={ch.id}>{ch.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="ml-auto text-xs text-slate-400">
+              {filteredVideos.length}개 표시 중
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {filteredVideos.length === 0 ? (
+        <div className="text-center py-20 text-slate-500">
+          {analyzedVideos.length > 0 ? "조건에 맞는 분석 결과가 없습니다." : "아직 분석된 영상이 없습니다"}
+        </div>
+      ) : (
+        <VideoList
+          videos={filteredVideos.map(v => ({
+            id: v.videoId,
+            title: v.title,
+            channelTitle: v.channelTitle,
+            channelId: v.channelId,
+            channelThumbnail: '',
+            thumbnail: v.thumbnail,
+            viewCount: v.viewCount,
+            likeCount: v.likeCount,
+            commentCount: v.commentCount || 0,
+            subscriberCount: v.subscriberCount,
+            engagementRate: v.engagementRate,
+            performanceRatio: v.performanceRatio,
+            publishedAt: v.analyzedAt,
+            description: '',
+            duration: v.duration || '',
+            caption: v.caption ?? false,
+            creativeCommons: v.creativeCommons ?? false,
+            subtitleText: v.transcript || '',
+            channelVideoCount: 0,
+            channelViewCount: 0,
+          }))}
+          loading={loading}
+          savedChannelIds={savedChannelIds}
+          onToggleSave={onToggleSave}
+          onDownload={onDownload}
+          onAnalyze={handleViewAnalysis}
+          onViewSubtitle={onViewSubtitle}
+          onViewComments={onViewComments}
+          onDeleteAnalysis={handleDeleteAnalysis}
+          onChannelClick={onChannelClick}
+        />
+      )}
     </div>
   );
 }
