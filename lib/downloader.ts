@@ -77,6 +77,12 @@ export function downloadVideo(options: DownloadOptions, onEvent: (event: Downloa
       '--newline',
     ];
 
+    // TikTok specific handling
+    if (url.includes('tiktok.com')) {
+      // Workaround for "Impersonate target not available" error
+      args.push('--user-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    }
+
     if (options.format === 'mp3') {
       args.push('-x', '--audio-format', 'mp3', '--audio-quality', '0');
     } else {
