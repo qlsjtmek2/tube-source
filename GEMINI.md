@@ -7,7 +7,7 @@ This file provides guidance to Gemini (or Claude Code) when working with code in
 **Video Source Collector** (또는 TubeSource)는 유튜브 영상 분석 및 다운로드를 제공하는 개인용 콘텐츠 크리에이터 도구입니다.
 
 - **Tech Stack**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Shadcn/UI
-- **External Services**: YouTube Data API v3, Google Gemini API (gemini-3-flash-preview), yt-dlp
+- **External Services**: YouTube Data API v3, Google Gemini API (gemini-3-flash-preview), yt-dlp (TikTok 지원)
 - **Data Storage**: Local JSON files (`data/channels.json`, `data/analyzed-videos.json`)
 
 ## Common Commands
@@ -32,7 +32,7 @@ npm run lint
 app/
   api/
     search/route.ts         # YouTube 검색 API (POST) - channelId 필터링 지원 (q가 없어도 동작)
-    download/route.ts       # yt-dlp 다운로드 API (POST)
+    download/route.ts       # yt-dlp 다운로드 API (POST) - YouTube 및 TikTok 지원
     analyze/route.ts        # Gemini AI 분석 API (POST)
     analyze/context/route.ts # 여러 영상 종합 맥락 분석 API (POST)
     analyzed-videos/route.ts # 분석된 영상 저장/조회 API (GET/POST/DELETE)
@@ -60,8 +60,8 @@ components/
   ui/                       # Shadcn/UI primitives (button, dialog, skeleton 등)
 
 lib/
-  youtube.ts                # YouTube API 검색 로직, 채널 상세 정보, 심화 지표 계산
-  downloader.ts             # yt-dlp wrapper (progress tracking)
+  youtube.ts                # YouTube API 검색 로직. 채널 전체 검색 시 playlistItems API 사용 최적화.
+  downloader.ts             # yt-dlp wrapper. YouTube 및 TikTok URL 자동 감지 및 클리닝.
   ai.ts                     # Gemini API 분석 로직 (자막, 댓글 포함)
   subtitles.ts              # yt-dlp 자막 추출 로직 (JSON3 포맷)
   storage.ts                # Local JSON storage (채널, 분석 기록)
@@ -84,7 +84,8 @@ downloads/                  # yt-dlp 다운로드 경로 (런타임에 자동 �
    - User inputs query → `app/page.tsx` (Search tab)
    - State managed by `SearchContext` (store/search-context.tsx)
    - API call to `/api/search` → `lib/youtube.ts`
-   - **Recursive Fetching**: `searchVideos()` fetches videos recursively until `maxResults` is met, applying `minSubscribers` and `minPerformanceRatio` filters in memory.
+   - **Recursive Fetching**: `searchVideos()` fetches videos recursively until `maxResults` is met.
+   - **Optimization**: If searching *all* videos in a channel (no query, maxResults=0), it switches to `playlistItems.list` API to bypass the 500-item limit and save quota cost.
    - Subtitles are fetched only for valid videos to save resources.
    - Returns `EnrichedVideo[]` with calculated metrics (engagementRate, performanceRatio).
 
@@ -92,7 +93,7 @@ downloads/                  # yt-dlp 다운로드 경로 (런타임에 자동 �
    - **Search**: User searches channel by name → `/api/channels/search` → `lib/youtube.ts:searchChannels()`
    - **Details**: User clicks channel name → `ChannelDetailDialog` fetches details via `/api/channels/details`
    - **Load Videos**: User clicks "채널 검색 탭으로 불러오기" → Switch to Channel Search tab → Call `/api/search` with `channelId`
-   - **Persistence**: Channel Search tab has its own internal state, independent of the main Search tab.
+   - **Filters**: Supports `minPerformanceRatio` (lower bound) and client-side sorting (Newest/Oldest).
 
 3. **AI Analysis Flow (Single, Batch & Context)**
    - **Single**: User clicks Analyze → `/api/analyze` → Gemini API (gemini-3-flash-preview)
@@ -105,16 +106,18 @@ downloads/                  # yt-dlp 다운로드 경로 (런타임에 자동 �
      - **Persona**: Content Strategy Expert & Behavioral Psychologist.
      - **Framework**: Socratic method used to derive Hook, Structure, Target, Community Needs, Insights.
      - **Techniques**: Structured contexts using delimiters, explicit output format control, and role-based behavior.
-   - **Cancellation**: User can stop batch analysis mid-process (AbortController).
 
-4. **Comments Analysis Flow**
-   - User clicks Comment icon → `/api/comments` → `lib/youtube.ts:getTopComments()`
-   - Fetches relevant comments using YouTube Data API.
-   - Displayed in `CommentsDialog`.
-
-5. **Analyzed Videos History Flow**
+4. **Analyzed Videos History Flow**
    - Analysis results are automatically saved to `data/analyzed-videos.json`.
    - Viewed in "분석 결과" tab.
+   - **Filtering**: Can filter by Channel and Analysis Type (Single vs Context).
+   - **Export**: Can export displayed results to PDF.
+
+5. **Download Flow**
+   - User inputs URL → `app/page.tsx` (Download tab)
+   - URL Regex supports **YouTube** and **TikTok**.
+   - API call to `/api/download` → `lib/downloader.ts` → `yt-dlp` spawn.
+   - Server-Sent Events (SSE) used for real-time progress updates.
 
 ## Code Conventions & Best Practices (2025)
 
@@ -137,6 +140,5 @@ downloads/                  # yt-dlp 다운로드 경로 (런타임에 자동 �
 
 ## Future Expansion Points
 
-- Download queue management.
-- Export analysis results to PDF/Notion.
 - YouTube API quota monitoring dashboard.
+- Advanced visualization for trend analysis.
