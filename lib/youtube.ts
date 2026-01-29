@@ -98,7 +98,7 @@ export async function searchVideos(filters: VideoSearchFilters): Promise<Enriche
         channelId: filters.channelId, 
         publishedAfter: filters.publishedAfter,
         publishedBefore: filters.publishedBefore,
-        regionCode: filters.regionCode,
+        regionCode: filters.regionCode === 'all' ? undefined : filters.regionCode,
         videoDuration: filters.videoDuration,
         order: filters.order,
         videoLicense: filters.creativeCommons ? 'creativeCommon' : 'any',
