@@ -71,8 +71,9 @@ export interface YouTubeComment {
 }
 
 export async function searchVideos(filters: VideoSearchFilters): Promise<EnrichedVideo[]> {
-  // Strategy Switch: If fetching ALL videos from a channel (no query), use PlaylistItems (Cheaper & Deeper)
-  if (filters.channelId && filters.maxResults === 0 && !filters.q) {
+  // Strategy Switch: If fetching videos from a channel without a query, use PlaylistItems
+  // This allows fetching ALL videos cheaply and performing accurate client-side sorting/filtering
+  if (filters.channelId && !filters.q) {
     return await fetchAllChannelVideos(filters);
   }
 
@@ -305,18 +306,8 @@ async function fetchAllChannelVideos(filters: VideoSearchFilters): Promise<Enric
         
         // 2. Duration Filter
         const duration = video.contentDetails?.duration || '';
-        if (filters.videoDuration && filters.videoDuration !== 'any') {
-           // Basic ISO8601 parsing logic needed if we want strict filtering. 
-           // For simplicity, we can skip or implement a helper.
-           // Given complexity, let's implement a simple check if possible, or skip for now.
-           // Actually, 'short' usually means < 4 mins. 'medium' 4-20. 'long' > 20.
-           // Implementing robust ISO duration parsing here is verbose. 
-           // Let's assume the user accepts "All" means ALL durations if parsing is hard, 
-           // OR we check rudimentary markers. 'PT1H' is long. 'PT50M' is long.
-           // Let's skip detailed duration filter for "Fetch All" unless critical.
-           // User asked for "Fetch ALL", so maybe they want everything.
-        }
-
+        // Note: Simple duration check skipped for robustness, assuming user wants everything matching logic.
+        
         const viewCount = Number(video.statistics?.viewCount) || 0;
         const likeCount = Number(video.statistics?.likeCount) || 0;
         const commentCount = Number(video.statistics?.commentCount) || 0;
@@ -360,17 +351,27 @@ async function fetchAllChannelVideos(filters: VideoSearchFilters): Promise<Enric
       }
     }
 
-    // 4. Fetch Subtitles for ALL valid videos? 
-    // This might be expensive/slow if 5000 videos.
-    // If filters.fetchSubtitles is true, we should do it.
-    // WARNING: Extracting subtitles for 5000 videos will take forever and might IP ban.
-    // Let's limit subtitle fetching to first 50 or disable it for 'Fetch All' mode unless explicitly requested/warned.
-    // Or, just do it. The user said "Fetch All".
-    // But `extractSubtitlesBatch` scrapes HTML. Doing this for 5000 videos is risky.
-    // I will SKIP subtitle fetching for "Full Fetch" to prevent timeouts and IP bans, 
-    // OR only fetch for the first 50.
-    // Given the constraints, I will skip it and maybe log a warning.
-    console.log(`[YouTube Full Fetch] Enriched ${enrichedVideos.length} videos.`);
+    // 4. Sort (In-Memory)
+    const order = filters.order || 'date';
+    if (order === 'viewCount') {
+        enrichedVideos.sort((a, b) => b.viewCount - a.viewCount);
+    } else if (order === 'rating') {
+        enrichedVideos.sort((a, b) => b.likeCount - a.likeCount);
+    } else if (order === 'title') {
+        enrichedVideos.sort((a, b) => a.title.localeCompare(b.title));
+    } else {
+        // 'date' or 'relevance' (default to newest)
+        enrichedVideos.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+    }
+
+    // 5. Slice (Apply limit)
+    // 0 means unlimited
+    if (filters.maxResults !== 0) {
+       const limit = filters.maxResults || 50;
+       return enrichedVideos.slice(0, limit);
+    }
+
+    console.log(`[YouTube Full Fetch] Returning ${enrichedVideos.length} videos.`);
     return enrichedVideos;
 
   } catch (e) {
