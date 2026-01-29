@@ -23,19 +23,35 @@ export interface DownloadEvent {
   value: string;
 }
 
-function cleanYouTubeUrl(url: string): string {
+function cleanVideoUrl(url: string): string {
   // Remove trailing parentheses and other invalid characters
   let cleanUrl = url.replace(/[)\]}>]+$/, '');
 
-  // Extract video ID and rebuild clean URL
-  const patterns = [
+  // YouTube Patterns
+  const youtubePatterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
   ];
 
-  for (const pattern of patterns) {
+  for (const pattern of youtubePatterns) {
     const match = cleanUrl.match(pattern);
     if (match) {
       return `https://www.youtube.com/watch?v=${match[1]}`;
+    }
+  }
+
+  // TikTok Patterns
+  // Supports:
+  // - https://www.tiktok.com/@user/video/1234567890123456789
+  // - https://vm.tiktok.com/ZM8...
+  // - https://vt.tiktok.com/ZM8...
+  const tiktokPatterns = [
+    /tiktok\.com\/@[\w.-]+\/video\/(\d+)/,
+    /(?:vm|vt)\.tiktok\.com\/([\w-]+)/,
+  ];
+
+  for (const pattern of tiktokPatterns) {
+    if (cleanUrl.match(pattern)) {
+      return cleanUrl; // TikTok URLs are usually fine as is, just return the cleaned string
     }
   }
 
@@ -47,7 +63,7 @@ export function downloadVideo(options: DownloadOptions, onEvent: (event: Downloa
     await initDownloadsDir();
 
     const rawUrl = options.url || `https://www.youtube.com/watch?v=${options.videoId}`;
-    const url = cleanYouTubeUrl(rawUrl);
+    const url = cleanVideoUrl(rawUrl);
     const filenameTemplate = '%(title)s.%(ext)s';
     const outputPathTemplate = path.join(DOWNLOADS_DIR, filenameTemplate);
 
@@ -64,7 +80,9 @@ export function downloadVideo(options: DownloadOptions, onEvent: (event: Downloa
     if (options.format === 'mp3') {
       args.push('-x', '--audio-format', 'mp3', '--audio-quality', '0');
     } else {
-      args.push('-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best');
+      // H.264(avc1) 코덱 우선 - Premiere Pro 호환성 보장
+      // AV1(av01)은 Premiere Pro에서 지원하지 않음
+      args.push('-f', 'bestvideo[vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best');
     }
 
     console.log(`[downloader] Command: yt-dlp ${args.join(' ')}`);

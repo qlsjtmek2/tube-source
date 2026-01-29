@@ -2260,16 +2260,27 @@ function DownloadsSection({ onDownloadStart, activeDownloads }: {
   const [inputText, setInputText] = useState('');
 
   const extractUrls = (text: string) => {
-    const youtubeRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}(?:[^\s]*))/g;
-    const matches = text.match(youtubeRegex);
+    // YouTube and TikTok Regex
+    const urlRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}|https?:\/\/(?:www\.|vm\.|vt\.)?tiktok\.com\/[^\s]+)(?:[^\s]*)/g;
+    const matches = text.match(urlRegex);
     return matches ? Array.from(new Set(matches)) : [];
   };
 
   const extractedUrls = extractUrls(inputText);
 
   const extractVideoId = (url: string): string => {
-    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);
-    return match ? match[1] : url;
+    // YouTube
+    const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);
+    if (ytMatch) return ytMatch[1];
+
+    // TikTok
+    if (url.includes('tiktok.com')) {
+      const tiktokMatch = url.match(/\/video\/(\d+)/);
+      if (tiktokMatch) return tiktokMatch[1];
+      return 'TikTok';
+    }
+
+    return 'Video';
   };
 
   const handleDownload = (format: 'mp4' | 'mp3') => {
@@ -2294,7 +2305,7 @@ function DownloadsSection({ onDownloadStart, activeDownloads }: {
             <div className="relative flex-1">
               <Download className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
-                placeholder="유튜브 링크를 붙여넣으세요..."
+                placeholder="유튜브 또는 틱톡 링크를 붙여넣으세요..."
                 className="pl-10 h-10"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
