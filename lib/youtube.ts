@@ -72,13 +72,14 @@ export interface YouTubeComment {
 
 export async function searchVideos(filters: VideoSearchFilters): Promise<EnrichedVideo[]> {
   try {
-    const targetMaxResults = filters.maxResults && filters.maxResults >= 1 && filters.maxResults <= 100
-      ? filters.maxResults
-      : 50;
+    const targetMaxResults = filters.maxResults === 0 
+      ? 5000 
+      : (filters.maxResults && filters.maxResults >= 1 && filters.maxResults <= 100 ? filters.maxResults : 50);
 
     let pageToken: string | undefined = undefined;
     const enrichedVideos: EnrichedVideo[] = [];
-    const MAX_PAGES = 5; // Prevent infinite loops and excessive quota usage
+    // If target is high, allow more pages. 50 items per page * 100 pages = 5000 items.
+    const MAX_PAGES = targetMaxResults > 100 ? 100 : 5; 
     let pageCount = 0;
 
     // Loop until we have enough videos or reach the page limit

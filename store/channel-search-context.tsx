@@ -128,6 +128,12 @@ function sortVideos(videos: EnrichedVideo[], sortType: string): EnrichedVideo[] 
     case 'comments':
       sorted.sort((a, b) => b.commentCount - a.commentCount);
       break;
+    case 'newest':
+      sorted.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+      break;
+    case 'oldest':
+      sorted.sort((a, b) => new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime());
+      break;
     case 'none':
     default:
       break;

@@ -1489,175 +1489,236 @@ function AnalyzedVideosSection({
     }
   };
 
-  const handleExportPDF = async () => {
+  const handleExportPDF = () => {
     if (analyzedVideos.length === 0) return;
-    
-    // Dynamically import to avoid SSR issues
-    const html2pdf = (await import('html2pdf.js')).default;
 
-    // Create a hidden iframe for isolation
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '800px';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    iframe.style.visibility = 'hidden';
-    document.body.appendChild(iframe);
-
-    const doc = iframe.contentWindow?.document;
-    if (!doc) return;
-
-    const content = `
+    // Generate HTML content for print
+    const htmlContent = `
       <!DOCTYPE html>
       <html>
       <head>
+        <meta charset="UTF-8">
+        <title>TubeSource AI Analysis Report</title>
         <style>
-          body { 
-            font-family: sans-serif; 
-            padding: 40px; 
+          @media print {
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .video-report { page-break-inside: avoid; }
+          }
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            padding: 40px;
             color: #1e293b;
             line-height: 1.6;
             background: white;
-            margin: 0;
           }
-          .header { 
-            border-bottom: 3px solid #ef4444; 
-            padding-bottom: 20px; 
-            margin-bottom: 40px; 
+          .header {
+            border-bottom: 3px solid #ef4444;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
           }
-          .header h1 { margin: 0; color: #ef4444; font-size: 28px; }
-          .header p { margin: 0; color: #64748b; font-size: 14px; }
-          
-          .video-report { 
-            margin-bottom: 60px; 
-            page-break-inside: avoid;
+          .header h1 { color: #ef4444; font-size: 24px; margin-bottom: 8px; }
+          .header p { color: #64748b; font-size: 13px; }
+          .video-report {
+            margin-bottom: 40px;
             border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 30px;
+            border-radius: 8px;
+            padding: 24px;
             background: #fff;
           }
-          .video-title { 
-            font-size: 20px; 
-            font-weight: bold; 
-            margin-bottom: 15px; 
+          .video-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 12px;
             color: #0f172a;
             line-height: 1.4;
           }
-          .video-meta { 
-            display: table;
-            width: 100%;
-            margin-bottom: 25px; 
-            padding: 15px;
+          .video-meta {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 20px;
+            padding: 12px 16px;
             background: #f8fafc;
-            border-radius: 8px;
+            border-radius: 6px;
             font-size: 12px;
           }
-          .meta-item { display: table-cell; width: 25%; }
-          .meta-item b { display: block; color: #64748b; margin-bottom: 4px; font-size: 10px; text-transform: uppercase; }
-          
-          .section { margin-bottom: 20px; }
-          .section-title { 
-            font-size: 14px; 
-            font-weight: bold; 
-            color: #ef4444; 
-            margin-bottom: 8px;
+          .meta-item b { display: block; color: #64748b; margin-bottom: 2px; font-size: 10px; text-transform: uppercase; }
+          .section { margin-bottom: 16px; }
+          .section-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: #ef4444;
+            margin-bottom: 6px;
           }
-          .section-content { 
-            font-size: 13px; 
+          .section-content {
+            font-size: 12px;
             white-space: pre-wrap;
+            line-height: 1.7;
           }
-          
-          .list-section { display: table; width: 100%; margin-top: 20px; border-spacing: 20px 0; }
-          .list-column { display: table-cell; width: 50%; vertical-align: top; }
-          .list-item { font-size: 13px; margin-bottom: 8px; padding-left: 15px; position: relative; }
+          .list-section { display: flex; gap: 24px; margin-top: 16px; }
+          .list-column { flex: 1; }
+          .list-item { font-size: 12px; margin-bottom: 6px; padding-left: 14px; position: relative; line-height: 1.5; }
           .list-item::before { content: "•"; position: absolute; left: 0; color: #ef4444; font-weight: bold; }
-          
-          .tag { background: #f1f5f9; padding: 4px 10px; border-radius: 4px; font-size: 11px; margin-right: 5px; display: inline-block; margin-bottom: 5px; }
+          .keywords { margin-top: 16px; }
+          .tag {
+            display: inline-block;
+            background: #f1f5f9;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-right: 6px;
+            margin-bottom: 6px;
+          }
+          .print-guide {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+            font-size: 13px;
+          }
+          .print-guide strong { color: #d97706; }
+          @media print { .print-guide { display: none; } }
         </style>
       </head>
       <body>
+        <div class="print-guide">
+          <strong>PDF로 저장하기:</strong> Ctrl+P (Windows) 또는 Cmd+P (Mac)를 눌러 인쇄 대화상자를 열고, "PDF로 저장"을 선택하세요.
+        </div>
+
         <div class="header">
           <h1>TubeSource AI Analysis Report</h1>
-          <p>Total ${analyzedVideos.length} reports generated on ${new Date().toLocaleString()}</p>
+          <p>총 ${analyzedVideos.length}개 리포트 | ${new Date().toLocaleString()}</p>
         </div>
-        
-        ${analyzedVideos.map(v => `
-          <div class="video-report">
-            <div class="video-title">${v.title}</div>
-            <div class="video-meta">
-              <div class="meta-item"><b>채널</b>${v.channelTitle}</div>
-              <div class="meta-item"><b>조회수</b>${v.viewCount.toLocaleString()}회</div>
-              <div class="meta-item"><b>성과도</b>${v.performanceRatio}%</div>
-              <div class="meta-item"><b>분석일</b>${new Date(v.analyzedAt).toLocaleDateString()}</div>
-            </div>
 
-            <div class="section">
-              <div class="section-title">핵심 후킹 포인트</div>
-              <div class="section-content">${v.analysisResult.hook || v.analysisResult.commonalities || '-'}</div>
-            </div>
+        ${analyzedVideos.map(v => {
+          const result = v.analysisResult as any;
+          const isContext = v.type === 'context';
+          const videoUrl = !isContext && v.videoId ? `https://www.youtube.com/watch?v=${v.videoId}` : '';
 
-            <div class="section">
-              <div class="section-title">콘텐츠 구성 및 전략</div>
-              <div class="section-content">${v.analysisResult.structure || v.analysisResult.strategies || '-'}</div>
-            </div>
+          // 텍스트 필드
+          const hook = result.hook || result.commonalities || '';
+          const structure = result.structure || result.strategies || '';
+          const target = result.target || '';
+          const communityNeeds = result.community_needs || '';
+          const actionPlan = result.action_plan || '';
 
-            <div class="list-section">
-              <div class="list-column">
-                <div class="section-title">강점 분석</div>
-                ${Array.isArray(v.analysisResult.strengths) 
-                  ? v.analysisResult.strengths.map(s => `<div class="list-item">${s}</div>`).join('') 
-                  : (v.analysisResult.strengths ? `<div class="list-item">${v.analysisResult.strengths}</div>` : '-')}
+          // 배열 필드
+          const strengths: string[] = Array.isArray(result.strengths) ? result.strengths : (result.strengths ? [result.strengths] : []);
+          const weaknesses: string[] = Array.isArray(result.weaknesses) ? result.weaknesses : (result.weaknesses ? [result.weaknesses] : []);
+          const insights: string[] = Array.isArray(result.insights) ? result.insights : (result.insights ? [result.insights] : []);
+          const keywords: string[] = Array.isArray(result.search_keywords) ? result.search_keywords : [];
+          const editingTips: string[] = Array.isArray(result.editing_tips) ? result.editing_tips : (result.editing_tips ? [result.editing_tips] : []);
+
+          // 자막 (줄바꿈을 공백으로 치환하여 한 줄로 표시)
+          const transcript = (v.transcript || '').replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
+
+          return `
+            <div class="video-report">
+              <div class="video-title">${v.title || 'Untitled'}</div>
+              ${videoUrl ? `<div style="margin-bottom: 12px;"><a href="${videoUrl}" target="_blank" style="color: #ef4444; font-size: 12px; text-decoration: none;">▶ ${videoUrl}</a></div>` : ''}
+              <div class="video-meta">
+                <div class="meta-item"><b>채널</b>${v.channelTitle || '-'}</div>
+                <div class="meta-item"><b>조회수</b>${(v.viewCount || 0).toLocaleString()}회</div>
+                <div class="meta-item"><b>성과도</b>${v.performanceRatio || 0}%</div>
+                <div class="meta-item"><b>분석일</b>${v.analyzedAt ? new Date(v.analyzedAt).toLocaleDateString() : '-'}</div>
               </div>
-              <div class="list-column">
-                <div class="section-title">핵심 인사이트</div>
-                ${Array.isArray(v.analysisResult.insights) 
-                  ? v.analysisResult.insights.map(i => `<div class="list-item">${i}</div>`).join('') 
-                  : (v.analysisResult.insights ? `<div class="list-item">${v.analysisResult.insights}</div>` : '-')}
-              </div>
-            </div>
 
-            <div style="margin-top: 20px;">
-              <div class="section-title">유사 소스 키워드</div>
-              <div>
-                ${Array.isArray(v.analysisResult.search_keywords) 
-                  ? v.analysisResult.search_keywords.map(k => `<span class="tag">#${k}</span>`).join('') 
-                  : '-'}
+              ${hook ? `
+              <div class="section">
+                <div class="section-title">${isContext ? '공통 특성' : '핵심 후킹 포인트'}</div>
+                <div class="section-content">${hook}</div>
               </div>
+              ` : ''}
+
+              ${structure ? `
+              <div class="section">
+                <div class="section-title">${isContext ? '공통 전략' : '콘텐츠 구성 및 전략'}</div>
+                <div class="section-content">${structure}</div>
+              </div>
+              ` : ''}
+
+              ${target ? `
+              <div class="section">
+                <div class="section-title">타겟 오디언스</div>
+                <div class="section-content">${target}</div>
+              </div>
+              ` : ''}
+
+              ${communityNeeds ? `
+              <div class="section">
+                <div class="section-title">커뮤니티 니즈 분석</div>
+                <div class="section-content">${communityNeeds}</div>
+              </div>
+              ` : ''}
+
+              ${actionPlan ? `
+              <div class="section">
+                <div class="section-title">실행 계획</div>
+                <div class="section-content">${actionPlan}</div>
+              </div>
+              ` : ''}
+
+              <div class="list-section">
+                <div class="list-column">
+                  <div class="section-title">강점 분석</div>
+                  ${strengths.length > 0
+                    ? strengths.map(s => `<div class="list-item">${s}</div>`).join('')
+                    : '<div class="section-content">-</div>'}
+                </div>
+                <div class="list-column">
+                  <div class="section-title">약점 및 개선점</div>
+                  ${weaknesses.length > 0
+                    ? weaknesses.map(w => `<div class="list-item">${w}</div>`).join('')
+                    : '<div class="section-content">-</div>'}
+                </div>
+              </div>
+
+              <div class="list-section">
+                <div class="list-column">
+                  <div class="section-title">핵심 인사이트</div>
+                  ${insights.length > 0
+                    ? insights.map(i => `<div class="list-item">${i}</div>`).join('')
+                    : '<div class="section-content">-</div>'}
+                </div>
+                <div class="list-column">
+                  <div class="section-title">편집 방식 추천</div>
+                  ${editingTips.length > 0
+                    ? editingTips.map(t => `<div class="list-item">${t}</div>`).join('')
+                    : '<div class="section-content">-</div>'}
+                </div>
+              </div>
+
+              <div class="keywords">
+                <div class="section-title">유사 소스 키워드</div>
+                <div>
+                  ${keywords.length > 0
+                    ? keywords.map(k => `<span class="tag">#${k}</span>`).join('')
+                    : '<span class="section-content">-</span>'}
+                </div>
+              </div>
+
+              ${transcript ? `
+              <div class="section" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+                <div class="section-title">자막</div>
+                <div style="max-height: 150px; overflow-y: auto; background: #f8fafc; padding: 12px; border-radius: 6px; font-size: 11px; line-height: 1.6; color: #475569;">${transcript}</div>
+              </div>
+              ` : ''}
             </div>
-          </div>
-        `).join('')}
+          `;
+        }).join('')}
       </body>
       </html>
     `;
 
-    doc.open();
-    doc.write(content);
-    doc.close();
-
-    // Wait for iframe to load resources (if any)
-    setTimeout(async () => {
-      const opt = {
-        margin: 10,
-        filename: `tube-source-report-${new Date().toISOString().split('T')[0]}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-          scale: 2, 
-          useCORS: true,
-          logging: false
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-
-      try {
-        await html2pdf().set(opt).from(doc.body).save();
-      } catch (err) {
-        console.error('PDF generation error:', err);
-      } finally {
-        document.body.removeChild(iframe);
-      }
-    }, 500);
+    // Open in new window for printing
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+    } else {
+      alert('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
+    }
   };
 
   if (loading) {
@@ -1682,11 +1743,12 @@ function AnalyzedVideosSection({
         <p className="text-sm text-muted-foreground">
           총 {analyzedVideos.length}개의 분석된 영상
         </p>
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={handleExportPDF}
-          className="gap-2 h-8 text-xs border-red-200 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-900/20 text-red-600"
+          disabled={analyzedVideos.length === 0}
+          className="gap-2 h-8 text-xs border-red-200 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-900/20 text-red-600 disabled:opacity-50"
         >
           <FileText className="w-3.5 h-3.5" />
           PDF 리포트 내보내기
@@ -2017,9 +2079,22 @@ function ChannelSearchSection({
                       <SelectItem value="20">20개</SelectItem>
                       <SelectItem value="50">50개</SelectItem>
                       <SelectItem value="100">100개</SelectItem>
+                      <SelectItem value="0">전체 (All)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+
+                <div className="flex flex-col gap-1 min-w-[100px] flex-1 sm:flex-none">
+                  <Label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider ml-0.5">성과도 (Min %)</Label>
+                  <Input 
+                    type="number" 
+                    placeholder="최소 성과도" 
+                    className="h-8 text-xs" 
+                    value={filters.minPerformanceRatio || ''}
+                    onChange={(e) => setFilters({...filters, minPerformanceRatio: e.target.value ? Number(e.target.value) : undefined})}
+                  />
+                </div>
+
                 <div className="flex items-center gap-3 h-8 ml-auto pr-1">
                   <label className="flex items-center gap-1.5 text-[11px] text-slate-600 cursor-pointer">
                     <input
@@ -2042,6 +2117,8 @@ function ChannelSearchSection({
                   <div className="flex flex-wrap gap-1 items-center">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2 ml-1 shrink-0">심화 정렬</span>
                     <Button variant={sortBy === 'none' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('none')}>기본</Button>
+                    <Button variant={sortBy === 'newest' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('newest')}>최신순</Button>
+                    <Button variant={sortBy === 'oldest' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('oldest')}>오래된순</Button>
                     <Button variant={sortBy === 'views' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('views')}>조회수</Button>
                     <Button variant={sortBy === 'performance' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('performance')}>성과도</Button>
                     <Button variant={sortBy === 'engagement' ? 'default' : 'ghost'} size="sm" className="h-6 text-[11px] px-2" onClick={() => setSortBy('engagement')}>참여율</Button>
