@@ -21,15 +21,15 @@ interface VideoListProps {
   onChannelClick?: (channelId: string) => void;
 }
 
-export function VideoList({ 
-  videos, 
-  loading, 
-  savedChannelIds = [], 
-  onToggleSave, 
-  onDownload, 
-  onAnalyze, 
-  onViewSubtitle, 
-  onViewComments, 
+export function VideoList({
+  videos,
+  loading,
+  savedChannelIds = [],
+  onToggleSave,
+  onDownload,
+  onAnalyze,
+  onViewSubtitle,
+  onViewComments,
   onDeleteAnalysis,
   onRemove,
   selectionMode = false,

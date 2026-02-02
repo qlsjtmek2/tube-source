@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Video Source Collector** (또는 TubeSource)는 유튜브 영상 분석 및 다운로드를 제공하는 개인용 콘텐츠 크리에이터 도구입니다.
+**Video Source Collector** (또는 TubeSource)는 유튜브 및 TikTok 영상 분석 및 다운로드를 제공하는 개인용 콘텐츠 크리에이터 도구입니다.
 
 - **Tech Stack**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Shadcn/UI
 - **External Services**: YouTube Data API v3, Google Gemini API (gemini-3-flash-preview), yt-dlp
 - **Data Storage**: Local JSON files (data/channels.json)
+- **Supported Platforms**: YouTube (검색, 분석, 다운로드), TikTok (다운로드 전용)
 
 ## Common Commands
 
@@ -37,25 +38,30 @@ app/
     analyze/route.ts        # Gemini AI 분석 API (POST)
     channels/route.ts       # 채널 저장/조회 API (GET/POST/DELETE)
     trends/route.ts         # 실시간 트렌드 API (GET)
-  page.tsx                  # Main UI (검색, 결과, 트렌드 탭)
+    footage-search/route.ts # 자료화면 검색 API (POST, 페이지네이션 지원)
+  page.tsx                  # Main UI (영상검색, 채널검색, 관심채널, 트렌드, 분석결과, 다운로드, 자료화면검색 탭)
   layout.tsx                # Root layout with SearchProvider
   globals.css               # Tailwind + custom styles
 
 components/
-  video-card.tsx            # 영상 카드 (다운로드/분석/자막 보기 버튼 포함)
+  video-card.tsx            # 영상 카드 (다운로드/분석/자막 버튼 포함)
   video-list.tsx            # 영상 리스트 컨테이너
-  download-dialog.tsx       # 다운로드 다이얼로그 (MP4/MP3 선택)
-  analysis-dialog.tsx       # AI 분석 결과 다이얼로그
+  download-dialog.tsx       # 다운로드 다이얼로그 (MP4/MP3 선택, YouTube/TikTok 지원)
+  analysis-dialog.tsx       # AI 분석 결과 다이얼로그 (확장된 분석 섹션 포함)
   subtitle-dialog.tsx       # 자막 표시 다이얼로그
+  footage-search-dialog.tsx # 자료화면 검색 다이얼로그 (Gemini 키워드 추출 + 3개 소스 검색)
+  footage-result-card.tsx   # 자료화면 이미지/영상 카드 (다운로드/URL 복사)
+  channel-detail-dialog.tsx # 채널 상세 정보 다이얼로그 (통계, 차트, 최근 영상)
   batch-process-bar.tsx     # 단일 배치 작업 진행 표시 (BatchJob 기반)
   batch-process-stack.tsx   # 다중 배치 작업 스택 컨테이너
-  ui/                       # Shadcn/UI primitives (button, dialog, tabs 등)
+  ui/                       # Shadcn/UI primitives (button, dialog, tabs, badge 등)
 
 lib/
   youtube.ts                # YouTube API 검색 로직 + 심화 지표 계산
   downloader.ts             # yt-dlp wrapper (progress tracking)
   ai.ts                     # Gemini API 분석 로직 (자막 포함)
   subtitles.ts              # yt-dlp 자막 추출 로직 (JSON3 포맷)
+  footage-search.ts         # 자료화면 검색 로직 (Gemini 키워드 추출 + Unsplash/Pexels/Google)
   storage.ts                # Local JSON storage (채널 즐겨찾기)
   utils.ts                  # Tailwind utility (cn)
 
@@ -78,20 +84,39 @@ downloads/                  # yt-dlp 다운로드 경로 (런타임에 자동 �
    - `searchVideos()` fetches video IDs, video details, channel details in parallel
    - Returns `EnrichedVideo[]` with calculated metrics (engagementRate, performanceRatio)
 
-2. **Video Download Flow**
+2. **Video Download Flow** (YouTube & TikTok)
    - User clicks Download → `DownloadDialog` opens or uses Downloads tab
    - GET to `/api/download?url=...&format=mp4|mp3` (SSE stream)
    - Server spawns `yt-dlp` process via `lib/downloader.ts`
+   - **Platform Detection**: URL 패턴으로 YouTube/TikTok 자동 감지
+     - YouTube: `youtube.com/watch?v=`, `youtu.be/`, `youtube.com/shorts/`
+     - TikTok: `tiktok.com/@user/video/`, `vm.tiktok.com/`, `vt.tiktok.com/`
+   - **TikTok 특수 처리**: User-Agent 헤더 추가로 "Impersonate target not available" 오류 우회
    - SSE events: `starting`, `title`, `progress`, `destination`, `completed`, `error`
-   - UI에서 title 이벤트 수신 시 유튜브 제목으로 표시 업데이트
-   - Files saved to `downloads/` directory (파일명: 유튜브 제목)
+   - UI에서 title 이벤트 수신 시 영상 제목으로 표시 업데이트
+   - Files saved to `downloads/` directory (파일명: 영상 제목)
 
 3. **AI Analysis Flow**
    - User clicks Analyze → `AnalysisDialog` opens
-   - POST to `/api/analyze` with video metadata
+   - POST to `/api/analyze` with video metadata (자막 포함 가능)
    - `lib/ai.ts` calls Gemini API with structured prompt (한국어)
-   - Returns JSON: `{ hook, structure, target, insights[] }`
-   - Displayed in modal with formatted sections
+   - **분석 타입**:
+     - 단일 영상: 벤치마킹 인사이트 (hook, structure, target, insights, etc.)
+     - 배치 분석: 공통된 성공 요인 분석 (commonalities, strategies, strengths, weaknesses, etc.)
+   - Returns JSON with expanded sections:
+     - `commonalities`: 공통된 성공 요인
+     - `strategies`: 트렌드 및 전략 분석
+     - `hook`: 핵심 후킹 포인트
+     - `target`: 타겟 오디언스
+     - `community_needs`: 커뮤니티 니즈 & 반응
+     - `structure`: 콘텐츠 구성 전략
+     - `strengths[]`: 강점 분석
+     - `weaknesses[]`: 약점 및 개선점
+     - `insights[]`: 핵심 인사이트
+     - `search_keywords[]`: 유사 소스 검색 키워드
+     - `editing_tips[]`: 편집 방식 추천
+     - `action_plan`: 내 채널 적용 액션 플랜
+   - Displayed in modal with formatted sections and icons
 
 4. **Subtitle Viewing Flow**
    - User clicks "자막 보기" → `SubtitleDialog` opens
@@ -105,6 +130,30 @@ downloads/                  # yt-dlp 다운로드 경로 (런타임에 자동 �
    - `lib/storage.ts` appends to `data/channels.json`
    - GET `/api/channels` retrieves saved channels list
    - DELETE removes channel by ID
+
+6. **Trends Flow** (실시간 인기 영상)
+   - User selects Trends tab → GET to `/api/trends?regionCode=KR&videoCategoryId=0`
+   - YouTube API의 `videos.list(chart='mostPopular')` 호출
+   - 국가별, 카테고리별 필터링 지원
+   - 검색 결과와 동일한 enrichment 적용 (engagementRate, performanceRatio 계산)
+   - 최대 24개 영상 반환
+
+7. **Footage Search Flow** (자료화면 검색) - 별도 탭
+   - 네비게이션에서 "자료화면 검색" 탭 선택
+   - 자막 입력 textarea에 자막 텍스트 직접 입력 (줄바꿈으로 구분)
+   - "자료화면 검색" 버튼 클릭 → FootageSearchDialog 열림
+   - POST to `/api/footage-search` with `{ subtitleText, startLine, count }`
+   - Backend:
+     1. 자막을 줄바꿈으로 분할 (`\n`)
+     2. Gemini AI로 각 라인에서 한글/영어 키워드 추출 (배치 처리)
+     3. 3개 소스(Unsplash, Pexels, Google)에서 병렬 검색
+     4. 결과 반환 (페이지네이션 정보 포함)
+   - Frontend:
+     - 라인별로 아코디언 UI 표시
+     - 각 라인마다 Unsplash/Pexels/Google 섹션 분리
+     - 이미지/영상 hover 시 다운로드/URL 복사 버튼 표시
+     - "다음 5개 라인 불러오기" 버튼으로 추가 로드
+   - Caching: 10분 TTL 메모리 캐시로 동일 검색 반복 방지
 
 ### Key TypeScript Interfaces
 
@@ -154,6 +203,12 @@ Required in `.env.local`:
 ```bash
 YOUTUBE_API_KEY=your-youtube-api-key
 GEMINI_API_KEY=your-gemini-api-key
+
+# Footage Search APIs
+UNSPLASH_ACCESS_KEY=your-unsplash-access-key
+PEXELS_API_KEY=your-pexels-api-key
+GOOGLE_CSE_ID=your-google-custom-search-engine-id
+GOOGLE_CSE_API_KEY=your-google-api-key
 ```
 
 See `.env.example` for template.
@@ -211,8 +266,33 @@ See `.env.example` for template.
 - Style: `new-york`
 - Base color: `neutral`
 - CSS variables enabled
-- Components installed: Avatar, Button, Dialog, Label, Progress, ScrollArea, Select, Separator, Slot, Tabs
+- Components installed: Avatar, Badge, Button, Dialog, Label, Progress, ScrollArea, Select, Separator, Skeleton, Slot, Tabs
 - Import path: `@/components/ui/*`
+
+## Key Dependencies
+
+### Core Libraries
+- **Next.js 16**: React 프레임워크 (App Router)
+- **React 19**: UI 라이브러리
+- **TypeScript 5**: 타입 시스템
+- **Tailwind CSS 4**: 스타일링 (PostCSS 기반)
+
+### External APIs & Services
+- **googleapis**: YouTube Data API v3 클라이언트
+- **@google/generative-ai**: Google Gemini API 클라이언트
+- **youtube-dl-exec**: yt-dlp 바이너리를 Node.js에서 실행 (YouTube/TikTok 다운로드)
+  - yt-dlp 전역 설치 필요: `brew install yt-dlp` (macOS)
+
+### UI & Visualization
+- **lucide-react**: 아이콘 라이브러리
+- **recharts**: 차트 라이브러리 (채널 상세 정보의 조회수 추이 차트)
+- **@radix-ui/***: Headless UI 컴포넌트 (Shadcn/UI 기반)
+
+### Utilities
+- **clsx**: className 조합
+- **tailwind-merge**: Tailwind 클래스 병합
+- **class-variance-authority**: Variant 기반 스타일링
+- **uuid**: 고유 ID 생성 (배치 작업 등)
 
 ## State Management
 
@@ -412,11 +492,70 @@ See `.env.example` for template.
   - 완료/취소된 작업은 닫기 버튼으로 수동 제거
   - 작업 라벨로 어떤 분석인지 구분 가능
 
+### TikTok 다운로드 지원
+- **플랫폼 감지**: URL 패턴 매칭으로 YouTube/TikTok 자동 구분
+  - `cleanVideoUrl()` 함수로 URL 정규화 및 플랫폼별 처리
+- **TikTok User-Agent 우회**:
+  - 문제: yt-dlp의 `--impersonate` 기능이 macOS에서 "Impersonate target not available" 오류 발생
+  - 해결책: `--user-agent` 플래그로 Chrome 브라우저 헤더 직접 지정
+  - User-Agent: `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36`
+- **코덱 선택**: H.264(avc1) 우선 선택 - Adobe Premiere Pro 호환성 보장
+  - AV1(av01) 코덱은 일부 편집 소프트웨어에서 미지원
+- **지원 URL 형식**:
+  - YouTube: `youtube.com/watch?v=`, `youtu.be/`, `youtube.com/shorts/`
+  - TikTok: `tiktok.com/@user/video/`, `vm.tiktok.com/`, `vt.tiktok.com/`
+
+### 채널 상세 정보 차트
+- **recharts 라이브러리 사용**: 최근 영상 조회수 추이 시각화
+- **최근 영상 데이터**: YouTube API의 채널 업로드 플레이리스트에서 가져옴
+- **차트 커스터마이징**:
+  - LineChart로 조회수 추이 표시 (빨간색 선)
+  - Custom Tooltip으로 영상 제목, 조회수, 업로드 날짜 표시
+  - CartesianGrid로 가독성 향상
+  - 반응형 디자인 (ResponsiveContainer)
+- **Dialog 스크롤 처리**: 헤더/푸터는 고정, 중간 콘텐츠만 스크롤 가능하도록 flex 레이아웃 구성
+
+### 자료화면 검색 (Footage Search)
+- **UI 구조**: 별도 탭 ("자료화면 검색")에서 자막 직접 입력
+  - 네비게이션에서 "자료화면 검색" 탭 선택
+  - textarea에 자막 입력 (줄바꿈으로 구분)
+  - "자료화면 검색" 버튼 클릭 → FootageSearchDialog 열림
+  - 영상 카드에서는 자료화면 버튼 없음 (별도 탭으로 분리)
+- **3개 이미지/영상 소스**:
+  - **Unsplash**: 고품질 무료 사진, 50 requests/hour, landscape orientation
+  - **Pexels**: 사진+영상, 200 requests/hour, photos와 videos 병렬 검색
+  - **Google Custom Search**: 이미지 검색, 100 queries/day (가장 제한적)
+- **Gemini 키워드 추출**:
+  - Model: `gemini-2.0-flash-exp`
+  - 배치 처리: 여러 라인을 한 번에 보내서 한글/영어 키워드 추출
+  - Prompt: 구체적이고 검색 가능한 시각적 키워드 우선
+  - Fallback: Gemini 실패 시 자막 앞 10자를 키워드로 사용
+- **캐싱 전략**:
+  - 메모리 캐시 (Map): 10분 TTL
+  - Cache key: `source:query:limit` 형식
+  - Gemini 키워드: `keywords:lines` 형식
+- **페이지네이션**:
+  - 초기 로드: 5개 라인
+  - "더보기" 버튼으로 추가 5개씩 로드
+  - API 할당량 절약 (15 API 호출/5개 라인)
+- **에러 처리**:
+  - Promise.allSettled로 부분 실패 허용
+  - 한 소스 실패해도 나머지 결과 표시
+  - 소스별 에러 메시지 + "재시도" 버튼
+
 ## Future Expansion Points
 
 - 무한 스크롤 구현 (현재는 최대 100개)
-- 관심 채널 탭에서 특정 채널의 모든 영상 불러오기
 - 다운로드 큐 및 히스토리 관리
 - AI 분석 결과 로컬 저장 및 비교 기능
 - YouTube API 할당량 모니터링 UI
 - 검색 히스토리 및 즐겨찾는 검색 필터 저장
+- TikTok 검색 및 분석 기능 추가 (현재는 다운로드만 지원)
+- Instagram Reels 지원
+- 다운로드 속도 최적화 (병렬 다운로드, 프리셋 관리)
+- 자료화면 검색 고도화:
+  - AI 기반 관련성 순위 매기기
+  - 스타일 필터 (색상, 분위기, 화면비)
+  - 선택한 자료화면 프로젝트로 저장
+  - 일괄 다운로드 (ZIP)
+  - Pexels 영상 클립 편집 (특정 구간 추출)

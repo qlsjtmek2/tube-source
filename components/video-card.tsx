@@ -21,14 +21,14 @@ interface VideoCardProps {
   onChannelClick?: (channelId: string) => void;
 }
 
-export function VideoCard({ 
-  video, 
-  isSaved, 
-  onToggleSave, 
-  onDownload, 
-  onAnalyze, 
-  onViewSubtitle, 
-  onViewComments, 
+export function VideoCard({
+  video,
+  isSaved,
+  onToggleSave,
+  onDownload,
+  onAnalyze,
+  onViewSubtitle,
+  onViewComments,
   onDeleteAnalysis,
   onRemove,
   selectionMode = false,
@@ -240,11 +240,11 @@ export function VideoCard({
         
         {/* Action Buttons */}
         {!selectionMode && (
-          <div className="mt-auto pt-3 grid grid-cols-3 gap-2">
+          <div className="mt-auto pt-3 flex gap-2">
               <Button
                 size="sm"
                 variant="outline"
-                className="h-8 text-[11px] px-1"
+                className="flex-1 h-8 text-[11px] px-2"
                 onClick={(e) => { e.stopPropagation(); onAnalyze?.(video); }}
               >
                 AI 분석
@@ -252,7 +252,7 @@ export function VideoCard({
               <Button
                 size="sm"
                 variant="secondary"
-                className="h-8 text-[11px] px-1"
+                className="flex-1 h-8 text-[11px] px-2"
                 onClick={(e) => { e.stopPropagation(); onDownload?.({ id: video.id, title: video.title }); }}
               >
                 다운로드
@@ -260,7 +260,7 @@ export function VideoCard({
               <Button
                 size="sm"
                 variant="outline"
-                className="h-8 text-[11px] px-1"
+                className="flex-1 h-8 text-[11px] px-2"
                 onClick={(e) => { e.stopPropagation(); onViewSubtitle?.(video); }}
                 disabled={!video.subtitleText}
                 title={!video.subtitleText ? "자막 없음" : "자막 보기"}

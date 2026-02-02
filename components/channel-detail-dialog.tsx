@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChannelDetails } from "@/lib/youtube";
 import { Calendar, ExternalLink, Eye, FileVideo, Globe, Heart, Search, TrendingUp, User, Users } from "lucide-react";
@@ -141,9 +140,9 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
             </div>
 
             {/* Scrollable Content */}
-            <ScrollArea className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               <div className="p-6 space-y-8">
-                 
+
                  {/* Recent Videos Chart */}
                  <div>
                    <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-100 mb-4">
@@ -219,12 +218,17 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
                    </div>
                  )}
               </div>
-            </ScrollArea>
+            </div>
 
             {/* Footer Action */}
-            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 shrink-0 flex gap-3">
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 shrink-0 flex gap-3 relative z-10">
                <Button
-                 onClick={() => window.open(`https://youtube.com/channel/${details.id}`, '_blank')}
+                 type="button"
+                 onClick={(e) => {
+                   e.preventDefault();
+                   e.stopPropagation();
+                   window.open(`https://youtube.com/channel/${details.id}`, '_blank');
+                 }}
                  variant="outline"
                  className="h-11 text-sm font-semibold px-4"
                >
@@ -232,7 +236,12 @@ export function ChannelDetailDialog({ channelId, isOpen, onClose, onLoadToSearch
                  채널 바로가기
                </Button>
                <Button
-                 onClick={() => onLoadToSearch(details.id, details.title)}
+                 type="button"
+                 onClick={(e) => {
+                   e.preventDefault();
+                   e.stopPropagation();
+                   onLoadToSearch(details.id, details.title);
+                 }}
                  variant="danger"
                  className="flex-1 h-11 text-sm font-semibold"
                >

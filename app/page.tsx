@@ -13,6 +13,7 @@ import { DownloadDialog } from '@/components/download-dialog';
 import { AnalysisDialog } from '@/components/analysis-dialog';
 import { SubtitleDialog } from '@/components/subtitle-dialog';
 import { CommentsDialog } from '@/components/comments-dialog';
+import { FootageSearchDialog } from '@/components/footage-search-dialog';
 import { EnrichedVideo, VideoSearchFilters, YouTubeComment } from '@/lib/youtube';
 import { SavedChannel } from '@/lib/storage';
 import { AnalyzedVideo } from '@/lib/ai';
@@ -124,6 +125,10 @@ export default function Home() {
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [comments, setComments] = useState<YouTubeComment[]>([]);
   const [isCommentsLoading, setIsCommentsLoading] = useState(false);
+
+  // Footage Search State (direct subtitle input)
+  const [footageSubtitleInput, setFootageSubtitleInput] = useState('');
+  const [isFootageSearchOpen, setIsFootageSearchOpen] = useState(false);
 
   // Channel Details State
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
@@ -538,6 +543,14 @@ export default function Home() {
               <Download className="mr-2 h-4 w-4" />
               다운로드
             </Button>
+            <Button
+              variant={activeTab === 'footage_search' ? 'secondary' : 'ghost'}
+              className="w-full justify-start"
+              onClick={() => setActiveTab('footage_search')}
+            >
+              <FileVideo className="mr-2 h-4 w-4" />
+              자료화면 검색
+            </Button>
           </nav>
         </ScrollArea>
         <div className="p-4 border-t">
@@ -552,7 +565,7 @@ export default function Home() {
       <main className="flex-1 min-w-0 flex flex-col relative bg-slate-50 dark:bg-slate-900">
         <header className="h-16 border-b bg-white dark:bg-slate-950 flex items-center justify-between px-6 shrink-0 z-20">
           <h2 className="text-lg font-semibold capitalize">
-            {activeTab === 'search' ? '영상 검색' : activeTab === 'channel_search' ? '채널 검색' : activeTab === 'channels' ? '관심 채널' : activeTab === 'trends' ? '트렌드 & 인사이트' : activeTab === 'analyzed' ? '분석 결과' : activeTab}
+            {activeTab === 'search' ? '영상 검색' : activeTab === 'channel_search' ? '채널 검색' : activeTab === 'channels' ? '관심 채널' : activeTab === 'trends' ? '트렌드 & 인사이트' : activeTab === 'analyzed' ? '분석 결과' : activeTab === 'footage_search' ? '자료화면 검색' : activeTab}
           </h2>
           <div className="flex items-center gap-4">
             <div className="text-sm text-slate-500">
@@ -650,6 +663,41 @@ export default function Home() {
               activeDownloads={activeDownloads}
             />
           )}
+          {activeTab === 'footage_search' && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">자막 입력</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        자료화면을 찾고 싶은 자막을 입력하세요. 각 줄마다 적합한 이미지/영상을 추천해드립니다.
+                      </p>
+                      <textarea
+                        className="w-full min-h-[300px] p-4 border rounded-lg resize-y font-mono text-sm"
+                        placeholder="자막을 입력하세요. 예:&#10;&#10;어느날 GPT가&#10;포켓몬을 '클리어'했다는&#10;소식이 올라옴&#10;그런데 경우의 수가&#10;우주의 원자&#10;개수보다 많다는&#10;바둑도 정복한 마당에"
+                        value={footageSubtitleInput}
+                        onChange={(e) => setFootageSubtitleInput(e.target.value)}
+                      />
+                    </div>
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      onClick={() => {
+                        if (footageSubtitleInput.trim()) {
+                          setIsFootageSearchOpen(true);
+                        }
+                      }}
+                      disabled={!footageSubtitleInput.trim()}
+                    >
+                      <FileVideo className="mr-2 h-5 w-5" />
+                      자료화면 검색
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </main>
 
@@ -709,6 +757,13 @@ export default function Home() {
         videoTitle={selectedVideoForComments?.title}
         isLoading={isCommentsLoading}
       />
+
+      <FootageSearchDialog
+        isOpen={isFootageSearchOpen}
+        onClose={() => setIsFootageSearchOpen(false)}
+        videoTitle="직접 입력한 자막"
+        subtitleText={footageSubtitleInput}
+      />
     </div>
   );
 }
@@ -719,12 +774,12 @@ interface BatchProps {
   onCancel: (jobId: string) => void;
 }
 
-function SearchSection({ 
-  savedChannelIds, 
-  onToggleSave, 
-  onDownload, 
-  onAnalyze, 
-  onViewSubtitle, 
+function SearchSection({
+  savedChannelIds,
+  onToggleSave,
+  onDownload,
+  onAnalyze,
+  onViewSubtitle,
   onViewComments,
   isSelectionMode,
   selectedVideoIds,

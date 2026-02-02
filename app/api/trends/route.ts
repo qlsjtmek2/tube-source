@@ -81,6 +81,7 @@ export async function GET(req: NextRequest) {
         commentCount,
         duration: video.contentDetails?.duration || '',
         caption: video.contentDetails?.caption === 'true',
+        creativeCommons: false, // 트렌드 영상은 대부분 CC 라이선스 아님
 
         subscriberCount,
         channelVideoCount: Number(channel?.statistics?.videoCount) || 0,
