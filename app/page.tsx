@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Youtube, Download, BarChart2, List, Settings, Loader2, Trash2, ExternalLink, TrendingUp, Sparkles, Layers, User, FileVideo, Music, Tag, Plus, FolderOpen, MoreVertical, LayoutGrid, Check, X, FileText, Printer } from 'lucide-react';
+import { Search, Youtube, Download, BarChart2, List, Settings, Loader2, Trash2, ExternalLink, TrendingUp, Sparkles, Layers, User, FileVideo, Music, Tag, Plus, FolderOpen, MoreVertical, LayoutGrid, Check, X, FileText, Printer, LogOut } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { VideoList } from '@/components/video-list';
@@ -47,8 +49,16 @@ export interface BatchJob {
 }
 
 export default function Home() {
+  const router = useRouter();
+  const supabase = createClient();
   const { setSelectedChannel } = useChannelSearch();
   const [activeTab, setActiveTab] = useState('search');
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh();
+  };
   const [savedChannels, setSavedChannels] = useState<SavedChannel[]>([]);
   const [selectedVideoForDownload, setSelectedVideoForDownload] = useState<{ id: string; title: string } | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string>('');
@@ -553,10 +563,14 @@ export default function Home() {
             </Button>
           </nav>
         </ScrollArea>
-        <div className="p-4 border-t">
+        <div className="p-4 border-t space-y-2">
           <Button variant="ghost" className="w-full justify-start">
             <Settings className="mr-2 h-4 w-4" />
             설정
+          </Button>
+          <Button variant="ghost" className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/10" onClick={handleLogout}>
+            <LogOut className="mr-2 h-4 w-4" />
+            로그아웃
           </Button>
         </div>
       </aside>
@@ -571,6 +585,9 @@ export default function Home() {
             <div className="text-sm text-slate-500">
               저장된 채널: <Badge variant="secondary">{savedChannels.length}</Badge>
             </div>
+            <Button variant="ghost" size="icon" onClick={handleLogout} title="로그아웃">
+              <LogOut className="h-5 w-5 text-slate-500" />
+            </Button>
           </div>
         </header>
 
@@ -2315,8 +2332,8 @@ function DownloadsSection({ onDownloadStart, activeDownloads }: {
   const [inputText, setInputText] = useState('');
 
   const extractUrls = (text: string) => {
-    // YouTube and TikTok Regex
-    const urlRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}|https?:\/\/(?:www\.|vm\.|vt\.)?tiktok\.com\/[^\s]+)(?:[^\s]*)/g;
+    // YouTube, TikTok and Reddit Regex
+    const urlRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}|https?:\/\/(?:www\.|vm\.|vt\.)?tiktok\.com\/[^\s]+|https?:\/\/(?:www\.)?reddit\.com\/r\/[\w-]+\/comments\/[\w-]+\/[^\s]*|https?:\/\/v\.redd\.it\/[\w-]+)(?:[^\s]*)/g;
     const matches = text.match(urlRegex);
     return matches ? Array.from(new Set(matches)) : [];
   };
@@ -2333,6 +2350,13 @@ function DownloadsSection({ onDownloadStart, activeDownloads }: {
       const tiktokMatch = url.match(/\/video\/(\d+)/);
       if (tiktokMatch) return tiktokMatch[1];
       return 'TikTok';
+    }
+
+    // Reddit
+    if (url.includes('reddit.com') || url.includes('v.redd.it')) {
+      const redditMatch = url.match(/comments\/([\w-]+)/) || url.match(/v\.redd\.it\/([\w-]+)/);
+      if (redditMatch) return redditMatch[1];
+      return 'Reddit';
     }
 
     return 'Video';
@@ -2360,7 +2384,7 @@ function DownloadsSection({ onDownloadStart, activeDownloads }: {
             <div className="relative flex-1">
               <Download className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
-                placeholder="유튜브 또는 틱톡 링크를 붙여넣으세요..."
+                placeholder="유튜브, 틱톡 또는 레딧 링크를 붙여넣으세요..."
                 className="pl-10 h-10"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}

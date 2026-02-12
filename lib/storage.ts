@@ -1,52 +1,10 @@
-import fs from 'fs/promises';
-import path from 'path';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { createClient as createBrowserClient } from './supabase';
 import { EnrichedVideo } from './youtube';
 import { AnalysisResult, AnalyzedVideo, ContextAnalysisResult } from './ai';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const CHANNELS_FILE = path.join(DATA_DIR, 'channels.json');
-const ANALYZED_VIDEOS_FILE = path.join(DATA_DIR, 'analyzed-videos.json');
-
-// Simple lock mechanism to prevent concurrent writes
-class Lock {
-  private promise: Promise<void> = Promise.resolve();
-
-  async acquire(): Promise<() => void> {
-    let release: () => void;
-    const nextPromise = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    const currentPromise = this.promise;
-    this.promise = currentPromise.then(() => nextPromise);
-    await currentPromise;
-    return release!;
-  }
-}
-
-const storageLock = new Lock();
-
-// 데이터 폴더 및 파일 초기화
-async function initStorage() {
-  try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-
-    // channels.json 초기화
-    try {
-      await fs.access(CHANNELS_FILE);
-    } catch {
-      await fs.writeFile(CHANNELS_FILE, JSON.stringify([], null, 2));
-    }
-
-    // analyzed-videos.json 초기화
-    try {
-      await fs.access(ANALYZED_VIDEOS_FILE);
-    } catch {
-      await fs.writeFile(ANALYZED_VIDEOS_FILE, JSON.stringify([], null, 2));
-    }
-  } catch (error) {
-    console.error('Storage Init Error:', error);
-  }
-}
+// 클라이언트가 주어지지 않으면 브라우저 클라이언트 생성 (Client Component용)
+const getClient = (supabase?: SupabaseClient) => supabase || createBrowserClient();
 
 export interface SavedChannel {
   channelId: string;
@@ -56,184 +14,194 @@ export interface SavedChannel {
   category?: string;
 }
 
-export async function getSavedChannels(): Promise<SavedChannel[]> {
-  await initStorage();
-  const data = await fs.readFile(CHANNELS_FILE, 'utf-8');
-  return JSON.parse(data);
+// ============= Channels Storage =============
+
+export async function getSavedChannels(userId: string, supabaseClient?: SupabaseClient): Promise<SavedChannel[]> {
+  const supabase = getClient(supabaseClient);
+  const { data, error } = await supabase
+    .from('saved_channels')
+    .select('*')
+    .eq('user_id', userId)
+    .order('added_at', { ascending: false });
+
+  if (error) {
+    console.error('getSavedChannels Error:', error);
+    return [];
+  }
+
+  return data.map(item => ({
+    channelId: item.channel_id,
+    channelTitle: item.channel_title,
+    thumbnail: item.thumbnail,
+    addedAt: item.added_at,
+    category: item.category,
+  }));
 }
 
-export async function saveChannel(channel: SavedChannel) {
-  const release = await storageLock.acquire();
-  try {
-    await initStorage();
-    const data = await fs.readFile(CHANNELS_FILE, 'utf-8');
-    const channels: SavedChannel[] = JSON.parse(data);
-    
-    const existingIndex = channels.findIndex(c => c.channelId === channel.channelId);
-    let updated: SavedChannel[];
+export async function saveChannel(userId: string, channel: SavedChannel, supabaseClient?: SupabaseClient) {
+  const supabase = getClient(supabaseClient);
+  
+  const { error } = await supabase
+    .from('saved_channels')
+    .upsert({
+      user_id: userId,
+      channel_id: channel.channelId,
+      channel_title: channel.channelTitle,
+      thumbnail: channel.thumbnail,
+      category: channel.category,
+    }, { onConflict: 'user_id,channel_id' });
 
-    if (existingIndex >= 0) {
-      // Update existing channel
-      const existing = channels[existingIndex];
-      channels[existingIndex] = { ...existing, ...channel };
-      updated = channels;
-    } else {
-      // Add new channel
-      updated = [...channels, channel];
-    }
-    
-    await fs.writeFile(CHANNELS_FILE, JSON.stringify(updated, null, 2));
-    return updated;
-  } finally {
-    release();
+  if (error) {
+    console.error('saveChannel Error:', error);
+    throw error;
   }
+  
+  return getSavedChannels(userId, supabase);
 }
 
-export async function removeChannel(channelId: string) {
-  const release = await storageLock.acquire();
-  try {
-    const data = await fs.readFile(CHANNELS_FILE, 'utf-8');
-    const channels: SavedChannel[] = JSON.parse(data);
-    const updated = channels.filter(c => c.channelId !== channelId);
-    await fs.writeFile(CHANNELS_FILE, JSON.stringify(updated, null, 2));
-    return updated;
-  } finally {
-    release();
+export async function removeChannel(userId: string, channelId: string, supabaseClient?: SupabaseClient) {
+  const supabase = getClient(supabaseClient);
+  const { error } = await supabase
+    .from('saved_channels')
+    .delete()
+    .eq('user_id', userId)
+    .eq('channel_id', channelId);
+
+  if (error) {
+    console.error('removeChannel Error:', error);
+    throw error;
   }
+  
+  return getSavedChannels(userId, supabase);
 }
 
 // ============= Analyzed Videos Storage =============
 
-// 모든 분석된 영상 목록 조회 (최근 분석 순)
-export async function getAnalyzedVideos(): Promise<AnalyzedVideo[]> {
-  await initStorage();
-  const data = await fs.readFile(ANALYZED_VIDEOS_FILE, 'utf-8');
-  const videos: AnalyzedVideo[] = JSON.parse(data);
+export async function getAnalyzedVideos(userId: string, supabaseClient?: SupabaseClient): Promise<AnalyzedVideo[]> {
+  const supabase = getClient(supabaseClient);
+  const { data, error } = await supabase
+    .from('analysis_results')
+    .select('*')
+    .eq('user_id', userId)
+    .order('analyzed_at', { ascending: false });
 
-  // 중복 제거: videoId가 같은 것 중 가장 최근 것만 유지
-  const uniqueVideos = videos.reduce((acc, video) => {
-    if (!video.videoId) return acc; // videoId 없으면 제외
-
-    const existing = acc.find(v => v.videoId === video.videoId);
-    if (!existing) {
-      acc.push(video);
-    } else {
-      // 더 최근 것으로 교체
-      const existingDate = new Date(existing.analyzedAt).getTime();
-      const currentDate = new Date(video.analyzedAt).getTime();
-      if (currentDate > existingDate) {
-        const index = acc.indexOf(existing);
-        acc[index] = video;
-      }
-    }
-    return acc;
-  }, [] as AnalyzedVideo[]);
-
-  // 최근 분석 순으로 정렬
-  return uniqueVideos.sort((a, b) =>
-    new Date(b.analyzedAt).getTime() - new Date(a.analyzedAt).getTime()
-  );
-}
-
-// 특정 영상의 분석 결과 조회
-export async function getAnalysis(videoId: string): Promise<AnalyzedVideo | null> {
-  const videos = await getAnalyzedVideos();
-  return videos.find(v => v.videoId === videoId) || null;
-}
-
-// 분석 결과 저장 또는 업데이트
-export async function saveAnalyzedVideo(
-  video: EnrichedVideo,
-  analysisResult: AnalysisResult
-): Promise<AnalyzedVideo[]> {
-  const release = await storageLock.acquire();
-  try {
-    await initStorage();
-    const data = await fs.readFile(ANALYZED_VIDEOS_FILE, 'utf-8');
-    const videos: AnalyzedVideo[] = JSON.parse(data);
-
-    // 중복 제거 (같은 videoId가 있으면 기존 항목 제거)
-    const filtered = videos.filter(v => v.videoId !== video.id);
-
-    // 새로운 분석 결과 추가
-    const analyzedVideo: AnalyzedVideo = {
-      type: 'single',
-      videoId: video.id,
-      title: video.title,
-      channelTitle: video.channelTitle,
-      channelId: video.channelId,
-      thumbnail: video.thumbnail,
-      viewCount: video.viewCount,
-      likeCount: video.likeCount || 0,
-      commentCount: video.commentCount || 0,
-      subscriberCount: video.subscriberCount,
-      engagementRate: video.engagementRate,
-      performanceRatio: video.performanceRatio,
-      duration: video.duration,
-      transcript: video.subtitleText,
-      caption: video.caption,
-      creativeCommons: video.creativeCommons,
-      analysisResult,
-      analyzedAt: new Date().toISOString(),
-    };
-
-    const updated = [analyzedVideo, ...filtered];
-    await fs.writeFile(ANALYZED_VIDEOS_FILE, JSON.stringify(updated, null, 2));
-    return updated;
-  } finally {
-    release();
+  if (error) {
+    console.error('getAnalyzedVideos Error:', error);
+    return [];
   }
+
+  return data.map(item => ({
+    type: item.type as 'single' | 'context',
+    videoId: item.video_id,
+    title: item.title,
+    channelTitle: item.channel_title,
+    channelId: item.channel_id,
+    thumbnail: item.thumbnail,
+    viewCount: item.metrics?.viewCount || 0,
+    likeCount: item.metrics?.likeCount || 0,
+    commentCount: item.metrics?.commentCount || 0,
+    subscriberCount: item.metrics?.subscriberCount || 0,
+    engagementRate: item.metrics?.engagementRate || 0,
+    performanceRatio: item.metrics?.performanceRatio || 0,
+    duration: item.metrics?.duration,
+    transcript: item.metrics?.transcript,
+    caption: item.metrics?.caption,
+    creativeCommons: item.metrics?.creativeCommons,
+    analysisResult: item.analysis_data,
+    analyzedAt: item.analyzed_at,
+  }));
+}
+
+export async function saveAnalyzedVideo(
+  userId: string,
+  video: EnrichedVideo,
+  analysisResult: AnalysisResult,
+  supabaseClient?: SupabaseClient
+): Promise<AnalyzedVideo[]> {
+  const supabase = getClient(supabaseClient);
+  
+  const { error } = await supabase
+    .from('analysis_results')
+    .upsert({
+      user_id: userId,
+      type: 'single',
+      video_id: video.id,
+      title: video.title,
+      channel_title: video.channelTitle,
+      channel_id: video.channelId,
+      thumbnail: video.thumbnail,
+      metrics: {
+        viewCount: video.viewCount,
+        likeCount: video.likeCount || 0,
+        commentCount: video.commentCount || 0,
+        subscriberCount: video.subscriberCount,
+        engagementRate: video.engagementRate,
+        performanceRatio: video.performanceRatio,
+        duration: video.duration,
+        transcript: video.subtitleText,
+        caption: video.caption,
+        creativeCommons: video.creativeCommons,
+      },
+      analysis_data: analysisResult,
+    }, { onConflict: 'user_id,video_id' });
+
+  if (error) {
+    console.error('saveAnalyzedVideo Error:', error);
+    throw error;
+  }
+  
+  return getAnalyzedVideos(userId, supabase);
 }
 
 export async function saveContextAnalysis(
+  userId: string,
   analysisResult: ContextAnalysisResult,
-  sourceVideos: EnrichedVideo[]
+  sourceVideos: EnrichedVideo[],
+  supabaseClient?: SupabaseClient
 ): Promise<AnalyzedVideo[]> {
-  const release = await storageLock.acquire();
-  try {
-    await initStorage();
-    const data = await fs.readFile(ANALYZED_VIDEOS_FILE, 'utf-8');
-    const videos: AnalyzedVideo[] = JSON.parse(data);
-
-    const reportId = `report-${Date.now()}`;
-    const firstVideo = sourceVideos[0];
-    
-    // Create a summary 'video' object representing the report
-    const analyzedReport: AnalyzedVideo = {
+  const supabase = getClient(supabaseClient);
+  const reportId = `report-${Date.now()}`;
+  const firstVideo = sourceVideos[0];
+  
+  const { error } = await supabase
+    .from('analysis_results')
+    .insert({
+      user_id: userId,
       type: 'context',
-      videoId: reportId,
+      video_id: reportId,
       title: `Context Report: ${sourceVideos.length} Videos Analysis`,
-      channelTitle: `Based on ${sourceVideos[0]?.channelTitle || 'Unknown'} etc.`,
-      channelId: 'report',
+      channel_title: `Based on ${firstVideo?.channelTitle || 'Unknown'} etc.`,
+      channel_id: 'report',
       thumbnail: firstVideo?.thumbnail || '',
-      viewCount: sourceVideos.reduce((acc, v) => acc + v.viewCount, 0),
-      likeCount: sourceVideos.reduce((acc, v) => acc + (v.likeCount || 0), 0),
-      commentCount: sourceVideos.reduce((acc, v) => acc + (v.commentCount || 0), 0),
-      subscriberCount: 0,
-      engagementRate: 0,
-      performanceRatio: 0,
-      analysisResult,
-      analyzedAt: new Date().toISOString(),
-    };
+      metrics: {
+        viewCount: sourceVideos.reduce((acc, v) => acc + v.viewCount, 0),
+        likeCount: sourceVideos.reduce((acc, v) => acc + (v.likeCount || 0), 0),
+        commentCount: sourceVideos.reduce((acc, v) => acc + (v.commentCount || 0), 0),
+      },
+      analysis_data: analysisResult,
+    });
 
-    const updated = [analyzedReport, ...videos];
-    await fs.writeFile(ANALYZED_VIDEOS_FILE, JSON.stringify(updated, null, 2));
-    return updated;
-  } finally {
-    release();
+  if (error) {
+    console.error('saveContextAnalysis Error:', error);
+    throw error;
   }
+  
+  return getAnalyzedVideos(userId, supabase);
 }
 
-// 분석 결과 삭제
-export async function deleteAnalyzedVideo(videoId: string): Promise<AnalyzedVideo[]> {
-  const release = await storageLock.acquire();
-  try {
-    const data = await fs.readFile(ANALYZED_VIDEOS_FILE, 'utf-8');
-    const videos: AnalyzedVideo[] = JSON.parse(data);
-    const updated = videos.filter(v => v.videoId !== videoId);
-    await fs.writeFile(ANALYZED_VIDEOS_FILE, JSON.stringify(updated, null, 2));
-    return updated;
-  } finally {
-    release();
+export async function deleteAnalyzedVideo(userId: string, videoId: string, supabaseClient?: SupabaseClient): Promise<AnalyzedVideo[]> {
+  const supabase = getClient(supabaseClient);
+  const { error } = await supabase
+    .from('analysis_results')
+    .delete()
+    .eq('user_id', userId)
+    .eq('video_id', videoId);
+
+  if (error) {
+    console.error('deleteAnalyzedVideo Error:', error);
+    throw error;
   }
+  
+  return getAnalyzedVideos(userId, supabase);
 }
+

@@ -1,58 +1,39 @@
-# Video Source Collector - Development Plan
+# 🚀 Video Source Collector: SaaS 로드맵 (VPS + GitHub Actions)
 
-> **Goal**: Build a personal YouTube analysis application for content creators.
-> **Tech Stack**: Next.js 14 (App Router), TypeScript, Tailwind CSS, Shadcn/UI, Local JSON Storage (Data Persistence), YouTube Data API v3, yt-dlp (Downloader), Google Gemini API (AI Analysis).
+## 🗓 Phase 1: 데이터베이스 및 인증 기반 구축 (Supabase)
+로컬 파일 의존성을 제거하고 클라우드 DB로 전환합니다.
+- [ ] **Supabase 스키마 설계**
+    - [ ] `profiles`: 유저 등급(FREE, PRO), API 사용량, 유저 정보
+    - [ ] `saved_channels`: 유저별 관심 채널 (RLS 적용)
+    - [ ] `analysis_results`: 유저별 분석 기록 및 AI 리포트 (RLS 적용)
+- [ ] **저장소 로직 리팩토링 (`lib/storage.ts`)**
+    - [ ] `fs` 기반 로컬 저장 로직 제거
+    - [ ] Supabase Client 연동 (조회/저장/삭제)
+- [ ] **사용자 인증 통합**
+    - [ ] Supabase Auth 설정 및 로그인 UI 구축
+    - [ ] Middleware를 통한 유저 세션 관리 및 페이지 보호
 
-## 📋 프로젝트 개요
-- **핵심 기능**: 고급 필터 검색, 영상/음원 다운로드, AI 기반 영상 전략 분석, 관심 채널 관리.
-- **대상**: 1인 크리에이터, 편집자, 콘텐츠 전략가.
+## 🐳 Phase 2: 도커라이징 및 VPS 환경 구축
+어느 환경에서나 동일하게 작동하는 서버 환경을 만듭니다.
+- [ ] **Dockerfile 작성**
+    - [ ] Node.js 20+ 및 yt-dlp, ffmpeg 설치 자동화
+- [ ] **Next.js 출력 최적화**
+    - [ ] `output: 'standalone'` 설정 (도커 빌드 최적화)
+- [ ] **스트리밍 다운로드 구현**
+    - [ ] 서버 디스크를 거치지 않고 브라우저로 직접 파이핑(Piping) 하도록 다운로드 API 수정
 
----
+## 🤖 Phase 3: GitHub Actions 자동 배포 (CI/CD)
+- [ ] **GitHub Actions 워크플로우(`deploy.yml`) 작성**
+    - [ ] 코드 푸시 시 Docker 이미지 빌드 및 Docker Hub/GitHub Registry 푸시
+    - [ ] SSH를 통해 VPS 접속 후 최신 이미지로 컨테이너 재시작
+- [ ] **인프라 보안 설정**
+    - [ ] GitHub Secrets에 배포용 비밀키(VPS IP, SSH Key, API Keys) 등록
+    - [ ] Nginx Reverse Proxy 및 HTTPS(Let's Encrypt) 설정
 
-## 🎯 Phase 1: 프로젝트 초기화 및 설정
-- [x] Next.js 프로젝트 초기화 (TypeScript, Tailwind, ESLint)
-- [x] Shadcn/UI 및 필수 컴포넌트 설치
-- [x] 필수 라이브러리 설치 (lucide-react, googleapis 등)
-- [x] 로컬 데이터 저장소 구조 설계 (data/channels.json)
-- [x] YouTube Data API v3 연동 설정
-
-## 🎯 Phase 2: 유튜브 검색 엔진 (Collector)
-- [x] YouTube 검색 API 연동 (조회수, 구독자 수 등 심화 지표 포함)
-- [x] 한국어 검색 UI 및 필터 구현 (기간, 길이, 정렬 등)
-- [x] 영상 카드 컴포넌트 제작 (성과도, 참여율 자동 계산)
-- [ ] 검색 결과 무한 스크롤 적용
-
-## 🎯 Phase 3: 관심 채널 관리 (Favorites)
-- [x] 채널 즐겨찾기 API 구현 (로컬 JSON 저장)
-- [x] 영상 카드에 '채널 저장' 버튼 추가
-- [x] '관심 채널' 탭 구현: 저장된 채널 목록 보기 및 영상 모아보기
-- [x] 특정 채널의 모든 영상 불러오기 기능
-- [x] 저장 채널 카테고리 분류 및 관리 기능 추가
-
-## 🎯 Phase 4: 다운로더 통합
-- [x] `yt-dlp` 환경 설정 및 연동
-- [x] MP4/MP3 선택 다운로드 API 구현
-- [x] 다운로드 진행률 표시 UI 구현
-- [x] 유튜브 링크 직접 입력 다운로드 기능 추가
-
-## 🎯 Phase 5: Gemini AI 전략 분석
-- [x] Google Gemini SDK 통합
-- [x] 영상 구성 및 전략 분석용 프롬프트 설계
-- [x] AI 분석 결과 리포트 UI (모달/사이드바)
-- [x] 다중 영상 맥락 분석 기능 (Batch/Context Analysis)
-
-## 🎯 Phase 6: AI Strategy Analysis
-- [x] Integrate Google Gemini SDK
-- [x] Design System Prompt for Video Analysis (Structure, Hook, Retention Strategy)
-- [x] Create "Analyze" button on Video Card
-- [x] Display Analysis Report (Modal or Sidebar)
-
-## 🎯 Phase 7: Trends & Dashboard
-- [x] Implement "Real-time Trends" Dashboard (Popular videos by category)
-- [x] Show "Trending Keywords" (implied via popular videos)
-- [x] Final UI Polish & Error Handling
-
----
-
-## 📊 Progress
-- **Status**: All Phases Complete! Application Ready for Use.
+## 💰 Phase 4: 수익화 기능 및 고도화
+- [ ] **구독 등급별 사용량 제한 (Quota)**
+    - [ ] FREE/PRO 등급별 API 호출 횟수 제한 로직 추가
+- [ ] **Stripe 결제 시스템 연동**
+    - [ ] 결제 완료 시 유저 등급 자동 업데이트
+- [ ] **배포 및 최종 검증**
+    - [ ] 전체 파이프라인 테스트 및 상용 배포

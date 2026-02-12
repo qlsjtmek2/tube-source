@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Video Source Collector** (또는 TubeSource)는 유튜브 및 TikTok 영상 분석 및 다운로드를 제공하는 개인용 콘텐츠 크리에이터 도구입니다.
+**Video Source Collector** (또는 TubeSource)는 유튜브, TikTok 및 레딧 영상 분석 및 다운로드를 제공하는 개인용 콘텐츠 크리에이터 도구입니다.
 
 - **Tech Stack**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Shadcn/UI
 - **External Services**: YouTube Data API v3, Google Gemini API (gemini-3-flash-preview), yt-dlp
 - **Data Storage**: Local JSON files (data/channels.json)
-- **Supported Platforms**: YouTube (검색, 분석, 다운로드), TikTok (다운로드 전용)
+- **Supported Platforms**: YouTube (검색, 분석, 다운로드), TikTok (다운로드 전용), Reddit (다운로드 전용)
 
 ## Common Commands
 
@@ -72,7 +72,7 @@ store/
 data/
   channels.json             # 저장된 채널 목록 (런타임에 자동 생성)
 
-downloads/                  # yt-dlp 다운로드 경로 (런타임에 자동 생성)
+downloads/                  # (사용되지 않음) 기존 로컬 다운로드 경로. 현재는 시스템 다운로드 폴더 사용.
 ```
 
 ### Core Data Flow
@@ -84,17 +84,18 @@ downloads/                  # yt-dlp 다운로드 경로 (런타임에 자동 �
    - `searchVideos()` fetches video IDs, video details, channel details in parallel
    - Returns `EnrichedVideo[]` with calculated metrics (engagementRate, performanceRatio)
 
-2. **Video Download Flow** (YouTube & TikTok)
+2. **Video Download Flow** (YouTube, TikTok & Reddit)
    - User clicks Download → `DownloadDialog` opens or uses Downloads tab
    - GET to `/api/download?url=...&format=mp4|mp3` (SSE stream)
    - Server spawns `yt-dlp` process via `lib/downloader.ts`
-   - **Platform Detection**: URL 패턴으로 YouTube/TikTok 자동 감지
+   - **Platform Detection**: URL 패턴으로 YouTube/TikTok/Reddit 자동 감지
      - YouTube: `youtube.com/watch?v=`, `youtu.be/`, `youtube.com/shorts/`
      - TikTok: `tiktok.com/@user/video/`, `vm.tiktok.com/`, `vt.tiktok.com/`
-   - **TikTok 특수 처리**: User-Agent 헤더 추가로 "Impersonate target not available" 오류 우회
+     - Reddit: `reddit.com/r/.../comments/.../`, `v.redd.it/...`
+   - **TikTok/Reddit 특수 처리**: User-Agent 헤더 추가로 오류 우회 및 호환성 확보
    - SSE events: `starting`, `title`, `progress`, `destination`, `completed`, `error`
    - UI에서 title 이벤트 수신 시 영상 제목으로 표시 업데이트
-   - Files saved to `downloads/` directory (파일명: 영상 제목)
+   - **Download Path**: Files saved to the system's "Downloads" directory (`~/Downloads`).
 
 3. **AI Analysis Flow**
    - User clicks Analyze → `AnalysisDialog` opens
@@ -405,8 +406,9 @@ See `.env.example` for template.
 - `yt-dlp` 출력 파싱 시 `--newline` 플래그가 필수 (줄바꿈 보장)
 - YouTube API의 `videos.list()`에서 id 배열을 전달할 때 `join(',')`보다 배열로 직접 전달하는 게 안전
 - Gemini API 응답은 항상 JSON으로 오지 않으므로 regex fallback 필요
-- `data/` 및 `downloads/` 폴더는 .gitignore에 포함 (런타임 생성)
+- `data/` 폴더는 .gitignore에 포함 (런타임 생성)
 - 기간 필터는 `publishedAfter`로 구현 (현재 시간 - N일을 ISO 8601 형식으로 계산)
+- **다운로드 경로**: 사용자 편의를 위해 프로젝트 내부 폴더 대신 시스템의 "다운로드" 폴더(`~/Downloads`)를 사용.
 
 ### Tailwind CSS 4 색상 문제
 - Tailwind CSS 4에서 `bg-red-600` 같은 기본 색상 클래스가 작동하지 않을 수 있음
@@ -492,11 +494,11 @@ See `.env.example` for template.
   - 완료/취소된 작업은 닫기 버튼으로 수동 제거
   - 작업 라벨로 어떤 분석인지 구분 가능
 
-### TikTok 다운로드 지원
-- **플랫폼 감지**: URL 패턴 매칭으로 YouTube/TikTok 자동 구분
+### TikTok/Reddit 다운로드 지원
+- **플랫폼 감지**: URL 패턴 매칭으로 YouTube/TikTok/Reddit 자동 구분
   - `cleanVideoUrl()` 함수로 URL 정규화 및 플랫폼별 처리
-- **TikTok User-Agent 우회**:
-  - 문제: yt-dlp의 `--impersonate` 기능이 macOS에서 "Impersonate target not available" 오류 발생
+- **User-Agent 우회**:
+  - 문제: yt-dlp의 `--impersonate` 기능이 macOS에서 오류 발생하거나 특정 사이트에서 호환성 문제 발생
   - 해결책: `--user-agent` 플래그로 Chrome 브라우저 헤더 직접 지정
   - User-Agent: `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36`
 - **코덱 선택**: H.264(avc1) 우선 선택 - Adobe Premiere Pro 호환성 보장
@@ -504,6 +506,7 @@ See `.env.example` for template.
 - **지원 URL 형식**:
   - YouTube: `youtube.com/watch?v=`, `youtu.be/`, `youtube.com/shorts/`
   - TikTok: `tiktok.com/@user/video/`, `vm.tiktok.com/`, `vt.tiktok.com/`
+  - Reddit: `reddit.com/r/.../comments/.../`, `v.redd.it/...`
 
 ### 채널 상세 정보 차트
 - **recharts 라이브러리 사용**: 최근 영상 조회수 추이 시각화

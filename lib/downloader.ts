@@ -1,8 +1,9 @@
 import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs/promises';
+import os from 'os';
 
-const DOWNLOADS_DIR = path.join(process.cwd(), 'downloads');
+const DOWNLOADS_DIR = path.join(os.homedir(), 'Downloads');
 
 export async function initDownloadsDir() {
   try {
@@ -55,6 +56,18 @@ function cleanVideoUrl(url: string): string {
     }
   }
 
+  // Reddit Patterns
+  const redditPatterns = [
+    /reddit\.com\/r\/[\w-]+\/comments\/[\w-]+\//,
+    /v\.redd\.it\/[\w-]+/,
+  ];
+
+  for (const pattern of redditPatterns) {
+    if (cleanUrl.match(pattern)) {
+      return cleanUrl;
+    }
+  }
+
   return cleanUrl;
 }
 
@@ -75,12 +88,15 @@ export function downloadVideo(options: DownloadOptions, onEvent: (event: Downloa
       '-o', outputPathTemplate,
       '--no-playlist',
       '--newline',
+      '--no-cache-dir',
+      '--user-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
     ];
 
-    // TikTok specific handling
-    if (url.includes('tiktok.com')) {
-      // Workaround for "Impersonate target not available" error
-      args.push('--user-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    // YouTube specific handling to bypass 403
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      args.push('--extractor-args', 'youtube:player-client=ios,web,web_embedded;player-js-version=actual');
+      args.push('--referer', 'https://www.youtube.com/');
+      args.push('--force-ipv4');
     }
 
     if (options.format === 'mp3') {

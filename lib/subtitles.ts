@@ -32,6 +32,11 @@ export async function extractSubtitle(videoId: string, lang: string): Promise<Su
       '-o', outputTemplate,     // 출력 경로
       '--no-warnings',          // 경고 메시지 숨김
       '--quiet',                // 불필요한 출력 숨김
+      '--no-cache-dir',
+      '--impersonate', 'chrome',
+      '--extractor-args', 'youtube:player-client=ios,web,web_embedded;player-js-version=actual',
+      '--referer', 'https://www.youtube.com/',
+      '--force-ipv4',
     ];
 
     const child = spawn('yt-dlp', args);

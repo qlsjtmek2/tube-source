@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { exec } from 'child_process';
 import path from 'path';
 import fs from 'fs/promises';
+import os from 'os';
 
 export async function POST() {
-  const downloadsDir = path.join(process.cwd(), 'downloads');
+  const downloadsDir = path.join(os.homedir(), 'Downloads');
   
   try {
     // 폴더가 없으면 생성

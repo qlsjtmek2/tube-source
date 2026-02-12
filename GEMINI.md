@@ -7,7 +7,7 @@ This file provides guidance to Gemini (or Claude Code) when working with code in
 **Video Source Collector** (또는 TubeSource)는 유튜브 영상 분석 및 다운로드를 제공하는 개인용 콘텐츠 크리에이터 도구입니다.
 
 - **Tech Stack**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Shadcn/UI
-- **External Services**: YouTube Data API v3, Google Gemini API (gemini-3-flash-preview), yt-dlp (TikTok 지원)
+- **External Services**: YouTube Data API v3, Google Gemini API (gemini-3-flash-preview), yt-dlp (TikTok 및 Reddit 지원)
 - **Data Storage**: Local JSON files (`data/channels.json`, `data/analyzed-videos.json`)
 
 ## Common Commands
@@ -32,7 +32,7 @@ npm run lint
 app/
   api/
     search/route.ts         # YouTube 검색 API (POST) - channelId 필터링 지원 (q가 없어도 동작)
-    download/route.ts       # yt-dlp 다운로드 API (POST) - YouTube 및 TikTok 지원
+    download/route.ts       # yt-dlp 다운로드 API (POST) - YouTube, TikTok, Reddit 지원
     analyze/route.ts        # Gemini AI 분석 API (POST)
     analyze/context/route.ts # 여러 영상 종합 맥락 분석 API (POST)
     analyzed-videos/route.ts # 분석된 영상 저장/조회 API (GET/POST/DELETE)
@@ -75,7 +75,7 @@ data/
   channels.json             # 저장된 채널 목록 (런타임에 자동 생성)
   analyzed-videos.json      # 저장된 AI 분석 결과 (런타임에 자동 생성)
 
-downloads/                  # yt-dlp 다운로드 경로 (런타임에 자동 생성)
+downloads/                  # (사용되지 않음) 기존 로컬 다운로드 경로. 현재는 시스템 다운로드 폴더 사용.
 ```
 
 ### Core Data Flow
@@ -115,9 +115,10 @@ downloads/                  # yt-dlp 다운로드 경로 (런타임에 자동 �
 
 5. **Download Flow**
    - User inputs URL → `app/page.tsx` (Download tab)
-   - URL Regex supports **YouTube** and **TikTok**.
+   - URL Regex supports **YouTube**, **TikTok**, and **Reddit**.
    - API call to `/api/download` → `lib/downloader.ts` → `yt-dlp` spawn.
    - Server-Sent Events (SSE) used for real-time progress updates.
+   - **Download Path**: Downloads are saved to the system's "Downloads" folder (`~/Downloads`).
 
 ## Code Conventions & Best Practices (2025)
 
