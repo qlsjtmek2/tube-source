@@ -163,3 +163,36 @@ export function downloadVideo(options: DownloadOptions, onEvent: (event: Downloa
     });
   });
 }
+
+/**
+ * 영상을 파일로 저장하지 않고 표준 출력(stdout)으로 스트리밍합니다.
+ * 주의: 포맷 제한이 있을 수 있으며(예: mp4 스트리밍), 병합 과정이 복잡할 수 있습니다.
+ */
+export function streamVideo(options: DownloadOptions) {
+  const rawUrl = options.url || `https://www.youtube.com/watch?v=${options.videoId}`;
+  const url = cleanVideoUrl(rawUrl);
+  
+  const args = [
+    url,
+    '-o', '-', // stdout으로 출력
+    '--no-playlist',
+    '--no-cache-dir',
+    '--user-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+  ];
+
+  if (url.includes('youtube.com') || url.includes('youtu.be')) {
+    args.push('--extractor-args', 'youtube:player-client=ios,web,web_embedded;player-js-version=actual');
+    args.push('--referer', 'https://www.youtube.com/');
+    args.push('--force-ipv4');
+  }
+
+  if (options.format === 'mp3') {
+    args.push('-x', '--audio-format', 'mp3', '--audio-quality', '0');
+  } else {
+    // 스트리밍을 위해서는 단일 포맷(보통 720p mp4)을 선택하는 것이 안정적임
+    args.push('-f', 'best[ext=mp4]/best');
+  }
+
+  return spawn('yt-dlp', args);
+}
+
