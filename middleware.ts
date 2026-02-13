@@ -34,11 +34,11 @@ export async function middleware(request: NextRequest) {
 
   // 보호된 경로 설정
   const isAuthPage = request.nextUrl.pathname.startsWith('/login');
-  const isApiAuthPage = request.nextUrl.pathname.startsWith('/api/auth');
+  const isApiRoute = request.nextUrl.pathname.startsWith('/api');
   const isMainPage = request.nextUrl.pathname === '/';
 
-  // 메인 페이지는 누구나 볼 수 있게 허용, 그 외의 인증이 필요한 페이지(예: 설정, 프로필 등)는 체크
-  if (!user && !isAuthPage && !isApiAuthPage && !isMainPage) {
+  // 메인 페이지, 로그인 페이지, API 라우트는 누구나 접근 가능 (API는 개별 라우트에서 인증 처리)
+  if (!user && !isAuthPage && !isApiRoute && !isMainPage) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);

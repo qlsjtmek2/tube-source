@@ -615,14 +615,25 @@ export default function Home() {
           <h2 className="text-lg font-semibold capitalize">
             {activeTab === 'search' ? '영상 검색' : activeTab === 'channel_search' ? '채널 검색' : activeTab === 'channels' ? '관심 채널' : activeTab === 'trends' ? '트렌드 & 인사이트' : activeTab === 'analyzed' ? '분석 결과' : activeTab === 'footage_search' ? '자료화면 검색' : activeTab}
           </h2>
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-slate-500">
-              저장된 채널: <Badge variant="secondary">{savedChannels.length}</Badge>
-            </div>
-            {user && (
-              <Button variant="ghost" size="icon" onClick={handleLogout} title="로그아웃">
-                <LogOut className="h-5 w-5 text-slate-500" />
-              </Button>
+          <div className="flex items-center gap-3">
+            {user ? (
+              <>
+                <div className="text-sm text-slate-500">
+                  저장된 채널: <Badge variant="secondary">{savedChannels.length}</Badge>
+                </div>
+                <Button variant="ghost" size="icon" onClick={handleLogout} title="로그아웃">
+                  <LogOut className="h-5 w-5 text-slate-500" />
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" onClick={() => router.push('/login')}>
+                  로그인
+                </Button>
+                <Button size="sm" style={{ backgroundColor: '#dc2626', color: 'white' }} onClick={() => router.push('/login')}>
+                  회원가입
+                </Button>
+              </>
             )}
           </div>
         </header>

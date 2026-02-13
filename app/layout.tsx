@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TubeSource - YouTube Strategy Collector",
-  description: "Analyze, collect, and strategize with YouTube videos.",
+  title: "TubeSource - 유튜브 콘텐츠 분석 도구",
+  description: "유튜브 영상 검색, AI 분석, 다운로드를 한 곳에서. 콘텐츠 크리에이터를 위한 전략 도구.",
 };
 
 export default function RootLayout({
@@ -25,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="ko">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
