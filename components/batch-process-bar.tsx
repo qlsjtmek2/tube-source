@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, CheckCircle2, XCircle, X, AlertCircle } from "lucide-react";
-import { BatchJob } from "@/app/page";
+import { BatchJob } from "@/lib/types";
 
 interface BatchProcessBarProps {
   job: BatchJob;

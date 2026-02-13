@@ -1,7 +1,7 @@
 "use client";
 
 import { BatchProcessBar } from "./batch-process-bar";
-import { BatchJob } from "@/app/page";
+import { BatchJob } from "@/lib/types";
 
 interface BatchProcessStackProps {
   jobs: BatchJob[];

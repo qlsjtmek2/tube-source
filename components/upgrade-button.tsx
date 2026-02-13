@@ -4,7 +4,6 @@ import { useState } from 'react';
 import * as PortOne from '@portone/browser-sdk/v2';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Loader2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast'; // 토스트 메시지용 (필요시 교체)
 
 export function UpgradeButton({ userEmail }: { userEmail: string }) {
   const [isProcessing, setIsProcessing] = useState(false);
