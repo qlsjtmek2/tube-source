@@ -9,7 +9,7 @@ This file provides guidance to Gemini (or Claude Code) when working with code in
 - **Tech Stack**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Shadcn/UI
 - **Database**: Supabase (PostgreSQL) + RLS 보안 적용
 - **Auth**: Supabase Auth (Email 로그인)
-- **Deployment**: 단일 VPS (Ubuntu 24.04 LTS) + Docker + GitHub Actions CI/CD
+- **Deployment**: Vultr VPS (Ubuntu 24.04 LTS, Seoul Region) + Docker + GitHub Actions CI/CD
 - **Payment**: Portone V2 (카카오페이, 네이버페이 등 국내 간편결제 지원)
 - **External Services**: YouTube Data API v3, Google Gemini API (gemini-3-flash-preview), yt-dlp
 
@@ -18,8 +18,9 @@ This file provides guidance to Gemini (or Claude Code) when working with code in
 1.  **로컬 JSON 탈피**: `data/*.json` 방식에서 Supabase 클라우드 DB로 전면 마이그레이션.
 2.  **인증 시스템 도입**: 유저별 데이터 격리를 위한 Supabase Auth 및 Middleware 구축.
 3.  **도커라이징**: `yt-dlp`와 `ffmpeg` 의존성을 포함한 Docker 환경 구축 및 빌드 최적화.
-4.  **CI/CD 자동화**: `git push` 시 Docker Hub를 거쳐 VPS로 자동 배포되는 파이프라인 구축.
-5.  **수익화 기반 마련**: Portone V2 연동 및 유저 등급(FREE/PRO)별 API Quota 시스템 구현.
+4.  **Vultr 클라우드 구축**: Vultr 서울 리전에 고성능 VPS 인스턴스를 생성하고 초기 환경(Docker, Nginx) 구축.
+5.  **CI/CD 자동화**: `git push` 시 Docker Hub를 거쳐 Vultr 서버로 자동 배포되는 파이프라인 구축.
+6.  **수익화 기반 마련**: Portone V2 연동 및 유저 등급(FREE/PRO)별 API Quota 시스템 구현.
 
 ## Architecture Overview
 

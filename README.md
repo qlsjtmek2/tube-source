@@ -46,5 +46,5 @@ npm run dev
 ## 🛠 Tech Stack
 - **Frontend**: Next.js 16 (App Router), TypeScript, Tailwind CSS 4, Shadcn/UI
 - **Backend**: Supabase (DB/Auth), Portone (Payment)
-- **Infra**: Ubuntu VPS, Docker, GitHub Actions
+- **Infra**: Vultr VPS (Seoul), Docker, GitHub Actions
 - **Tools**: yt-dlp, ffmpeg, Google Gemini AI
