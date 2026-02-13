@@ -65,17 +65,21 @@ export default function LoginForm() {
     setError(null);
     setSuccess(null);
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
     });
 
     if (error) {
       setError(translateError(error.message));
+      setLoading(false);
+    } else if (data.session) {
+      router.push('/');
+      router.refresh();
     } else {
       setSuccess('인증 메일을 발송했습니다. 이메일을 확인해주세요.');
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
