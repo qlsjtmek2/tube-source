@@ -62,15 +62,15 @@ export default function LoginPage() {
               <Youtube className="h-8 w-8 text-red-600" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold tracking-tight">Video Source Collector</CardTitle>
+          <CardTitle className="text-2xl font-bold tracking-tight">TubeSource 로그인</CardTitle>
           <CardDescription>
-            Enter your email and password to access your account
+            이메일과 비밀번호를 입력하여 서비스를 시작하세요
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4 text-left">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">이메일</Label>
               <Input
                 id="email"
                 type="email"
@@ -81,22 +81,23 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">비밀번호</Label>
               <Input
                 id="password"
                 type="password"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
             {error && (
-              <p className="text-sm font-medium text-red-600 dark:text-red-400">
+              <p className="text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/10 p-2 rounded">
                 {error}
               </p>
             )}
-            <Button type="submit" className="w-full bg-red-600 hover:bg-red-700" disabled={loading}>
-              {loading ? 'Processing...' : 'Sign In'}
+            <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 h-11 text-lg font-semibold" disabled={loading}>
+              {loading ? '로그인 중...' : '로그인'}
             </Button>
           </form>
         </CardContent>
@@ -107,13 +108,18 @@ export default function LoginPage() {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-white px-2 text-muted-foreground dark:bg-gray-950">
-                Or
+                또는
               </span>
             </div>
           </div>
-          <Button variant="outline" className="w-full" onClick={handleSignUp} disabled={loading}>
-            Create New Account
-          </Button>
+          <div className="w-full space-y-2">
+            <Button variant="outline" className="w-full h-11" onClick={handleSignUp} disabled={loading}>
+              새 계정 만들기
+            </Button>
+            <p className="text-[11px] text-center text-muted-foreground">
+              계정 만들기 클릭 시 입력하신 이메일로 인증 메일이 발송됩니다.
+            </p>
+          </div>
         </CardFooter>
       </Card>
     </div>

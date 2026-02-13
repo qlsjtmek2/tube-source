@@ -38,11 +38,21 @@ import { BatchJob } from '@/lib/types';
 export default function Home() {
   const router = useRouter();
   const supabase = createClient();
+  const [user, setUser] = useState<any>(null);
   const { setSelectedChannel } = useChannelSearch();
   const [activeTab, setActiveTab] = useState('search');
 
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    getUser();
+  }, [supabase]);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    setUser(null);
     router.push('/login');
     router.refresh();
   };
@@ -56,6 +66,12 @@ export default function Home() {
   const [bulkUrls, setBulkUrls] = useState<string[]>([]);
 
   const handleDownloadStart = (info: any) => {
+    if (!user) {
+      if (confirm('다운로드 기능은 로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?')) {
+        router.push('/login');
+      }
+      return;
+    }
     // Check if it's a single info or array of info
     const infoArray = Array.isArray(info) ? info : [info];
     
@@ -193,6 +209,12 @@ export default function Home() {
   }, []);
 
   const handleToggleSave = async (channel: any) => {
+    if (!user) {
+      if (confirm('채널 저장 기능은 로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?')) {
+        router.push('/login');
+      }
+      return;
+    }
     const isSaved = savedChannels.some(c => c.channelId === channel.channelId);
     const action = isSaved ? 'remove' : 'save';
     
@@ -237,6 +259,12 @@ export default function Home() {
   };
 
   const handleAnalyze = async (video: EnrichedVideo, forceRefresh = false) => {
+    if (!user) {
+      if (confirm('이 기능은 로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?')) {
+        router.push('/login');
+      }
+      return;
+    }
     setSelectedVideoForAnalysis(video);
     setIsAnalysisOpen(true);
     
@@ -319,6 +347,12 @@ export default function Home() {
   };
 
   const handleBatchAnalyze = async (videosToAnalyze: EnrichedVideo[], sourceLabel?: string) => {
+    if (!user) {
+      if (confirm('일괄 분석 기능은 로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?')) {
+        router.push('/login');
+      }
+      return;
+    }
     if (videosToAnalyze.length === 0) return;
 
     // 선택 모드 종료 및 선택 초기화
@@ -399,6 +433,12 @@ export default function Home() {
   };
 
   const handleContextAnalyze = async (videosToAnalyze: EnrichedVideo[]) => {
+    if (!user) {
+      if (confirm('맥락 분석 기능은 로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?')) {
+        router.push('/login');
+      }
+      return;
+    }
     if (videosToAnalyze.length === 0) return;
 
     setIsSelectionMode(false);
@@ -555,10 +595,17 @@ export default function Home() {
             <Settings className="mr-2 h-4 w-4" />
             설정
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/10" onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            로그아웃
-          </Button>
+          {user ? (
+            <Button variant="ghost" className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/10" onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              로그아웃
+            </Button>
+          ) : (
+            <Button variant="ghost" className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/10" onClick={() => router.push('/login')}>
+              <User className="mr-2 h-4 w-4" />
+              로그인
+            </Button>
+          )}
         </div>
       </aside>
 
@@ -572,9 +619,11 @@ export default function Home() {
             <div className="text-sm text-slate-500">
               저장된 채널: <Badge variant="secondary">{savedChannels.length}</Badge>
             </div>
-            <Button variant="ghost" size="icon" onClick={handleLogout} title="로그아웃">
-              <LogOut className="h-5 w-5 text-slate-500" />
-            </Button>
+            {user && (
+              <Button variant="ghost" size="icon" onClick={handleLogout} title="로그아웃">
+                <LogOut className="h-5 w-5 text-slate-500" />
+              </Button>
+            )}
           </div>
         </header>
 

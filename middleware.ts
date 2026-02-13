@@ -32,12 +32,13 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // 보호된 경로 설정 (메인 페이지 등)
+  // 보호된 경로 설정
   const isAuthPage = request.nextUrl.pathname.startsWith('/login');
   const isApiAuthPage = request.nextUrl.pathname.startsWith('/api/auth');
+  const isMainPage = request.nextUrl.pathname === '/';
 
-  if (!user && !isAuthPage && !isApiAuthPage) {
-    // 유저가 없고 로그인 페이지가 아니면 로그인으로 리다이렉트
+  // 메인 페이지는 누구나 볼 수 있게 허용, 그 외의 인증이 필요한 페이지(예: 설정, 프로필 등)는 체크
+  if (!user && !isAuthPage && !isApiAuthPage && !isMainPage) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
