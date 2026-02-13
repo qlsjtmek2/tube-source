@@ -40,14 +40,14 @@ jobs:
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/video-source-collector:latest
             docker stop video-source-collector || true
             docker rm video-source-collector || true
-            docker run -d 
-              --name video-source-collector 
-              -p 3000:3000 
-              -e NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }} 
-              -e NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }} 
-              -e SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }} 
-              -e YOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }} 
-              -e GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }} 
-              --restart always 
+            docker run -d \
+              --name video-source-collector \
+              -p 3000:3000 \
+              -e NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }} \
+              -e NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }} \
+              -e SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }} \
+              -e YOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }} \
+              -e GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }} \
+              --restart always \
               ${{ secrets.DOCKERHUB_USERNAME }}/video-source-collector:latest
             docker image prune -f
