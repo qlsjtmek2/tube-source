@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analyzeMultipleVideosContext } from '@/lib/ai';
+import { analyzeContextStrategy } from '@/lib/ai';
 import { createClient } from '@/lib/supabase-server';
 import { getQuotaConfig } from '@/lib/quota';
 
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Videos array is required' }, { status: 400 });
     }
 
-    const analysis = await analyzeMultipleVideosContext(videos);
+    const analysis = await analyzeContextStrategy(videos);
     
     return NextResponse.json({ analysis });
   } catch (error: any) {
